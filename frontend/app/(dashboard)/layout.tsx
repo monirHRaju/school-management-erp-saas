@@ -26,8 +26,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <p className="text-zinc-500">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -37,12 +37,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <aside className="w-56 shrink-0 border-r border-sidebar-border bg-sidebar">
         <div className="flex h-full flex-col">
-          <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
-            <Link href="/dashboard" className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          <div className="border-b border-sidebar-border p-4">
+            <Link href="/dashboard" className="text-lg font-semibold text-sidebar-foreground">
               {school?.name || 'School'}
             </Link>
           </div>
@@ -55,8 +55,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={href}
                   className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50'
-                      : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50'
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   }`}
                 >
                   {label}
@@ -68,21 +68,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main */}
-      <div className="flex flex-1 flex-col min-w-0">
-        <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 border-b border-border bg-card">
           <div className="flex h-14 items-center justify-between px-4">
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
+            <div className="text-sm text-muted-foreground">
               {pathname === '/dashboard' ? 'Dashboard' : pathname.split('/').slice(2).join(' / ') || 'Dashboard'}
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="text-sm text-foreground">
                 {user?.name}
-                <span className="ml-1 text-zinc-400 dark:text-zinc-500">({user?.role})</span>
+                <span className="ml-1 text-muted-foreground">({user?.role})</span>
               </span>
               <button
                 type="button"
                 onClick={logout}
-                className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                className="text-sm text-muted-foreground hover:text-foreground"
               >
                 Log out
               </button>
