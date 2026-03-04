@@ -10,7 +10,7 @@ const router = express.Router();
 // POST /api/auth/register — create school + admin user
 router.post('/register', async (req, res) => {
   try {
-    const { schoolName, slug, contact, name, email, password } = req.body;
+    const { schoolName, slug, contact, name, email, password, phone, subscription_plan } = req.body;
     if (!schoolName || !slug || !name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -25,12 +25,14 @@ router.post('/register', async (req, res) => {
       name: schoolName.trim(),
       slug: slug.trim().toLowerCase(),
       contact: contact ? contact.trim() : undefined,
+      subscription_plan: (subscription_plan || 'free').toLowerCase(),
     });
     const user = await User.create({
       school_id: school._id,
       email: email.trim().toLowerCase(),
       passwordHash: password,
       name: name.trim(),
+      phone: phone ? phone.trim() : undefined,
       role: 'admin',
     });
     const token = jwt.sign(

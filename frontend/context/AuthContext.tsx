@@ -17,6 +17,8 @@ interface AuthContextValue {
     schoolName: string;
     slug: string;
     contact?: string;
+    phone?: string;
+    subscription_plan?: string;
     name: string;
     email: string;
     password: string;
@@ -92,6 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       schoolName: string;
       slug: string;
       contact?: string;
+      phone?: string;
+      subscription_plan?: string;
       name: string;
       email: string;
       password: string;

@@ -9,6 +9,8 @@ export default function RegisterPage() {
   const [schoolName, setSchoolName] = useState('');
   const [slug, setSlug] = useState('');
   const [contact, setContact] = useState('');
+  const [phone, setPhone] = useState('');
+  const [subscriptionPlan, setSubscriptionPlan] = useState<'free' | 'pro'>('free');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +26,8 @@ export default function RegisterPage() {
         schoolName: schoolName.trim(),
         slug: slug.trim().toLowerCase(),
         contact: contact.trim() || undefined,
+        phone: phone.trim() || undefined,
+        subscription_plan: subscriptionPlan,
         name: name.trim(),
         email: email.trim(),
         password,
@@ -80,6 +84,33 @@ export default function RegisterPage() {
             onChange={(e) => setContact(e.target.value)}
             className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           />
+        </div>
+        <div>
+          <label htmlFor="phone" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Admin phone
+          </label>
+          <input
+            id="phone"
+            type="tel"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+        </div>
+        <div>
+          <label htmlFor="subscriptionPlan" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Subscription plan
+          </label>
+          <select
+            id="subscriptionPlan"
+            value={subscriptionPlan}
+            onChange={(e) => setSubscriptionPlan(e.target.value as 'free' | 'pro')}
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            <option value="free">Free (up to 50 students)</option>
+            <option value="pro">Pro (unlimited students)</option>
+          </select>
         </div>
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
