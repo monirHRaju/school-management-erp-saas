@@ -1,6 +1,6 @@
 # School Management SaaS — Project Roadmap
 
-> A simple, multi-tenant School Management SaaS for small private schools in Bangladesh.  
+> An **intermediate-level**, multi-tenant School Management SaaS for small private schools in Bangladesh.  
 > **Stack:** Next.js (App Router) + TypeScript | Express.js + MongoDB | JWT | Vercel + Render/Railway
 
 ---
@@ -10,45 +10,36 @@
 1. [Project Overview](#1-project-overview)
 2. [Product Vision](#2-product-vision)
 3. [Target Users](#3-target-users)
-4. [Core Features (MVP Only)](#4-core-features-mvp-only)
+4. [Core Features (MVP)](#4-core-features-mvp)
 5. [Future Features (Phase 2+)](#5-future-features-phase-2)
 6. [Technical Architecture Overview](#6-technical-architecture-overview)
 7. [Folder Structure](#7-folder-structure)
 8. [Database Design Overview](#8-database-design-overview)
-9. [API Module Breakdown](#9-api-module-breakdown)
-10. [Step-by-Step Development Roadmap](#10-step-by-step-development-roadmap)
-11. [Git Commit Strategy](#11-git-commit-strategy)
-12. [Development Phases](#12-development-phases)
-13. [Suggested Order of Implementation](#13-suggested-order-of-implementation)
-14. [SaaS Multi-Tenant Strategy](#14-saas-multi-tenant-strategy)
-15. [Subscription-Ready Architecture Planning](#15-subscription-ready-architecture-planning)
-16. [Environment Variables](#16-environment-variables)
-17. [Deployment Plan Overview](#17-deployment-plan-overview)
+9. [System Flow](#9-system-flow)
+10. [Page Structure (Frontend Navigation)](#10-page-structure-frontend-navigation)
+11. [API Module Breakdown](#11-api-module-breakdown)
+12. [Step-by-Step Development Roadmap](#12-step-by-step-development-roadmap)
+13. [Git Commit Strategy](#13-git-commit-strategy)
+14. [Development Phases](#14-development-phases)
+15. [Suggested Order of Implementation](#15-suggested-order-of-implementation)
+16. [SaaS Multi-Tenant Strategy](#16-saas-multi-tenant-strategy)
+17. [Subscription Structure](#17-subscription-structure)
+18. [Environment Variables](#18-environment-variables)
+19. [Deployment Plan Overview](#19-deployment-plan-overview)
 
-### Module quick reference
+### Module quick reference (7 main modules)
 
 | # | Module | Objective |
 |---|--------|-----------|
-| 1 | Project Setup | Two runnable apps (Next.js + Express) and base tooling. |
-| 2 | Backend Auth System | Register and login with JWT; school + user creation. |
-| 3 | Frontend Auth UI | Login/register pages; token storage; protected routes. |
-| 4 | Dashboard Layout and Home | Authenticated dashboard shell and placeholder home. |
-| 5 | Student CRUD Backend | Full student API scoped by school_id. |
-| 6 | Student Management UI | List, add, edit, delete students in dashboard. |
-| 7 | Fee Types and Assignments Backend | Define fee types; assign fees to students. |
-| 8 | Fee Payments Backend | Record payments against assignments. |
-| 9 | Fee Management UI | Fee types, assignments, and payment UI. |
-| 10 | Attendance Backend | Daily attendance API (bulk submit, query). |
-| 11 | Attendance UI | Mark and view attendance from dashboard. |
-| 12 | Income/Expense Backend | Simple ledger API (income/expense entries). |
-| 13 | Income/Expense UI | Add and list income/expense entries. |
-| 14 | Dashboard Stats API | Aggregated stats for dashboard cards. |
-| 15 | Dashboard Home UI | Real stats and mobile-friendly dashboard home. |
-| 16 | User Management Backend | CRUD users within a school (admin). |
-| 17 | User Management UI & Settings | Settings page: users and school profile. |
-| 18 | Error Handling and Validation | Consistent API errors and validation. |
-| 19 | Deployment Preparation | CORS, env config, production readiness. |
-| 20 | Deploy to Vercel and Render/Railway | Live frontend and backend. |
+| 1 | Authentication & School Setup | School registration (name, admin, email, password, phone, subscription plan); login (email + password, JWT, role Admin); later Teacher. |
+| 2 | Dashboard | One-screen overview: total students, today’s attendance %, month income/expense, net balance, total due fees, recent transactions (5), recent payments (5). |
+| 3 | Student Management | Add/edit/delete students; search; filter by class/section; full fields (guardian phone, monthly fee, admission date, status). |
+| 4 | Attendance Management | Daily attendance (date, class filter, present/absent); attendance report (monthly view, per-student %); export (future). |
+| 5 | Fee & Due Management | Monthly fee generation per student; record payment (auto income transaction); due list (unpaid/partial, filters, summary). |
+| 6 | Income–Expense (Finance) | Add income/expense with categories; monthly finance summary (total income, expense, net balance, list). |
+| 7 | Reports | Monthly collection report; income vs expense (month-wise); attendance summary; visual, not complex tables. |
+
+*Phase 0 (foundation) is already in place: project setup, backend auth, frontend auth, dashboard layout.*
 
 ---
 
@@ -56,20 +47,20 @@
 
 | Item | Description |
 |------|-------------|
-| **Product** | Multi-tenant School Management SaaS |
-| **Scope** | Fee management, attendance, simple income/expense tracking |
-| **Philosophy** | Operational and clean — not a full ERP; no advanced accounting |
+| **Product** | Multi-tenant School Management SaaS (intermediate level) |
+| **Scope** | Monthly fee generation, due management, attendance, income/expense with categories, dashboard metrics, simple reports |
+| **Philosophy** | Operational and clean — not a full ERP; no advanced accounting; everything connected (student → fee → payment → income → dashboard) |
 | **Deployment** | Frontend: Vercel \| Backend: Render or Railway \| DB: MongoDB Atlas |
-| **Auth** | JWT-based authentication |
+| **Auth** | JWT-based authentication (email + password); role: Admin (MVP), later Teacher |
 | **Tenancy** | Data isolation per school via `school_id` |
 
 ---
 
 ## 2. Product Vision
 
-- **Primary:** Give small private schools in Bangladesh a single, affordable tool to manage students, fees, attendance, and basic finances.
-- **Experience:** Mobile-friendly dashboard, minimal training, clear workflows.
-- **Growth path:** Start with MVP (schools, users, students, fees, attendance, simple ledger); later add reports, SMS/notifications, and optional subscription tiers.
+- **Primary:** Give small private schools in Bangladesh a single, affordable tool to manage students, monthly fees, due list, attendance, and basic finances.
+- **Experience:** One-screen dashboard, monthly fee engine, record payment → auto income transaction, due list with filters, monthly finance summary, simple visual reports; mobile-friendly.
+- **Growth path:** Start with 7 modules (auth, dashboard, students, attendance, fee & due, finance, reports); later add Teacher role, SMS, parent portal, subscription enforcement (Free 50 students / Pro unlimited).
 
 ---
 
@@ -77,34 +68,35 @@
 
 | Role | Description |
 |------|-------------|
-| **School Admin** | Owner/principal; manages school profile, staff, and global settings. |
-| **Staff / Teacher** | Marks attendance; may have limited access to students and fees. |
-| **Accountant / Office** | Fee collection, income/expense entries, basic reports. |
+| **School Admin** | Owner/principal; MVP role; manages school profile, subscription, and global settings. |
+| **Teacher** | Later: mark attendance; limited access to students/fees. |
 | **Parent** (future) | View child’s attendance and fee status (Phase 2+). |
 
 ---
 
-## 4. Core Features (MVP Only)
+## 4. Core Features (MVP)
 
-- **School & tenant management** — Register school, basic profile, `school_id` for all data.
-- **Authentication** — Sign up, login, JWT; role per user (admin, staff, accountant).
-- **User management** — CRUD users scoped to a school; assign roles.
-- **Student management** — CRUD students; link to school; optional class/section.
-- **Fee management** — Fee types (e.g. monthly, admission); assign to students; record payments; balance tracking.
-- **Attendance** — Daily attendance (present/absent) per student; filter by date, class.
-- **Simple income/expense** — Categories; add income/expense entries; school-scoped; no double-entry.
-- **Dashboard** — Summary cards (students, fees due, today’s attendance, recent income/expense); mobile-friendly layout.
+- **School registration** — School name, admin name, email, password, phone, subscription plan (default Free).
+- **Login** — Email + password, JWT; role Admin (MVP).
+- **Dashboard** — One screen: total students, today’s attendance %, this month total income, this month total expense, net balance, total due fees, recent transactions (last 5), recent payments (last 5).
+- **Student management** — Add, edit, delete, search, filter by class/section; fields: full name, class, section, roll, guardian name, guardian phone, monthly fee, admission date, status (active/inactive).
+- **Attendance** — Daily attendance page (select date, default today; filter by class; mark present/absent); attendance report (monthly view, per-student %); export (future).
+- **Fee & due management** — System auto-creates monthly fee record per student; record payment (select student + month, amount paid; auto due; on save → auto-create income transaction); due list page (unpaid/partial, filters: this month, overdue, class; summary: total due amount, number of unpaid students).
+- **Income–expense (Finance)** — Add income (date, category: Fee/Admission/Fine/Other, amount, note); add expense (date, category: Salary/Rent/Utility/Exam/Other, amount, note); monthly finance summary (select month → total income, total expense, net balance, list of transactions). Simple math: Net Balance = Total Income − Total Expense.
+- **Reports** — Monthly collection report (expected, collected, due); income vs expense (month-wise); attendance summary (monthly %). Visual, not complex tables.
+- **Settings** — Users and school profile (foundation).
 
 ---
 
 ## 5. Future Features (Phase 2+)
 
-- Parent portal (view attendance, fee status, receipts).
-- SMS/notification for fee reminders and attendance.
-- Reports: fee collection, defaulters, attendance summary, income/expense summary.
-- Class/section and academic year; bulk operations.
-- Subscription plans and usage-based limits (see [§15](#15-subscription-ready-architecture-planning)).
-- Optional: receipts/PDF, basic analytics, multi-branch support.
+- **Teacher role** — Mark attendance; limited access.
+- **Parent portal** — View attendance, fee status, receipts.
+- **SMS/notification** — Fee reminders, attendance (Pro plan).
+- **Advanced reports** — Pro plan.
+- **Export** — Attendance report, finance (e.g. CSV/PDF).
+- **Subscription enforcement** — Free: 50 students; Pro: unlimited (see [§17](#17-subscription-structure)).
+- **Optional:** receipts/PDF, basic analytics, multi-branch support.
 
 ---
 
@@ -157,27 +149,22 @@ frontend/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx               # Dashboard home
 │   │   ├── students/
-│   │   ├── fees/
 │   │   ├── attendance/
-│   │   ├── income-expense/
+│   │   ├── fees/                  # Fee & due list, record payment
+│   │   ├── finance/               # Income/expense, monthly summary
+│   │   ├── reports/               # Collection, income vs expense, attendance summary
 │   │   └── settings/
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
-│   ├── ui/                        # Reusable UI (buttons, inputs, cards)
-│   ├── layout/                   # Header, sidebar, footer
-│   ├── forms/                    # Shared form components
-│   └── features/                 # Feature-specific (e.g. StudentTable)
+│   ├── ui/
+│   ├── layout/
+│   ├── forms/
+│   └── features/
 ├── lib/
-│   ├── api.ts                    # API client (fetch wrapper)
-│   ├── auth.ts                   # Auth helpers, token storage
-│   └── utils.ts
-├── hooks/                         # Custom hooks
-├── types/                         # Shared TypeScript types
+├── hooks/
+├── types/
 ├── public/
-├── next.config.js
-├── tailwind.config.ts
-├── tsconfig.json
 └── package.json
 ```
 
@@ -189,33 +176,29 @@ backend/
 │   ├── config/
 │   │   └── db.js
 │   ├── middleware/
-│   │   ├── auth.js                # JWT verify
-│   │   └── tenant.js              # Attach school_id from token/body
+│   │   ├── auth.js
+│   │   └── tenant.js
 │   ├── models/
 │   │   ├── User.js
 │   │   ├── School.js
 │   │   ├── Student.js
-│   │   ├── FeeType.js
-│   │   ├── FeeAssignment.js
-│   │   ├── FeePayment.js
+│   │   ├── Fee.js                 # Monthly fee per student (total_fee, paid_amount, due_amount, status)
 │   │   ├── Attendance.js
-│   │   └── IncomeExpense.js
+│   │   └── Transaction.js        # Income/expense with category, related_fee_id optional
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── schools.js
 │   │   ├── users.js
 │   │   ├── students.js
-│   │   ├── fees.js
+│   │   ├── fees.js                # List, generate month, record payment (→ income tx)
 │   │   ├── attendance.js
-│   │   └── incomeExpense.js
-│   ├── controllers/               # Optional: keep handlers here
+│   │   ├── transactions.js
+│   │   └── dashboard.js
 │   ├── utils/
-│   │   └── errors.js
 │   ├── app.js
 │   └── server.js
 ├── .env.example
-├── package.json
-└── tsconfig.json (if using TS in backend)
+└── package.json
 ```
 
 ---
@@ -226,48 +209,81 @@ backend/
 
 ### Core Collections
 
-| Collection | Purpose | Key Fields (conceptual) |
-|------------|---------|--------------------------|
-| **schools** | Tenant; one per school | `name`, `slug`, `contact`, `settings`, `createdAt` |
-| **users** | Staff/admins; belong to a school | `school_id`, `email`, `passwordHash`, `role`, `name` |
-| **students** | Students per school | `school_id`, `name`, `guardianName`, `class`, `section`, `rollNo`, `status` |
-| **feetypes** | Fee definitions (e.g. Monthly, Admission) | `school_id`, `name`, `amount`, `frequency` |
-| **feeassignments** | Fee assigned to a student | `school_id`, `student_id`, `feetype_id`, `amount`, `dueDate`, `academicPeriod` |
-| **feepayments** | Payment against an assignment | `school_id`, `assignment_id`, `amount`, `paidAt`, `method`, `reference` |
+| Collection | Purpose | Key Fields |
+|------------|---------|------------|
+| **schools** | Tenant; one per school | `name`, `email` (optional school-level contact), `subscription_plan`, `subscription_expiry`, `created_at` |
+| **users** | Staff/admins; belong to a school | `school_id`, `email`, `password_hash`, `name`, `phone`, `role` (Admin MVP; later Teacher) |
+| **students** | Students per school | `school_id`, `name`, `class`, `section`, `roll`, `guardian_name`, `guardian_phone`, `monthly_fee`, `admission_date`, `status` (active/inactive), `created_at` |
 | **attendance** | Daily attendance records | `school_id`, `student_id`, `date`, `status` (present/absent) |
-| **incomeexpense** | Simple ledger entries | `school_id`, `type` (income/expense), `category`, `amount`, `date`, `description` |
+| **fees** | One document per student per month | `school_id`, `student_id`, `month` (e.g. YYYY-MM), `total_fee`, `paid_amount`, `due_amount`, `status` (paid/partial/unpaid), `created_at` |
+| **transactions** | Income/expense ledger | `school_id`, `type` (income/expense), `category`, `amount`, `date`, `note`, `related_fee_id` (optional, for fee payments) |
 
-- **Indexes:** `school_id` (and often `school_id + date`, `school_id + student_id`, etc.) on every tenant-scoped collection.
-- **No advanced accounting:** Single-entry style; income and expense are separate document types or a `type` field.
+- **Indexes:** `school_id` (and often `school_id + date`, `school_id + student_id`, `school_id + month`, etc.) on every tenant-scoped collection.
+- **Monthly fee generation:** A job or on-demand endpoint creates/updates `fees` documents per active student per month from `students.monthly_fee`. Recording a payment updates the corresponding `fees` document (`paid_amount`, `due_amount`, `status`) and creates an income `Transaction` with `category: 'Fee'` and `related_fee_id` set.
+
+**Transaction categories:**
+
+- **Income:** Fee, Admission, Fine, Other  
+- **Expense:** Salary, Rent, Utility, Exam, Other  
 
 ---
 
-## 9. API Module Breakdown
+## 9. System Flow
+
+- **Student added** → School creates/edits student with `monthly_fee`, `admission_date`, etc.
+- **Monthly fee generated** → System creates or updates a `fees` document per active student per month from `students.monthly_fee`.
+- **Payment recorded** → User selects student + month, enters amount; backend updates the `fees` document (`paid_amount`, `due_amount`, `status`) and **auto-creates** an income `Transaction` (category Fee, `related_fee_id` set).
+- **Dashboard and monthly summary updated** → Stats (total due, this month income/expense, net balance) and lists (recent transactions, recent payments) reflect the new data.
+
+```mermaid
+flowchart LR
+  StudentAdded --> MonthlyFee
+  MonthlyFee --> Payment
+  Payment --> IncomeTx
+  IncomeTx --> Dashboard
+```
+
+---
+
+## 10. Page Structure (Frontend Navigation)
+
+- **Dashboard** — Single screen with all metrics and recent lists.
+- **Students** — List, search, filter (class/section), add/edit/delete.
+- **Attendance** — Daily page (date, class filter, mark present/absent); report (monthly, per-student %).
+- **Fees** — Due list (filters, summary); record payment; optional fee-generation trigger.
+- **Finance** — Add income/expense (category, amount, date, note); monthly finance summary.
+- **Reports** — Monthly collection; income vs expense; attendance summary.
+- **Settings** — School profile, users (foundation).
+
+Layout: clean sidebar for desktop; mobile uses a drawer (already implemented). Nav labels can match the above (Dashboard, Students, Attendance, Fees, Finance, Reports, Settings).
+
+---
+
+## 11. API Module Breakdown
 
 | Module | Base Path | Purpose |
 |--------|-----------|--------|
-| Auth | `/api/auth` | Register, login, refresh; returns JWT and user/school info. |
-| Schools | `/api/schools` | CRUD school (create during signup); get current school. |
+| Auth | `/api/auth` | Register (school name, admin name, email, password, **phone**, **subscription_plan**); login; returns JWT and user/school info. |
+| Schools | `/api/schools` | CRUD school (create during signup); get current school; PATCH for `subscription_plan`, `subscription_expiry` if needed. |
 | Users | `/api/users` | CRUD users for current school; list by role. |
-| Students | `/api/students` | CRUD students; list with filters (class, section, status). |
-| Fee types | `/api/fee-types` | CRUD fee types. |
-| Fee assignments | `/api/fee-assignments` | Assign fee to student; list by student/class/period. |
-| Fee payments | `/api/fee-payments` | Record payment; list by assignment/date range. |
-| Attendance | `/api/attendance` | Submit daily attendance; get by date/class/student. |
-| Income/Expense | `/api/income-expense` | CRUD entries; list by date range, type, category. |
-| Dashboard | `/api/dashboard` | Aggregated stats (counts, due amounts, today’s attendance, recent transactions). |
+| Students | `/api/students` | CRUD students; list with search (name/roll) and filter (class, section); fields include `guardian_phone`, `monthly_fee`, `admission_date`, `status`. |
+| Fees | `/api/fees` | GET list (by school, month, student; for due list: status unpaid/partial, filters). POST pay: body student_id, month, amount; updates Fee; creates income Transaction. Fee generation: e.g. POST /api/fees/generate-month. |
+| Attendance | `/api/attendance` | Submit daily attendance; get by date/class/student; GET report (monthly view, per-student %). |
+| Transactions | `/api/transactions` | CRUD; categories (income: Fee, Admission, Fine, Other; expense: Salary, Rent, Utility, Exam, Other); list by date range, type, category; optional monthly summary. |
+| Dashboard | `/api/dashboard` | GET returns: total students, today attendance %, this month income/expense, net balance, total due fees, recent transactions (5), recent payments (5). |
+| Reports | `/api/reports` | GET monthly collection (expected, collected, due); GET income vs expense (month-wise); GET attendance summary (monthly %). |
 
 All tenant-scoped routes must validate JWT and enforce `school_id` from token (or explicit header/param where needed). Use consistent error codes and JSON shape (e.g. `{ success, data?, error? }`).
 
 ---
 
-## 10. Step-by-Step Development Roadmap
+## 12. Step-by-Step Development Roadmap
 
-The roadmap is split into **small modules** (see [§12](#12-development-phases)). Each module is 1–3 days, with a clear objective, backend/frontend/database tasks, and a suggested git commit. Order of implementation is in [§13](#13-suggested-order-of-implementation).
+The roadmap is split into **small modules** (see [§14](#14-development-phases)). Each module is 1–3 days, with a clear objective, backend/frontend/database tasks, and a suggested git commit. Order of implementation is in [§15](#15-suggested-order-of-implementation).
 
 ---
 
-## 11. Git Commit Strategy
+## 13. Git Commit Strategy
 
 - **One feature or sub-feature per commit;** avoid large “everything” commits.
 - **Commit after each module** (or after each logical sub-task within a module).
@@ -280,298 +296,239 @@ The roadmap is split into **small modules** (see [§12](#12-development-phases))
 
 ---
 
-## 12. Development Phases
+## 14. Development Phases
 
 Each phase is a set of modules. Each module is independently buildable and committable (1–3 days).
 
----
-
-### Phase 1: Foundation
-
-#### Module 1: Project Setup
-
-| Item | Details |
-|------|--------|
-| **Objective** | Two runnable apps (Next.js + Express) and base tooling. |
-| **What to build** | Frontend and backend folders; TypeScript, ESLint, env files; basic scripts. |
-| **Backend tasks** | Init Node project; Express server listening on port; health route `GET /health`; `.env.example` with `PORT`, `MONGODB_URI`, `JWT_SECRET`. |
-| **Frontend tasks** | Create Next.js app (App Router, TypeScript); add Tailwind; single home page; env for `NEXT_PUBLIC_API_URL`. |
-| **Database changes** | None. |
-| **Git commit example** | `[Module 1] Add Next.js frontend and Express backend with base config` |
+**Phase 0 (already done):** Project setup, backend auth, frontend auth, dashboard layout — foundation in place. The sections below start from **Module 1 (Auth & School Setup)** enhancements and continue in order.
 
 ---
 
-#### Module 2: Backend Auth System
+### MODULE 1: Authentication & School Setup
+
+#### 1.1 School registration (phone, subscription plan)
 
 | Item | Details |
 |------|--------|
-| **Objective** | Register and login with JWT; user and school creation in one flow. |
-| **What to build** | Auth routes, User and School models, JWT issue/verify, password hashing. |
-| **Backend tasks** | Connect MongoDB; create `School` and `User` models; POST register (create school + admin user), POST login; return JWT and user/school; auth middleware to verify JWT and attach `req.user`. |
+| **Objective** | Register school with admin name, email, password, **phone**, **subscription_plan** (default Free). |
+| **What to build** | Extended register payload; School model: `subscription_plan`, `subscription_expiry`; User model: `phone`. |
+| **Backend tasks** | Extend School (subscription_plan, subscription_expiry), User (phone); register accepts phone, subscription_plan; return school + user. |
+| **Frontend tasks** | Register form: add phone field; optional subscription plan dropdown (default Free). |
+| **Database changes** | `schools`: add subscription_plan, subscription_expiry; `users`: add phone. |
+| **Git commit example** | `feat(auth): add phone and subscription_plan to school registration` |
+
+#### 1.2 Login
+
+| Item | Details |
+|------|--------|
+| **Objective** | Login unchanged: email + password, JWT, role Admin; later Teacher. |
+| **What to build** | No change if already implemented. |
+| **Backend tasks** | Login returns JWT and user/school; role in token. |
 | **Frontend tasks** | None. |
-| **Database changes** | Collections: `schools`, `users`. Indexes: `users.email` (unique per school optional later), `users.school_id`. |
-| **Git commit example** | `[Module 2] Add backend auth: register, login, JWT middleware` |
+| **Database changes** | None. |
+| **Git commit example** | (Already done in Phase 0) |
 
 ---
 
-#### Module 3: Frontend Auth UI
+### MODULE 2: Dashboard
+
+#### 2.1 Dashboard stats API
 
 | Item | Details |
 |------|--------|
-| **Objective** | Login and register pages; token storage; redirect when authenticated. |
-| **What to build** | Login/register forms, API client, auth context or hooks, protected route wrapper. |
-| **Frontend tasks** | Pages: login, register; call auth API; store JWT (e.g. localStorage or cookie); auth context; redirect to dashboard if logged in; simple protected layout that redirects to login if no token. |
+| **Objective** | Single endpoint returning all dashboard metrics. |
+| **What to build** | GET `/api/dashboard`: total students, today attendance %, this month total income, this month total expense, net balance, total due fees, recent transactions (5), recent payments (5). |
+| **Backend tasks** | Aggregate from students, attendance, fees, transactions; all scoped by school_id. |
+| **Frontend tasks** | None. |
+| **Database changes** | None (queries only). |
+| **Git commit example** | `feat(dashboard): add dashboard stats API with all metrics` |
+
+#### 2.2 Dashboard UI
+
+| Item | Details |
+|------|--------|
+| **Objective** | One screen with all metrics and recent lists. |
+| **What to build** | Cards for students, attendance %, income, expense, net balance, due fees; lists: recent transactions (5), recent payments (5). |
+| **Frontend tasks** | Call dashboard API; render cards and lists; responsive layout; loading/error states. |
 | **Backend tasks** | None. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 3] Add login and register UI with JWT and protected routes` |
+| **Git commit example** | `feat(dashboard): dashboard home with all metrics and recent lists` |
 
 ---
 
-#### Module 4: Dashboard Layout and Home
+### MODULE 3: Student Management
+
+#### 3.1 Student backend (extended model, search, filter)
 
 | Item | Details |
 |------|--------|
-| **Objective** | Authenticated dashboard shell and a placeholder home. |
-| **What to build** | Dashboard layout (sidebar/nav), header with user/school name, logout; dashboard home page with placeholder content. |
-| **Frontend tasks** | Dashboard layout component; sidebar links (placeholder for Students, Fees, Attendance, Income/Expense, Settings); dashboard home page. |
-| **Backend tasks** | Optional: GET `/api/auth/me` returning user + school. |
-| **Database changes** | None. |
-| **Git commit example** | `[Module 4] Add dashboard layout and home page` |
-
----
-
-### Phase 2: Core Data
-
-#### Module 5: Student CRUD Backend
-
-| Item | Details |
-|------|--------|
-| **Objective** | Full API for students scoped by `school_id`. |
-| **What to build** | Student model, routes: list (with filters), get one, create, update, delete (soft delete optional). |
-| **Backend tasks** | `Student` model with `school_id`; CRUD routes; all queries filter by `school_id` from `req.user`. |
+| **Objective** | Full student API with guardian_phone, monthly_fee, admission_date, status; search and filter. |
+| **What to build** | Student model extended; list with search (name/roll) and filter (class, section). |
+| **Backend tasks** | Extend Student: guardian_phone, monthly_fee, admission_date, status; list API with query params. |
 | **Frontend tasks** | None. |
-| **Database changes** | Collection `students`; index `(school_id, class, section)`, `(school_id, status)`. |
-| **Git commit example** | `[Module 5] Add student CRUD API with school_id isolation` |
+| **Database changes** | students: guardian_phone, monthly_fee, admission_date, status; indexes as needed. |
+| **Git commit example** | `feat(students): extend model and add search/filter to list API` |
 
----
-
-#### Module 6: Student Management UI
+#### 3.2 Student UI (full form, search, filter)
 
 | Item | Details |
 |------|--------|
-| **Objective** | List, add, edit, delete students in the dashboard. |
-| **What to build** | Students list page (table/cards), add/edit form, delete confirmation. |
-| **Frontend tasks** | Page `/dashboard/students`; table with filters (class, section); create/edit modal or page; delete with confirm; use students API. |
+| **Objective** | Add/edit/delete students; search; filter by class/section; form with full field set. |
+| **What to build** | Students page: list, filters, add/edit dialog, delete confirm; form fields: name, class, section, roll, guardian_name, guardian_phone, monthly_fee, admission_date, status. |
+| **Frontend tasks** | Use students API; form validation; filters and search. |
 | **Backend tasks** | None. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 6] Add student list and CRUD UI` |
+| **Git commit example** | `feat(students): student form with full fields and filters` |
 
 ---
 
-#### Module 7: Fee Types and Assignments Backend
+### MODULE 4: Attendance
+
+#### 4.1 Daily attendance
 
 | Item | Details |
 |------|--------|
-| **Objective** | Define fee types and assign fees to students. |
-| **What to build** | Models: FeeType, FeeAssignment; APIs: fee type CRUD, create/list assignments (by student, class, period). |
-| **Backend tasks** | FeeType and FeeAssignment models; routes for fee types and assignments; compute balance (assigned − paid) per assignment. |
+| **Objective** | Select date (default today), filter by class, mark present/absent. |
+| **What to build** | Attendance API: submit for date, get by date/class; daily attendance page. |
+| **Backend tasks** | Attendance model and routes; POST bulk; GET by date, class. |
+| **Frontend tasks** | Date picker; class filter; student list with present/absent; submit. |
+| **Database changes** | attendance collection; indexes (school_id, date), (school_id, student_id, date). |
+| **Git commit example** | `feat(attendance): daily attendance API and UI` |
+
+#### 4.2 Attendance report
+
+| Item | Details |
+|------|--------|
+| **Objective** | Monthly view; per-student attendance %; export (future). |
+| **What to build** | GET report (monthly view, per-student %); report page. |
+| **Backend tasks** | GET /api/attendance/report?month=; aggregate by student. |
+| **Frontend tasks** | Report page: select month; show table/list with %. |
+| **Database changes** | None. |
+| **Git commit example** | `feat(attendance): attendance report API and UI` |
+
+---
+
+### MODULE 5: Fee & Due Management
+
+#### 5.1 Monthly fee generation
+
+| Item | Details |
+|------|--------|
+| **Objective** | Create/update `Fees` per student per month from students.monthly_fee. |
+| **What to build** | Job or endpoint (e.g. POST /api/fees/generate-month) that creates/updates fee documents for active students for a given month. |
+| **Backend tasks** | Fee model (school_id, student_id, month, total_fee, paid_amount, due_amount, status); generate-month logic. |
+| **Frontend tasks** | Optional: button to trigger generation for current month. |
+| **Database changes** | fees collection; indexes (school_id, month), (school_id, student_id, month). |
+| **Git commit example** | `feat(fees): monthly fee generation endpoint and model` |
+
+#### 5.2 Record payment (update Fee + auto income Transaction)
+
+| Item | Details |
+|------|--------|
+| **Objective** | Select student + month, amount paid; update Fee; create income Transaction with related_fee_id. |
+| **What to build** | POST /api/fees/pay (or /api/fees/:id/pay): body student_id, month, amount; update Fee (paid_amount, due_amount, status); create Transaction (type income, category Fee, related_fee_id). |
+| **Backend tasks** | Pay endpoint; transaction creation on pay. |
+| **Frontend tasks** | Record payment form: student, month, amount; call pay API. |
+| **Database changes** | transactions collection; related_fee_id optional. |
+| **Git commit example** | `feat(fees): record payment and auto-create income transaction` |
+
+#### 5.3 Due list API and UI
+
+| Item | Details |
+|------|--------|
+| **Objective** | List unpaid/partial fees; filters (this month, overdue, class); summary (total due, count unpaid). |
+| **What to build** | GET /api/fees?status=unpaid or partial and filters; due list page with summary and table. |
+| **Backend tasks** | List fees with status and filter params; return summary (total due, count). |
+| **Frontend tasks** | Due list page: filters, summary cards, table of dues. |
+| **Database changes** | None. |
+| **Git commit example** | `feat(fees): due list API and UI with filters and summary` |
+
+---
+
+### MODULE 6: Income–Expense (Finance)
+
+#### 6.1 Transactions API (CRUD, categories)
+
+| Item | Details |
+|------|--------|
+| **Objective** | CRUD transactions; categories: income (Fee, Admission, Fine, Other), expense (Salary, Rent, Utility, Exam, Other). |
+| **What to build** | Transaction model and routes; list by date range, type, category. |
+| **Backend tasks** | Transaction model (school_id, type, category, amount, date, note, related_fee_id); CRUD; list with filters. |
 | **Frontend tasks** | None. |
-| **Database changes** | Collections: `feetypes`, `feeassignments`; indexes including `school_id`, `student_id`, `dueDate`. |
-| **Git commit example** | `[Module 7] Add fee types and fee assignment APIs` |
+| **Database changes** | transactions collection (if not done in 5.2). |
+| **Git commit example** | `feat(transactions): CRUD and categories for income/expense` |
 
----
-
-#### Module 8: Fee Payments Backend
+#### 6.2 Transaction UI (add income/expense)
 
 | Item | Details |
 |------|--------|
-| **Objective** | Record payments against assignments and support partial payments. |
-| **What to build** | FeePayment model; create payment; list payments by assignment or date range. |
-| **Backend tasks** | FeePayment model; POST payment (link to assignment, amount, method); update assignment balance; GET payments by assignment or filters. |
-| **Frontend tasks** | None. |
-| **Database changes** | Collection `feepayments`; index `(school_id, assignment_id)`, `(school_id, paidAt)`. |
-| **Git commit example** | `[Module 8] Add fee payment recording API` |
-
----
-
-#### Module 9: Fee Management UI
-
-| Item | Details |
-|------|--------|
-| **Objective** | Manage fee types, assign fees, record payments from the dashboard. |
-| **What to build** | Fee types CRUD UI; assign fee to student(s); payment form; list assignments with balance; list payments. |
-| **Frontend tasks** | Pages: fee types, assignments (by student/class), payments; forms for create payment and assign fee; show balance and due dates. |
+| **Objective** | Add income or expense with date, category, amount, note. |
+| **What to build** | Finance page: form (type, category, amount, date, note); list with filters. |
+| **Frontend tasks** | Add form; category dropdowns; list transactions. |
 | **Backend tasks** | None. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 9] Add fee types, assignments, and payment UI` |
+| **Git commit example** | `feat(finance): add income/expense UI with categories` |
 
----
-
-#### Module 10: Attendance Backend
+#### 6.3 Monthly finance summary
 
 | Item | Details |
 |------|--------|
-| **Objective** | Record and retrieve daily attendance per school. |
-| **What to build** | Attendance model and API: submit for a date (bulk by class/student), get by date/class/student. |
-| **Backend tasks** | Attendance model (school_id, student_id, date, status); POST bulk attendance; GET by date, class, or student. |
-| **Frontend tasks** | None. |
-| **Database changes** | Collection `attendance`; unique index `(school_id, student_id, date)`; index `(school_id, date)`. |
-| **Git commit example** | `[Module 10] Add attendance API with bulk submit and query` |
-
----
-
-#### Module 11: Attendance UI
-
-| Item | Details |
-|------|--------|
-| **Objective** | Mark and view attendance from the dashboard. |
-| **What to build** | Date picker; class/section filter; student list with present/absent toggle; save; view by date. |
-| **Frontend tasks** | Attendance page; load students by class; grid/list with checkboxes; submit to API; optional view-only mode by date. |
-| **Backend tasks** | None. |
+| **Objective** | Select month; total income, total expense, net balance; list transactions. |
+| **What to build** | GET summary by month; UI: month picker, summary cards, transaction list. |
+| **Backend tasks** | GET /api/transactions/summary?month= or similar. |
+| **Frontend tasks** | Finance summary section: month selector; totals; list. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 11] Add attendance marking and view UI` |
+| **Git commit example** | `feat(finance): monthly summary API and UI` |
 
 ---
 
-#### Module 12: Income/Expense Backend
+### MODULE 7: Reports
+
+#### 7.1 Monthly collection report
 
 | Item | Details |
 |------|--------|
-| **Objective** | Simple ledger: income and expense entries per school. |
-| **What to build** | IncomeExpense model; CRUD; list with filters (date range, type, category). |
-| **Backend tasks** | Model with type (income/expense), category, amount, date, description; CRUD routes; list with filters. |
-| **Frontend tasks** | None. |
-| **Database changes** | Collection `incomeexpense`; indexes `(school_id, date)`, `(school_id, type)`. |
-| **Git commit example** | `[Module 12] Add income/expense API and categories` |
-
----
-
-#### Module 13: Income/Expense UI
-
-| Item | Details |
-|------|--------|
-| **Objective** | Add and list income/expense entries. |
-| **What to build** | Form to add entry (type, category, amount, date); list with filters; simple summary (optional). |
-| **Frontend tasks** | Income/expense page; add form; table/list with date range and type filter; optional category dropdown from backend or static list. |
-| **Backend tasks** | None. |
+| **Objective** | Total expected, collected, due for the month. |
+| **What to build** | GET /api/reports/collection?month=; report page. |
+| **Backend tasks** | Aggregate from fees for month. |
+| **Frontend tasks** | Reports page: collection report; month selector. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 13] Add income/expense entry UI` |
+| **Git commit example** | `feat(reports): monthly collection report` |
 
----
-
-#### Module 14: Dashboard Stats API
+#### 7.2 Income vs expense report
 
 | Item | Details |
 |------|--------|
-| **Objective** | Aggregated data for dashboard cards. |
-| **What to build** | Single dashboard endpoint or a few small endpoints: student count, fees due (sum/count), today’s attendance summary, recent income/expense. |
-| **Backend tasks** | GET `/api/dashboard/stats` (or similar) returning counts and sums; all scoped by `school_id`. |
-| **Frontend tasks** | None. |
-| **Database changes** | None (only queries). |
-| **Git commit example** | `[Module 14] Add dashboard stats API` |
-
----
-
-#### Module 15: Dashboard Home UI
-
-| Item | Details |
-|------|--------|
-| **Objective** | Dashboard home shows real stats and is mobile-friendly. |
-| **What to build** | Cards for students, fees due, today’s attendance, recent transactions; link to relevant sections. |
-| **Frontend tasks** | Call dashboard API; render cards; responsive layout; loading and error states. |
-| **Backend tasks** | None. |
+| **Objective** | Month-wise summary of income and expense. |
+| **What to build** | GET /api/reports/income-expense (e.g. by month); UI. |
+| **Backend tasks** | Aggregate transactions by month and type. |
+| **Frontend tasks** | Income vs expense chart or table by month. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 15] Add dashboard home with stats and mobile layout` |
+| **Git commit example** | `feat(reports): income vs expense report` |
 
----
-
-#### Module 16: User Management Backend
+#### 7.3 Attendance summary report
 
 | Item | Details |
 |------|--------|
-| **Objective** | CRUD for users within a school (admin only). |
-| **What to build** | List users, create (invite), update role, deactivate; ensure only school’s users are visible. |
-| **Backend tasks** | Users list filtered by `school_id`; create user (same school); update role; soft delete or isActive flag. |
-| **Frontend tasks** | None. |
-| **Database changes** | Index `users.school_id`; optional unique `(school_id, email)`. |
-| **Git commit example** | `[Module 16] Add user management API for school admins` |
-
----
-
-#### Module 17: User Management UI & Settings
-
-| Item | Details |
-|------|--------|
-| **Objective** | Settings page: manage users and optionally school profile. |
-| **What to build** | User list; add user form; edit role; deactivate; optional school name/contact edit. |
-| **Frontend tasks** | Settings section: users tab (list, add, edit role); optional school tab; use user API. |
-| **Backend tasks** | Optional: PATCH school profile (name, contact). |
-| **Database changes** | None (or school updates). |
-| **Git commit example** | `[Module 17] Add user management and settings UI` |
-
----
-
-### Phase 3: Polish & Deploy
-
-#### Module 18: Error Handling and Validation
-
-| Item | Details |
-|------|--------|
-| **Objective** | Consistent API errors and request validation. |
-| **What to build** | Central error handler; validation (e.g. Joi/Zod) on body/query; frontend error display. |
-| **Backend tasks** | Validation middleware for auth, students, fees, attendance, income-expense; 400/401/403/404 responses in same shape. |
-| **Frontend tasks** | API client maps non-2xx to errors; show validation messages in forms. |
+| **Objective** | Monthly attendance % (school or per class). |
+| **What to build** | GET /api/reports/attendance-summary?month=; UI. |
+| **Backend tasks** | Aggregate attendance by month. |
+| **Frontend tasks** | Attendance summary on reports page. |
 | **Database changes** | None. |
-| **Git commit example** | `[Module 18] Add API validation and unified error handling` |
+| **Git commit example** | `feat(reports): attendance summary report` |
 
 ---
 
-#### Module 19: Deployment Preparation
+## 15. Suggested Order of Implementation
 
-| Item | Details |
-|------|--------|
-| **Objective** | Apps ready for Vercel and Render/Railway. |
-| **What to build** | Env config, CORS, build scripts, health check. |
-| **Backend tasks** | CORS for frontend origin; production env; `NODE_ENV`; health route for platform. |
-| **Frontend tasks** | `NEXT_PUBLIC_API_URL` for production; build and start scripts. |
-| **Database changes** | None. |
-| **Git commit example** | `[Module 19] Add production config and CORS for deployment` |
+- **Phase 0 (done):** Project setup, backend auth, frontend auth, dashboard layout.
+- **Then:** Implement in order **1 → 2 → 3 → 4 → 5 → 6 → 7** (Auth & School Setup, Dashboard, Students, Attendance, Fee & Due, Finance, Reports).
+
+Alternatively, build data modules first so the dashboard has real data: **1 → 3 → 4 → 5 → 6 → 2 → 7** (dashboard after students, attendance, fees, transactions). If you follow strict 1–7, the dashboard (Module 2) can use stubbed or partial data until later modules exist; state this in the README or when implementing.
 
 ---
 
-#### Module 20: Deploy to Vercel and Render/Railway
-
-| Item | Details |
-|------|--------|
-| **Objective** | Live frontend and backend with MongoDB Atlas. |
-| **What to build** | Connect repo to Vercel (frontend) and Render/Railway (backend); set env vars; MongoDB Atlas cluster and connection string. |
-| **Tasks** | Deploy backend; deploy frontend; set `NEXT_PUBLIC_API_URL` to backend URL; verify login and one flow end-to-end. |
-| **Git commit example** | `[Module 20] Document deployment and verify production build` |
-
----
-
-## 13. Suggested Order of Implementation
-
-Execute modules in numerical order:
-
-1. **Module 1** — Project setup  
-2. **Module 2** — Backend auth  
-3. **Module 3** — Frontend auth UI  
-4. **Module 4** — Dashboard layout and home placeholder  
-5. **Module 5** → **Module 6** — Students (backend then frontend)  
-6. **Module 7** → **Module 8** → **Module 9** — Fees (types/assignments, payments, then UI)  
-7. **Module 10** → **Module 11** — Attendance (backend then frontend)  
-8. **Module 12** → **Module 13** — Income/expense (backend then frontend)  
-9. **Module 14** → **Module 15** — Dashboard stats and home UI  
-10. **Module 16** → **Module 17** — User management (backend then UI/settings)  
-11. **Module 18** — Error handling and validation  
-12. **Module 19** → **Module 20** — Deployment prep and deploy  
-
-Dependencies: Auth (2, 3) before dashboard (4); dashboard and students before fees/attendance; all core features before dashboard stats (14–15) and user management (16–17).
-
----
-
-## 14. SaaS Multi-Tenant Strategy
+## 16. SaaS Multi-Tenant Strategy
 
 - **Model:** Single database, tenant isolation by `school_id` (shared schema, row-level isolation).
 - **How it works:**
@@ -583,22 +540,20 @@ Dependencies: Auth (2, 3) before dashboard (4); dashboard and students before fe
 
 ---
 
-## 15. Subscription-Ready Architecture Planning
+## 17. Subscription Structure
 
-*(Planning only; no implementation in MVP.)*
+| Tier | Student limit | Features |
+|------|----------------|----------|
+| **Free** | 50 students | Basic features; no SMS. |
+| **Pro** | Unlimited | SMS reminder (future); advanced reports. |
 
-- **Concepts to reserve in schema:**
-  - **Plans:** e.g. `free`, `basic`, `premium` (stored in `schools.plan` or a separate `subscriptions` collection).
-  - **Limits:** max students, max users, max branches (stored in config or plan table).
-- **Where to enforce:**
-  - On create: student, user, etc. — check current usage vs plan limit before inserting.
-  - Middleware or route-level checks: e.g. `requireLimit('students')` that reads school plan and count.
-- **Billing:** Do not build payment in MVP. Keep a `schools.plan` and `schools.subscriptionStatus` (e.g. active/trial/cancelled) for future Stripe/payment integration.
-- **Data model:** Optional `plans` collection (name, limits, price); `schools.planId` or `schools.plan` string; usage counters either computed on demand or cached in `schools` (e.g. `studentCount` updated on add/delete).
+- **Schema:** `schools.subscription_plan` (e.g. `free`, `pro`), `schools.subscription_expiry` (optional, for renewal).
+- **Enforcement:** On school create/register, set default `subscription_plan` to `free`. On student create, for Free plan check current student count and reject if at or above 50; Pro has no limit.
+- **Billing:** No payment integration in MVP; plan and expiry fields are for future Stripe or manual upgrade flow.
 
 ---
 
-## 16. Environment Variables
+## 18. Environment Variables
 
 ### Backend (`.env`)
 
@@ -626,7 +581,7 @@ Keep `.env` and `.env.local` out of git; maintain `.env.example` and `.env.local
 
 ---
 
-## 17. Deployment Plan Overview
+## 19. Deployment Plan Overview
 
 | Step | Action |
 |------|--------|
@@ -641,10 +596,10 @@ Keep `.env` and `.env.local` out of git; maintain `.env.example` and `.env.local
 
 ## Summary
 
-- **MVP:** Schools, users, students, fee types/assignments/payments, attendance, income/expense, dashboard, and settings — all isolated by `school_id`.
-- **Development:** 20 small modules in 3 phases; 1–3 days per module; small git commits.
-- **Next steps:** Start with Module 1 (project setup), then proceed in order; after Module 20 you have a deployable MVP. Phase 2 (reports, parent portal, SMS, subscriptions) can follow this same modular approach.
+- **MVP (intermediate level):** Seven modules: Auth & School Setup, Dashboard, Student Management, Attendance, Fee & Due Management, Income–Expense (Finance), Reports — all isolated by `school_id`. Monthly fee generation, due list, record payment → auto income transaction, finance summary, simple reports. Subscription tiers: **Free** (50 students, basic, no SMS), **Pro** (unlimited, SMS and advanced reports later).
+- **Development:** Phase 0 (foundation) done; then 7 main modules with small sub-modules (1–3 days each); small git commits.
+- **Next steps:** Start with Module 1 enhancements (phone, subscription_plan), then proceed in order 1–7 (or 1, 3, 4, 5, 6, 2, 7 for dashboard after data). After Module 7 you have a deployable intermediate-level MVP. Phase 2 (parent portal, SMS, subscription enforcement) can follow the same modular approach.
 
 ---
 
-*Document version: 1.0 — Project Roadmap*
+*Document version: 2.0 — Intermediate-level roadmap; aligns with monthly fee generation, due management, and subscription structure.*
