@@ -3,9 +3,19 @@ export interface Student {
   school_id: string;
   name: string;
   guardianName?: string;
+  guardianPhone?: string;
+  photoUrl?: string;
+  shift?: string;
+  group?: string;
+   dateOfBirth?: string;
+  birthRegNo?: string;
+  gender?: string;
+  religion?: string;
   class?: string;
   section?: string;
   rollNo?: string;
+  monthlyFee?: number;
+  admissionDate?: string;
   status: 'active' | 'inactive' | 'left';
   createdAt?: string;
   updatedAt?: string;
@@ -14,8 +24,18 @@ export interface Student {
 export interface StudentFormData {
   name: string;
   guardianName?: string;
+  guardianPhone?: string;
+  photoUrl?: string;
+  shift?: string;
+  group?: string;
+  dateOfBirth?: string;
+  birthRegNo?: string;
+  gender?: string;
+  religion?: string;
   class?: string;
   section?: string;
   rollNo?: string;
+  monthlyFee?: string;
+  admissionDate?: string;
   status: 'active' | 'inactive' | 'left';
 }
