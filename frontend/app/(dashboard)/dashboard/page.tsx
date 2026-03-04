@@ -1,27 +1,44 @@
 import Link from 'next/link';
+import { Users, CreditCard, ClipboardList, Wallet, Settings, ArrowRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+
+const links = [
+  { title: 'Students', desc: 'Manage student records and guardian info', href: '/dashboard/students', icon: Users },
+  { title: 'Fees', desc: 'Fee types, assignments, and payments', href: '/dashboard/fees', icon: CreditCard },
+  { title: 'Attendance', desc: 'Mark and view daily attendance', href: '/dashboard/attendance', icon: ClipboardList },
+  { title: 'Income / Expense', desc: 'Simple income and expense ledger', href: '/dashboard/income-expense', icon: Wallet },
+  { title: 'Settings', desc: 'Users and school profile', href: '/dashboard/settings', icon: Settings },
+];
 
 export default function DashboardPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        Welcome. Use the sidebar to open Students, Fees, Attendance, Income/Expense, or Settings.
-      </p>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          { title: 'Students', desc: 'Manage student records', href: '/dashboard/students' },
-          { title: 'Fees', desc: 'Fee types, assignments, payments', href: '/dashboard/fees' },
-          { title: 'Attendance', desc: 'Daily attendance', href: '/dashboard/attendance' },
-          { title: 'Income / Expense', desc: 'Simple ledger', href: '/dashboard/income-expense' },
-          { title: 'Settings', desc: 'Users and school', href: '/dashboard/settings' },
-        ].map(({ title, desc, href }) => (
-          <Link
-            key={href}
-            href={href}
-            className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
-          >
-            <h2 className="font-medium text-zinc-900 dark:text-zinc-50">{title}</h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{desc}</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          Welcome back
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Use the menu to open Students, Fees, Attendance, or Settings.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map(({ title, desc, href, icon: Icon }) => (
+          <Link key={href} href={href}>
+            <Card className="group h-full transition-colors hover:border-primary/50 hover:bg-accent/50">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-foreground group-hover:text-primary">
+                    {title}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+                </div>
+                <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+              </CardContent>
+            </Card>
           </Link>
         ))}
       </div>
