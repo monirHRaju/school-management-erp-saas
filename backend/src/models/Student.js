@@ -4,6 +4,8 @@ const studentSchema = new mongoose.Schema(
   {
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
     name: { type: String, required: true, trim: true },
+    fatherName: { type: String, trim: true },
+    motherName: { type: String, trim: true },
     guardianName: { type: String, trim: true },
     guardianPhone: { type: String, trim: true },
     photoUrl: { type: String, trim: true },

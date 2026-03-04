@@ -2,6 +2,8 @@ export interface Student {
   _id: string;
   school_id: string;
   name: string;
+  fatherName?: string;
+  motherName?: string;
   guardianName?: string;
   guardianPhone?: string;
   photoUrl?: string;
@@ -23,6 +25,8 @@ export interface Student {
 
 export interface StudentFormData {
   name: string;
+  fatherName?: string;
+  motherName?: string;
   guardianName?: string;
   guardianPhone?: string;
   photoUrl?: string;

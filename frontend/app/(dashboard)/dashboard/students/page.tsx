@@ -61,6 +61,8 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 
 const emptyForm: StudentFormData = {
   name: '',
+  fatherName: '',
+  motherName: '',
   guardianName: '',
   guardianPhone: '',
   photoUrl: '',
@@ -145,6 +147,8 @@ export default function StudentsPage() {
     setEditingStudent(s);
     setForm({
       name: s.name,
+      fatherName: s.fatherName ?? '',
+      motherName: s.motherName ?? '',
       guardianName: s.guardianName ?? '',
       guardianPhone: s.guardianPhone ?? '',
       photoUrl: s.photoUrl ?? '',
@@ -199,6 +203,8 @@ export default function StudentsPage() {
 
       const payload = {
         name: form.name.trim(),
+        fatherName: form.fatherName?.trim() || undefined,
+        motherName: form.motherName?.trim() || undefined,
         guardianName: form.guardianName?.trim() || undefined,
         guardianPhone: form.guardianPhone?.trim() || undefined,
         photoUrl,
@@ -289,6 +295,8 @@ export default function StudentsPage() {
           <div class="grid">
             <div class="field"><div class="label">Name</div><div class="value">${fmt(s.name)}</div></div>
             <div class="field"><div class="label">Roll no.</div><div class="value">${fmt(s.rollNo)}</div></div>
+            <div class="field"><div class="label">Father name</div><div class="value">${fmt((s as any).fatherName)}</div></div>
+            <div class="field"><div class="label">Mother name</div><div class="value">${fmt((s as any).motherName)}</div></div>
             <div class="field"><div class="label">Date of birth</div><div class="value">${fmtDate(s.dateOfBirth)}</div></div>
             <div class="field"><div class="label">Birth reg. no.</div><div class="value">${fmt(s.birthRegNo)}</div></div>
             <div class="field"><div class="label">Gender</div><div class="value">${fmt(s.gender)}</div></div>
@@ -320,8 +328,13 @@ export default function StudentsPage() {
     if (!el) return;
     setPdfLoading(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      const html2canvasMod = await import('html2canvas');
+      const jspdfMod = await import('jspdf');
+      const html2canvas = (html2canvasMod as any).default || (html2canvasMod as any);
+      const jsPDFCtor = (jspdfMod as any).jsPDF || (jspdfMod as any).default;
+      if (!html2canvas || !jsPDFCtor) {
+        throw new Error('PDF libraries not loaded');
+      }
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
@@ -329,17 +342,22 @@ export default function StudentsPage() {
         backgroundColor: '#ffffff',
       });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const imgW = pdfW;
       const imgH = (canvas.height * pdfW) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, imgW, Math.min(imgH, pdfH));
       if (imgH > pdfH) pdf.addPage();
-      pdf.save(detailsStudent ? `student-${detailsStudent.name.replace(/\s+/g, '-')}.pdf` : 'student-details.pdf');
+      pdf.save(
+        detailsStudent
+          ? `student-${detailsStudent.name.replace(/\s+/g, '-')}.pdf`
+          : 'student-details.pdf'
+      );
       toast.success('PDF downloaded.');
     } catch (e) {
-      toast.error('Failed to generate PDF.');
+      toast.error('Failed to generate PDF. Opening print dialog instead – choose \"Save as PDF\".');
+      handlePrintDetails();
     } finally {
       setPdfLoading(false);
     }
@@ -756,13 +774,33 @@ export default function StudentsPage() {
                 placeholder="Student name"
               />
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="fatherName">Father name</Label>
+                <Input
+                  id="fatherName"
+                  value={form.fatherName ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, fatherName: e.target.value }))}
+                  placeholder="Father name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="motherName">Mother name</Label>
+                <Input
+                  id="motherName"
+                  value={form.motherName ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, motherName: e.target.value }))}
+                  placeholder="Mother name"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="guardianName">Guardian name</Label>
               <Input
                 id="guardianName"
                 value={form.guardianName ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value }))}
-                placeholder="Guardian / parent name"
+                placeholder="Optional – guardian / emergency contact"
               />
             </div>
             <div className="space-y-2">
@@ -960,7 +998,22 @@ export default function StudentsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <DetailRow label="Name" value={detailsStudent.name} />
                 <DetailRow label="Roll no." value={detailsStudent.rollNo} />
-                <DetailRow label="Date of birth" value={detailsStudent.dateOfBirth ? new Date(detailsStudent.dateOfBirth).toLocaleDateString() : undefined} />
+                <DetailRow
+                  label="Father name"
+                  value={detailsStudent.fatherName}
+                />
+                <DetailRow
+                  label="Mother name"
+                  value={detailsStudent.motherName}
+                />
+                <DetailRow
+                  label="Date of birth"
+                  value={
+                    detailsStudent.dateOfBirth
+                      ? new Date(detailsStudent.dateOfBirth).toLocaleDateString()
+                      : undefined
+                  }
+                />
                 <DetailRow label="Birth reg. no." value={detailsStudent.birthRegNo} />
                 <DetailRow label="Gender" value={detailsStudent.gender} />
                 <DetailRow label="Religion" value={detailsStudent.religion} />

@@ -57,6 +57,8 @@ router.post('/', async (req, res) => {
   try {
     const {
       name,
+      fatherName,
+      motherName,
       guardianName,
       guardianPhone,
       photoUrl,
@@ -79,7 +81,13 @@ router.post('/', async (req, res) => {
     const student = await Student.create({
       school_id: new mongoose.Types.ObjectId(req.schoolId),
       name: name.trim(),
-      guardianName: guardianName ? guardianName.trim() : undefined,
+      fatherName: fatherName ? fatherName.trim() : undefined,
+      motherName: motherName ? motherName.trim() : undefined,
+      guardianName:
+        guardianName?.trim() ||
+        fatherName?.trim() ||
+        motherName?.trim() ||
+        undefined,
       guardianPhone: guardianPhone ? String(guardianPhone).trim() : undefined,
       photoUrl: photoUrl ? String(photoUrl).trim() : undefined,
       shift: shift ? String(shift).trim() : undefined,
@@ -112,6 +120,8 @@ router.patch('/:id', async (req, res) => {
     }
     const {
       name,
+      fatherName,
+      motherName,
       guardianName,
       guardianPhone,
       photoUrl,
@@ -130,6 +140,8 @@ router.patch('/:id', async (req, res) => {
     } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
+    if (fatherName !== undefined) update.fatherName = fatherName ? fatherName.trim() : '';
+    if (motherName !== undefined) update.motherName = motherName ? motherName.trim() : '';
     if (guardianName !== undefined) update.guardianName = guardianName ? guardianName.trim() : '';
     if (guardianPhone !== undefined)
       update.guardianPhone = guardianPhone ? String(guardianPhone).trim() : '';
