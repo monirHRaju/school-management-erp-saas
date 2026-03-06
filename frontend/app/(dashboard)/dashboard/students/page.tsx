@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -646,6 +647,16 @@ export default function StudentsPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Link href={`/dashboard/fees/student/${s._id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Fee report"
+                                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                              >
+                                <CreditCard className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -734,6 +745,16 @@ export default function StudentsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Link href={`/dashboard/fees/student/${s._id}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Fee report"
+                              className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>

@@ -1,25 +1,82 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const Student = require('../models/Student');
+const Fee = require('../models/Fee');
+const Transaction = require('../models/Transaction');
+const mongoose = require('mongoose');
 
 const router = express.Router();
 
 // GET /api/dashboard — dashboard stats for current school
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const schoolId = req.schoolId;
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
 
     const totalStudents = await Student.countDocuments({ school_id: schoolId });
+
+    const dueAgg = await Fee.aggregate([
+      { $match: { school_id: schoolId, status: { $in: ['unpaid', 'partial'] } } },
+      { $group: { _id: null, total: { $sum: '$due_amount' } } },
+    ]);
+    const totalDueFees = dueAgg[0]?.total ?? 0;
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const monthIncomeAgg = await Transaction.aggregate([
+      {
+        $match: {
+          school_id: schoolId,
+          type: 'income',
+          date: { $gte: startOfMonth, $lte: endOfMonth },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const monthExpenseAgg = await Transaction.aggregate([
+      {
+        $match: {
+          school_id: schoolId,
+          type: 'expense',
+          date: { $gte: startOfMonth, $lte: endOfMonth },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const monthIncome = monthIncomeAgg[0]?.total ?? 0;
+    const monthExpense = monthExpenseAgg[0]?.total ?? 0;
+    const netBalance = monthIncome - monthExpense;
+
+    const recentTransactions = await Transaction.find({ school_id: schoolId })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const feePayments = await Transaction.find({
+      school_id: schoolId,
+      type: 'income',
+      category: 'Fee',
+    })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(5)
+      .populate({ path: 'related_fee_id', populate: { path: 'student_id', select: 'name' } })
+      .lean();
+    const recentPayments = feePayments.map((t) => ({
+      studentName: t.related_fee_id?.student_id?.name ?? '—',
+      month: t.related_fee_id?.month,
+      amount: t.amount,
+      date: t.date,
+    }));
 
     const data = {
       totalStudents,
       todayAttendancePercent: 0,
-      monthIncome: 0,
-      monthExpense: 0,
-      netBalance: 0,
-      totalDueFees: 0,
-      recentTransactions: [],
-      recentPayments: [],
+      monthIncome,
+      monthExpense,
+      netBalance,
+      totalDueFees,
+      recentTransactions,
+      recentPayments,
     };
 
     res.json({ success: true, data });

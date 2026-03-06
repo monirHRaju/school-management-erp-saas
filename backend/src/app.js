@@ -4,6 +4,7 @@ const authRoutes = require('./routes/auth');
 const studentsRoutes = require('./routes/students');
 const dashboardRoutes = require('./routes/dashboard');
 const studentPhotoRoutes = require('./routes/studentPhoto');
+const feesRoutes = require('./routes/fees');
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students/photo', studentPhotoRoutes);
+app.use('/api/fees', feesRoutes);
 
 module.exports = app;

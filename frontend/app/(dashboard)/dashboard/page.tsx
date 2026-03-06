@@ -146,13 +146,46 @@ export default function DashboardPage() {
             )}
             {!loading &&
               !error &&
-              (!stats ||
-                (stats.recentTransactions.length === 0 && stats.recentPayments.length === 0)) && (
+              stats &&
+              (stats.recentTransactions.length > 0 || stats.recentPayments.length > 0) && (
+                <div className="mt-4 space-y-4">
+                  {stats.recentPayments.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recent payments</p>
+                      <ul className="mt-2 space-y-1.5 text-sm">
+                        {stats.recentPayments.slice(0, 5).map((p, i) => (
+                          <li key={i} className="flex justify-between gap-2">
+                            <span>{p.studentName ?? '—'} — {p.month ?? ''}</span>
+                            <span className="font-medium">৳ {(p.amount ?? 0).toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {stats.recentTransactions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recent transactions</p>
+                      <ul className="mt-2 space-y-1.5 text-sm">
+                        {stats.recentTransactions.slice(0, 5).map((t) => (
+                          <li key={t._id} className="flex justify-between gap-2">
+                            <span>{t.type === 'income' ? '+' : '-'} {t.category ?? ''} — {t.date ? new Date(t.date).toLocaleDateString() : ''}</span>
+                            <span className="font-medium">৳ {(t.amount ?? 0).toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            {!loading &&
+              !error &&
+              stats &&
+              stats.recentTransactions.length === 0 &&
+              stats.recentPayments.length === 0 && (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  No recent transactions yet. Start by adding students, fees, and payments.
+                  No recent transactions yet. Start by adding students, generating fees, and recording payments.
                 </p>
               )}
-            {/* Placeholder lists; will be populated once finance/fees modules are implemented */}
           </CardContent>
         </Card>
 
