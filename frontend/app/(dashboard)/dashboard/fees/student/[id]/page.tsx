@@ -1,17 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, CreditCard, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Loader2, CreditCard, TrendingUp, Eye, Plus, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
-import { getFees } from '@/lib/fees';
+import { getFees, getFeeHistory, collectPayment, createAdditionalFee } from '@/lib/fees';
 import { apiRequest } from '@/lib/api';
-import type { Fee, FeeSummary } from '@/types/fee';
+import type { Fee, FeeSummary, FeePayment, FeeCategory } from '@/types/fee';
+import { FEE_CATEGORIES } from '@/types/fee';
 import type { Student } from '@/types/student';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -22,13 +32,10 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-const FEE_TYPE_LABELS: Record<string, string> = {
-  monthly: 'Monthly',
-  admission: 'Admission',
-  exam: 'Exam',
-  book: 'Book',
-  other: 'Other',
-};
+function feeCategoryLabel(fee: Fee) {
+  const cat = fee.category || (fee.fee_type === 'monthly' ? 'student_fee' : fee.fee_type === 'exam' ? 'exam_fee' : fee.fee_type === 'book' ? 'book_sales' : 'other');
+  return FEE_CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
+}
 
 export default function StudentFeeReportPage() {
   const params = useParams();
@@ -39,6 +46,24 @@ export default function StudentFeeReportPage() {
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [collectFee, setCollectFee] = useState<Fee | null>(null);
+  const [collectAmount, setCollectAmount] = useState('');
+  const [collectDiscount, setCollectDiscount] = useState('');
+  const [collectNote, setCollectNote] = useState('');
+  const [collectPaying, setCollectPaying] = useState(false);
+  const [detailsFee, setDetailsFee] = useState<Fee | null>(null);
+  const [detailsPayments, setDetailsPayments] = useState<FeePayment[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [addFeeOpen, setAddFeeOpen] = useState(false);
+  const [addCategory, setAddCategory] = useState<FeeCategory>('exam_fee');
+  const [addDescription, setAddDescription] = useState('');
+  const [addMonth, setAddMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [addAmount, setAddAmount] = useState('');
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const fetchStudent = useCallback(async () => {
     if (!token || !studentId) return;
@@ -83,6 +108,122 @@ export default function StudentFeeReportPage() {
   const totalPaid = fees.reduce((s, f) => s + (f.paid_amount || 0), 0);
   const totalExpected = fees.reduce((s, f) => s + (f.total_fee || 0), 0);
 
+  const openCollectModal = (fee: Fee) => {
+    setCollectFee(fee);
+    setCollectAmount(String(fee.due_amount || 0));
+    setCollectDiscount('');
+    setCollectNote('');
+  };
+  const closeCollectModal = () => {
+    setCollectFee(null);
+    setCollectAmount('');
+    setCollectDiscount('');
+    setCollectNote('');
+  };
+  const handleCollectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !collectFee) return;
+    const amount = Number(collectAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter a valid amount.');
+      return;
+    }
+    setCollectPaying(true);
+    try {
+      await collectPayment(
+        collectFee._id,
+        { amount, discount: Number(collectDiscount) || 0, note: collectNote.trim() || undefined },
+        token
+      );
+      toast.success('Payment collected.');
+      closeCollectModal();
+      fetchFees();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to collect');
+    } finally {
+      setCollectPaying(false);
+    }
+  };
+
+  const openDetailsModal = useCallback(
+    async (fee: Fee) => {
+      setDetailsFee(fee);
+      setDetailsPayments([]);
+      if (!token) return;
+      setDetailsLoading(true);
+      try {
+        const res = await getFeeHistory(fee._id, token);
+        setDetailsPayments(res.data || []);
+      } catch {
+        setDetailsPayments([]);
+      } finally {
+        setDetailsLoading(false);
+      }
+    },
+    [token]
+  );
+  const closeDetailsModal = () => {
+    setDetailsFee(null);
+    setDetailsPayments([]);
+  };
+
+  const studentName = (fee: Fee) => {
+    const s = fee.student_id;
+    return typeof s === 'object' && s?.name ? s.name : '—';
+  };
+
+  const handleAddFeeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !studentId) return;
+    const amount = Number(addAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter a valid amount.');
+      return;
+    }
+    setAddSubmitting(true);
+    try {
+      await createAdditionalFee(
+        {
+          category: addCategory,
+          description: addDescription.trim() || undefined,
+          month: addMonth || undefined,
+          amount,
+          student_id: studentId,
+          for_all_students: false,
+        },
+        token
+      );
+      toast.success('Fee added.');
+      setAddFeeOpen(false);
+      setAddDescription('');
+      setAddAmount('');
+      fetchFees();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add fee');
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
+
+  const handlePrint = useCallback(() => {
+    const printContent = printRef.current;
+    if (!printContent) {
+      window.print();
+      return;
+    }
+    const printStyle = document.createElement('style');
+    printStyle.textContent = `
+      @media print {
+        body * { visibility: hidden; }
+        #student-fee-print, #student-fee-print * { visibility: visible; }
+        #student-fee-print { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(printStyle);
+    window.print();
+    document.head.removeChild(printStyle);
+  }, []);
+
   if (!studentId) {
     return (
       <div className="space-y-4">
@@ -112,9 +253,15 @@ export default function StudentFeeReportPage() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/fees">
-          <Button variant="outline">Back to Fees</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/fees">
+            <Button variant="outline">Back to Fees</Button>
+          </Link>
+          <Button variant="outline" onClick={() => setAddFeeOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add fee
+          </Button>
+        </div>
       </div>
 
       {student && (
@@ -173,7 +320,7 @@ export default function StudentFeeReportPage() {
                 const paid = fee.paid_amount || 0;
                 const due = fee.due_amount || 0;
                 const pct = total > 0 ? (paid / total) * 100 : 0;
-                const label = fee.fee_type === 'monthly' && fee.month ? fee.month : (FEE_TYPE_LABELS[fee.fee_type || 'monthly'] ?? fee.fee_type);
+                const label = fee.month ? fee.month : feeCategoryLabel(fee);
                 return (
                   <div key={fee._id} className="space-y-1">
                     <div className="flex justify-between text-xs">
@@ -198,14 +345,22 @@ export default function StudentFeeReportPage() {
       )}
 
       {/* Fee list table */}
-      <Card>
-        <CardHeader>
+      <Card id="student-fee-print" ref={printRef}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             All fees
           </CardTitle>
+          <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 print:hidden">
+            <Printer className="h-4 w-4" />
+            Print
+          </Button>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 hidden print:block">
+            <p className="text-lg font-semibold">Fee report — {student?.name ?? 'Student'}</p>
+            <p className="text-sm text-muted-foreground">Printed on {new Date().toLocaleDateString()}</p>
+          </div>
           {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -218,19 +373,26 @@ export default function StudentFeeReportPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Month</TableHead>
-                    <TableHead className="text-right">Total (৳)</TableHead>
+                    <TableHead className="text-right">Amount (৳)</TableHead>
                     <TableHead className="text-right">Paid (৳)</TableHead>
                     <TableHead className="text-right">Due (৳)</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {fees.map((fee) => (
                     <TableRow key={fee._id}>
-                      <TableCell className="capitalize">
-                        {FEE_TYPE_LABELS[fee.fee_type || 'monthly'] ?? fee.fee_type}
+                      <TableCell className="text-muted-foreground text-xs">
+                        {fee.createdAt ? new Date(fee.createdAt).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell className="capitalize">{feeCategoryLabel(fee)}</TableCell>
+                      <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>
+                        {fee.description || '—'}
                       </TableCell>
                       <TableCell>{fee.month || '—'}</TableCell>
                       <TableCell className="text-right">{fee.total_fee.toLocaleString()}</TableCell>
@@ -248,6 +410,22 @@ export default function StudentFeeReportPage() {
                           {fee.status}
                         </span>
                       </TableCell>
+                      <TableCell className="text-right flex gap-1 justify-end">
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => openDetailsModal(fee)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        {(fee.status === 'unpaid' || fee.status === 'partial') && fee.due_amount > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400"
+                            onClick={() => openCollectModal(fee)}
+                          >
+                            Collect
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -256,6 +434,172 @@ export default function StudentFeeReportPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Collect payment modal */}
+      <Dialog open={!!collectFee} onOpenChange={(open) => !open && closeCollectModal()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Collect payment</DialogTitle>
+          </DialogHeader>
+          {collectFee && (
+            <form onSubmit={handleCollectSubmit} className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p><span className="font-medium">Student:</span> {studentName(collectFee)}</p>
+                <p><span className="font-medium">Category:</span> {feeCategoryLabel(collectFee)}</p>
+                <p><span className="font-medium">Due amount:</span> ৳ {(collectFee.due_amount || 0).toLocaleString()}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="collect-amount">Amount to collect (৳)</Label>
+                <Input
+                  id="collect-amount"
+                  type="number"
+                  min="1"
+                  value={collectAmount}
+                  onChange={(e) => setCollectAmount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="collect-discount">Discount (৳, optional)</Label>
+                <Input
+                  id="collect-discount"
+                  type="number"
+                  min="0"
+                  value={collectDiscount}
+                  onChange={(e) => setCollectDiscount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="collect-note">Note (optional)</Label>
+                <Input
+                  id="collect-note"
+                  value={collectNote}
+                  onChange={(e) => setCollectNote(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>Cancel</Button>
+                <Button type="submit" disabled={collectPaying} className="bg-emerald-600 hover:bg-emerald-700">
+                  {collectPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Collect
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details modal */}
+      <Dialog open={!!detailsFee} onOpenChange={(open) => !open && closeDetailsModal()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Fee details & payment history</DialogTitle>
+          </DialogHeader>
+          {detailsFee && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p><span className="font-medium">Category:</span> {feeCategoryLabel(detailsFee)}</p>
+                <p><span className="font-medium">Description:</span> {detailsFee.description || '—'}</p>
+                <p><span className="font-medium">Total:</span> ৳ {(detailsFee.total_fee || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Paid:</span> ৳ {(detailsFee.paid_amount || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Due:</span> ৳ {(detailsFee.due_amount || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Status:</span> {detailsFee.status}</p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium">Payment history</p>
+                {detailsLoading ? (
+                  <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : detailsPayments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Amount (৳)</TableHead>
+                          <TableHead className="text-right">Discount (৳)</TableHead>
+                          <TableHead>Note</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detailsPayments.map((p) => (
+                          <TableRow key={p._id}>
+                            <TableCell className="text-xs">
+                              {p.payment_date ? new Date(p.payment_date).toLocaleString() : '—'}
+                            </TableCell>
+                            <TableCell className="text-right">{p.amount.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{(p.discount ?? 0).toLocaleString()}</TableCell>
+                            <TableCell className="max-w-[180px] truncate text-muted-foreground">{p.note || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add fee modal */}
+      <Dialog open={addFeeOpen} onOpenChange={setAddFeeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add fee for this student</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddFeeSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <select
+                value={addCategory}
+                onChange={(e) => setAddCategory(e.target.value as FeeCategory)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {FEE_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description (optional)</Label>
+              <Input
+                value={addDescription}
+                onChange={(e) => setAddDescription(e.target.value)}
+                placeholder="e.g. March Exam Fee"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Month (optional)</Label>
+              <Input
+                type="month"
+                value={addMonth}
+                onChange={(e) => setAddMonth(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (৳)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={addAmount}
+                onChange={(e) => setAddAmount(e.target.value)}
+                placeholder="e.g. 500"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddFeeOpen(false)} disabled={addSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addSubmitting}>
+                {addSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add fee
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

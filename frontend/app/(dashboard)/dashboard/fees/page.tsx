@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CreditCard, Loader2, Plus, Calendar, Wallet } from 'lucide-react';
+import { CreditCard, Loader2, Plus, Calendar, Wallet, FileText, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
-import { getFees, generateMonth, generateYear, payFee, payFeeById, createOneTimeFee } from '@/lib/fees';
-import type { Fee, FeeSummary, FeeType } from '@/types/fee';
+import { getFees, generateMonth, payFee, collectPayment, createOneTimeFee, createAdditionalFee, getFeeHistory, deleteFee } from '@/lib/fees';
+import type { Fee, FeeSummary, FeeCategory, FeePayment } from '@/types/fee';
+import { FEE_CATEGORIES } from '@/types/fee';
 import type { Student } from '@/types/student';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,13 +30,9 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-const FEE_TYPE_OPTIONS: { value: '' | FeeType; label: string }[] = [
-  { value: '', label: 'All types' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'admission', label: 'Admission' },
-  { value: 'exam', label: 'Exam' },
-  { value: 'book', label: 'Book' },
-  { value: 'other', label: 'Other' },
+const FEE_TYPE_OPTIONS: { value: '' | FeeCategory; label: string }[] = [
+  { value: '', label: 'All categories' },
+  ...FEE_CATEGORIES,
 ];
 const ONE_TIME_FEE_TYPES: { value: 'admission' | 'exam' | 'book' | 'other'; label: string }[] = [
   { value: 'admission', label: 'Admission Fee' },
@@ -43,7 +40,6 @@ const ONE_TIME_FEE_TYPES: { value: 'admission' | 'exam' | 'book' | 'other'; labe
   { value: 'book', label: 'Book Fee' },
   { value: 'other', label: 'Other' },
 ];
-
 const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 const STATUS_OPTIONS: { value: '' | 'unpaid' | 'partial' | 'paid'; label: string }[] = [
   { value: '', label: 'All' },
@@ -72,7 +68,7 @@ export default function FeesPage() {
   const [error, setError] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'unpaid' | 'partial' | 'paid'>('');
-  const [feeTypeFilter, setFeeTypeFilter] = useState<'' | FeeType>('');
+  const [categoryFilter, setCategoryFilter] = useState<'' | FeeCategory>('');
   const [classFilter, setClassFilter] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -87,15 +83,30 @@ export default function FeesPage() {
   });
   const [payAmount, setPayAmount] = useState('');
   const [paying, setPaying] = useState(false);
-  const [generateYearValue, setGenerateYearValue] = useState(new Date().getFullYear());
-  const [generatingYear, setGeneratingYear] = useState(false);
   const [collectFee, setCollectFee] = useState<Fee | null>(null);
   const [collectAmount, setCollectAmount] = useState('');
+  const [collectDiscount, setCollectDiscount] = useState('');
+  const [collectNote, setCollectNote] = useState('');
   const [collectPaying, setCollectPaying] = useState(false);
   const [oneTimeStudentId, setOneTimeStudentId] = useState('');
   const [oneTimeFeeType, setOneTimeFeeType] = useState<'admission' | 'exam' | 'book' | 'other'>('admission');
   const [oneTimeAmount, setOneTimeAmount] = useState('');
   const [oneTimeSubmitting, setOneTimeSubmitting] = useState(false);
+  const [additionalCategory, setAdditionalCategory] = useState<FeeCategory>('exam_fee');
+  const [additionalDescription, setAdditionalDescription] = useState('');
+  const [additionalMonth, setAdditionalMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [additionalAmount, setAdditionalAmount] = useState('');
+  const [additionalForAll, setAdditionalForAll] = useState(false);
+  const [additionalStudentId, setAdditionalStudentId] = useState('');
+  const [additionalSubmitting, setAdditionalSubmitting] = useState(false);
+  const [detailsFee, setDetailsFee] = useState<Fee | null>(null);
+  const [detailsPayments, setDetailsPayments] = useState<FeePayment[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchFees = useCallback(async () => {
     if (!token) return;
@@ -106,7 +117,7 @@ export default function FeesPage() {
         {
           month: monthFilter || undefined,
           status: statusFilter || undefined,
-          fee_type: feeTypeFilter || undefined,
+          category: categoryFilter || undefined,
           class: classFilter || undefined,
         },
         token
@@ -122,7 +133,7 @@ export default function FeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, monthFilter, statusFilter, feeTypeFilter, classFilter]);
+  }, [token, monthFilter, statusFilter, categoryFilter, classFilter]);
 
   const fetchStudents = useCallback(async () => {
     if (!token) return;
@@ -156,6 +167,21 @@ export default function FeesPage() {
       toast.error(e instanceof Error ? e.message : 'Failed to generate month');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleDeleteFee = async () => {
+    if (!token || !feeToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteFee(feeToDelete._id, token);
+      toast.success('Fee entry removed.');
+      setFeeToDelete(null);
+      fetchFees();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -202,10 +228,14 @@ export default function FeesPage() {
   const openCollectModal = (fee: Fee) => {
     setCollectFee(fee);
     setCollectAmount(String(fee.due_amount || 0));
+    setCollectDiscount('');
+    setCollectNote('');
   };
   const closeCollectModal = () => {
     setCollectFee(null);
     setCollectAmount('');
+    setCollectDiscount('');
+    setCollectNote('');
   };
   const handleCollectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,7 +247,15 @@ export default function FeesPage() {
     }
     setCollectPaying(true);
     try {
-      await payFeeById(collectFee._id, amount, token);
+      await collectPayment(
+        collectFee._id,
+        {
+          amount,
+          discount: Number(collectDiscount) || 0,
+          note: collectNote.trim() || undefined,
+        },
+        token
+      );
       toast.success('Payment collected.');
       closeCollectModal();
       fetchFees();
@@ -255,9 +293,71 @@ export default function FeesPage() {
     }
   };
 
-  const feeTypeLabel = (fee: Fee) => {
-    const t = fee.fee_type || 'monthly';
-    return FEE_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
+  const handleAdditionalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    const amount = Number(additionalAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter a valid amount.');
+      return;
+    }
+    if (!additionalForAll && !additionalStudentId) {
+      toast.error('Select a student or choose "All students".');
+      return;
+    }
+    setAdditionalSubmitting(true);
+    try {
+      const res = await createAdditionalFee(
+        {
+          category: additionalCategory,
+          description: additionalDescription.trim() || undefined,
+          month: additionalMonth || undefined,
+          amount,
+          student_id: additionalForAll ? undefined : additionalStudentId,
+          for_all_students: additionalForAll,
+        },
+        token
+      );
+      toast.success(
+        additionalForAll
+          ? `Added ${res.count ?? 0} fee(s) for all students.`
+          : 'Additional fee added.'
+      );
+      setAdditionalAmount('');
+      setAdditionalDescription('');
+      fetchFees();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add fee');
+    } finally {
+      setAdditionalSubmitting(false);
+    }
+  };
+
+  const openDetailsModal = useCallback(
+    async (fee: Fee) => {
+      setDetailsFee(fee);
+      setDetailsPayments([]);
+      if (!token) return;
+      setDetailsLoading(true);
+      try {
+        const res = await getFeeHistory(fee._id, token);
+        setDetailsPayments(res.data || []);
+      } catch {
+        setDetailsPayments([]);
+      } finally {
+        setDetailsLoading(false);
+      }
+    },
+    [token]
+  );
+  const closeDetailsModal = () => {
+    setDetailsFee(null);
+    setDetailsPayments([]);
+  };
+
+  const feeCategoryLabel = (fee: Fee) => {
+    const cat = fee.category || (fee.fee_type === 'monthly' ? 'student_fee' : fee.fee_type === 'exam' ? 'exam_fee' : fee.fee_type === 'book' ? 'book_sales' : 'other');
+    return FEE_CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
   };
 
   const studentName = (fee: Fee) => {
@@ -332,28 +432,6 @@ export default function FeesPage() {
                 </Button>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="generate-year">Generate full year (Jan–Dec)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="generate-year"
-                  type="number"
-                  min="2020"
-                  max="2100"
-                  value={generateYearValue}
-                  onChange={(e) => setGenerateYearValue(Number(e.target.value) || new Date().getFullYear())}
-                  className="max-w-[100px]"
-                />
-                <Button
-                  onClick={handleGenerateYear}
-                  disabled={generatingYear}
-                  variant="outline"
-                >
-                  {generatingYear && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate year
-                </Button>
-              </div>
-            </div>
           </div>
           <hr className="border-border" />
           <form onSubmit={handlePay} className="space-y-4">
@@ -403,6 +481,98 @@ export default function FeesPage() {
                   {paying && <Loader2 className="h-4 w-4 animate-spin" />}
                   <Plus className="h-4 w-4" />
                   Record payment
+                </Button>
+              </div>
+            </div>
+          </form>
+          <hr className="border-border" />
+          <form onSubmit={handleAdditionalSubmit} className="space-y-4">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Add fee (monthly, exam, book, fine, etc.) — one student or all students
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <select
+                  value={additionalCategory}
+                  onChange={(e) => setAdditionalCategory(e.target.value as FeeCategory)}
+                  className={cn(
+                    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                  )}
+                >
+                  {FEE_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  value={additionalDescription}
+                  onChange={(e) => setAdditionalDescription(e.target.value)}
+                  placeholder="e.g. March Exam Fee"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Month (optional)</Label>
+                <Input
+                  type="month"
+                  value={additionalMonth}
+                  onChange={(e) => setAdditionalMonth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (৳)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={additionalAmount}
+                  onChange={(e) => setAdditionalAmount(e.target.value)}
+                  placeholder="e.g. 500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>For</Label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={additionalForAll}
+                      onChange={() => setAdditionalForAll(true)}
+                    />
+                    All students
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={!additionalForAll}
+                      onChange={() => setAdditionalForAll(false)}
+                    />
+                    One student
+                  </label>
+                  {!additionalForAll && (
+                    <select
+                      value={additionalStudentId}
+                      onChange={(e) => setAdditionalStudentId(e.target.value)}
+                      className={cn(
+                        'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+                      )}
+                    >
+                      <option value="">Select student</option>
+                      {students.map((s) => (
+                        <option key={s._id} value={s._id}>
+                          {s.name} {s.class ? `(${s.class})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={additionalSubmitting}>
+                  {additionalSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Add additional fee
                 </Button>
               </div>
             </div>
@@ -493,11 +663,11 @@ export default function FeesPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-fee-type">Fee type</Label>
+              <Label htmlFor="filter-category">Category</Label>
               <select
-                id="filter-fee-type"
-                value={feeTypeFilter}
-                onChange={(e) => setFeeTypeFilter(e.target.value as '' | FeeType)}
+                id="filter-category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as '' | FeeCategory)}
                 className={cn(
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
@@ -556,13 +726,15 @@ export default function FeesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Section</TableHead>
                     <TableHead>Roll</TableHead>
                     <TableHead>Month</TableHead>
-                    <TableHead className="text-right">Total (৳)</TableHead>
+                    <TableHead className="text-right">Amount (৳)</TableHead>
                     <TableHead className="text-right">Paid (৳)</TableHead>
                     <TableHead className="text-right">Due (৳)</TableHead>
                     <TableHead>Status</TableHead>
@@ -572,7 +744,13 @@ export default function FeesPage() {
                 <TableBody>
                   {fees.map((fee) => (
                     <TableRow key={fee._id}>
-                      <TableCell className="capitalize">{feeTypeLabel(fee)}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {fee.createdAt ? new Date(fee.createdAt).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell className="capitalize">{feeCategoryLabel(fee)}</TableCell>
+                      <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>
+                        {fee.description || '—'}
+                      </TableCell>
                       <TableCell className="font-medium">{studentName(fee)}</TableCell>
                       <TableCell>{studentClass(fee)}</TableCell>
                       <TableCell>{studentSection(fee)}</TableCell>
@@ -593,7 +771,16 @@ export default function FeesPage() {
                           {fee.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right flex gap-1 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8"
+                          onClick={() => openDetailsModal(fee)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
                         {(fee.status === 'unpaid' || fee.status === 'partial') && fee.due_amount > 0 && (
                           <Button
                             size="sm"
@@ -604,6 +791,15 @@ export default function FeesPage() {
                             Collect
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setFeeToDelete(fee)}
+                          aria-label="Delete fee entry"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -624,7 +820,7 @@ export default function FeesPage() {
             <form onSubmit={handleCollectSubmit} className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <p><span className="font-medium">Student:</span> {studentName(collectFee)}</p>
-                <p><span className="font-medium">Type:</span> {feeTypeLabel(collectFee)}</p>
+                <p><span className="font-medium">Category:</span> {feeCategoryLabel(collectFee)}</p>
                 <p><span className="font-medium">Month:</span> {collectFee.month || '—'}</p>
                 <p><span className="font-medium">Due amount:</span> ৳ {(collectFee.due_amount || 0).toLocaleString()}</p>
               </div>
@@ -640,6 +836,28 @@ export default function FeesPage() {
                   placeholder="e.g. 1500"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="collect-discount">Discount (৳, optional)</Label>
+                <Input
+                  id="collect-discount"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={collectDiscount}
+                  onChange={(e) => setCollectDiscount(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="collect-note">Note (optional)</Label>
+                <Input
+                  id="collect-note"
+                  type="text"
+                  value={collectNote}
+                  onChange={(e) => setCollectNote(e.target.value)}
+                  placeholder="e.g. Cash received"
+                />
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>
                   Cancel
@@ -650,6 +868,89 @@ export default function FeesPage() {
                 </Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete fee confirmation */}
+      <Dialog open={!!feeToDelete} onOpenChange={(open) => !open && setFeeToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove fee entry?</DialogTitle>
+          </DialogHeader>
+          {feeToDelete && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                This will permanently remove this fee entry (student: {studentName(feeToDelete)}, {feeCategoryLabel(feeToDelete)}, ৳ {(feeToDelete.total_fee || 0).toLocaleString()}). Any payment history and related income records for this fee will also be removed.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteFee} disabled={deleting}>
+                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Remove
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details modal — payment history */}
+      <Dialog open={!!detailsFee} onOpenChange={(open) => !open && closeDetailsModal()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Fee details & payment history</DialogTitle>
+          </DialogHeader>
+          {detailsFee && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p><span className="font-medium">Student:</span> {studentName(detailsFee)}</p>
+                <p><span className="font-medium">Category:</span> {feeCategoryLabel(detailsFee)}</p>
+                <p><span className="font-medium">Description:</span> {detailsFee.description || '—'}</p>
+                <p><span className="font-medium">Month:</span> {detailsFee.month || '—'}</p>
+                <p><span className="font-medium">Total:</span> ৳ {(detailsFee.total_fee || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Paid:</span> ৳ {(detailsFee.paid_amount || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Due:</span> ৳ {(detailsFee.due_amount || 0).toLocaleString()}</p>
+                <p><span className="font-medium">Status:</span> {detailsFee.status}</p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium">Payment history</p>
+                {detailsLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : detailsPayments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Amount (৳)</TableHead>
+                          <TableHead className="text-right">Discount (৳)</TableHead>
+                          <TableHead>Note</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detailsPayments.map((p) => (
+                          <TableRow key={p._id}>
+                            <TableCell className="text-xs">
+                              {p.payment_date ? new Date(p.payment_date).toLocaleString() : '—'}
+                            </TableCell>
+                            <TableCell className="text-right">{p.amount.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{(p.discount ?? 0).toLocaleString()}</TableCell>
+                            <TableCell className="max-w-[180px] truncate text-muted-foreground">{p.note || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

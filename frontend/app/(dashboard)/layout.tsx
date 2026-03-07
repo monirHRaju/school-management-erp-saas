@@ -13,6 +13,7 @@ const navItems = [
   { href: '/dashboard', label: 'Home' },
   { href: '/dashboard/students', label: 'Students' },
   { href: '/dashboard/fees', label: 'Fees' },
+  { href: '/dashboard/income', label: 'Income' },
   { href: '/dashboard/attendance', label: 'Attendance' },
   { href: '/dashboard/income-expense', label: 'Income / Expense' },
   { href: '/dashboard/settings', label: 'Settings' },

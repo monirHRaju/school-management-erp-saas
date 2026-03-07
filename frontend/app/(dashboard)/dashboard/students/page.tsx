@@ -99,7 +99,7 @@ export default function StudentsPage() {
   const [deleting, setDeleting] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [sortField, setSortField] = useState<
-    'name' | 'class' | 'section' | 'rollNo' | 'monthlyFee' | 'admissionDate'
+    'name' | 'class' | 'section' | 'rollNo' | 'monthlyFee' | 'admissionDate' | 'dateOfBirth'
   >('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [detailsStudent, setDetailsStudent] = useState<Student | null>(null);
@@ -795,6 +795,17 @@ export default function StudentsPage() {
                 placeholder="Student name"
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of birth *</Label>
+              <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={form.dateOfBirth ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fatherName">Father name</Label>

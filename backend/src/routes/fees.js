@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Fee = require('../models/Fee');
+const FeePayment = require('../models/FeePayment');
+const Income = require('../models/Income');
 const Transaction = require('../models/Transaction');
 const Student = require('../models/Student');
 const authMiddleware = require('../middleware/auth');
@@ -8,20 +10,36 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 router.use(authMiddleware);
 
-// Map fee_type to transaction category (income)
+const { FEE_CATEGORIES } = require('../models/Fee');
+const { INCOME_CATEGORIES } = require('../models/Income');
+
+// Legacy fee_type to category (for reading old records)
 const FEE_TYPE_TO_CATEGORY = {
-  monthly: 'Fee',
-  admission: 'Admission',
-  exam: 'Exam',
-  book: 'Book',
-  other: 'Other',
+  monthly: 'student_fee',
+  admission: 'other',
+  exam: 'exam_fee',
+  book: 'book_sales',
+  other: 'other',
 };
 
-// GET /api/fees — list fees with filters; optional summary; support student_id for individual report
+function normalizeFee(fee) {
+  if (!fee) return fee;
+  const category = fee.category || FEE_TYPE_TO_CATEGORY[fee.fee_type] || 'other';
+  return { ...fee, category };
+}
+
+function buildCategoryMatch(categoryParam) {
+  if (!categoryParam || !FEE_CATEGORIES.includes(categoryParam)) return null;
+  const legacyKeys = Object.keys(FEE_TYPE_TO_CATEGORY).filter((k) => FEE_TYPE_TO_CATEGORY[k] === categoryParam);
+  if (legacyKeys.length === 0) return { category: categoryParam };
+  return { $or: [{ category: categoryParam }, { fee_type: { $in: legacyKeys } }] };
+}
+
+// GET /api/fees — list fees with filters; support category and legacy fee_type
 router.get('/', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const { month, status, class: classFilter, student_id: studentIdParam, fee_type: feeTypeParam } = req.query;
+    const { month, status, class: classFilter, student_id: studentIdParam, category: categoryParam } = req.query;
 
     const match = { school_id: schoolId };
     if (month && typeof month === 'string' && month.trim()) {
@@ -30,16 +48,15 @@ router.get('/', async (req, res) => {
     if (status && ['unpaid', 'partial', 'paid'].includes(status)) {
       match.status = status;
     }
-    if (feeTypeParam && ['monthly', 'admission', 'exam', 'book', 'other'].includes(feeTypeParam)) {
-      match.fee_type = feeTypeParam;
-    }
+    const categoryMatch = buildCategoryMatch(categoryParam);
+    if (categoryMatch) Object.assign(match, categoryMatch);
     if (studentIdParam && mongoose.isValidObjectId(studentIdParam)) {
       match.student_id = new mongoose.Types.ObjectId(studentIdParam);
     }
 
     let query = Fee.find(match)
       .populate('student_id', 'name class section rollNo')
-      .sort({ month: -1, fee_type: 1, createdAt: -1 })
+      .sort({ month: -1, category: 1, createdAt: -1 })
       .lean();
 
     if (classFilter && typeof classFilter === 'string' && classFilter.trim() && !match.student_id) {
@@ -47,15 +64,15 @@ router.get('/', async (req, res) => {
         { school_id: schoolId, class: classFilter.trim() },
         { _id: 1 }
       ).lean();
-      const ids = studentIds.map((s) => s._id);
-      match.student_id = { $in: ids };
+      match.student_id = { $in: studentIds.map((s) => s._id) };
       query = Fee.find(match)
         .populate('student_id', 'name class section rollNo')
-        .sort({ month: -1, fee_type: 1, createdAt: -1 })
+        .sort({ month: -1, category: 1, createdAt: -1 })
         .lean();
     }
 
-    const fees = await query;
+    let fees = await query;
+    fees = fees.map(normalizeFee);
 
     const summary = {
       totalDue: fees
@@ -70,7 +87,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/fees/generate-month — create/update monthly fees for active students for given month
+// POST /api/fees/generate-month — create/update monthly student_fee for all active students
 router.post('/generate-month', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
@@ -79,11 +96,6 @@ router.post('/generate-month', async (req, res) => {
       return res.status(400).json({ success: false, error: 'month required (YYYY-MM)' });
     }
     const monthStr = month.trim();
-
-    await Fee.updateMany(
-      { school_id: schoolId, fee_type: { $exists: false }, month: { $regex: /^\d{4}-\d{2}$/ } },
-      { $set: { fee_type: 'monthly' } }
-    );
 
     const students = await Student.find(
       { school_id: schoolId, status: 'active' },
@@ -97,9 +109,10 @@ router.post('/generate-month', async (req, res) => {
       const existing = await Fee.findOne({
         school_id: schoolId,
         student_id: stu._id,
-        $or: [{ fee_type: 'monthly' }, { fee_type: { $exists: false } }],
+        $or: [{ category: 'student_fee' }, { fee_type: 'monthly' }],
         month: monthStr,
       }).lean();
+      const description = monthStr ? `${monthStr} Student Fee` : '';
       if (existing) {
         const paid = existing.paid_amount || 0;
         const due = Math.max(0, totalFee - paid);
@@ -108,10 +121,11 @@ router.post('/generate-month', async (req, res) => {
           { _id: existing._id },
           {
             $set: {
-              fee_type: 'monthly',
+              category: 'student_fee',
               total_fee: totalFee,
               due_amount: due,
               status,
+              description,
             },
           }
         );
@@ -121,8 +135,9 @@ router.post('/generate-month', async (req, res) => {
         await Fee.create({
           school_id: schoolId,
           student_id: stu._id,
-          fee_type: 'monthly',
+          category: 'student_fee',
           month: monthStr,
+          description,
           total_fee: totalFee,
           paid_amount: 0,
           due_amount: due,
@@ -141,7 +156,7 @@ router.post('/generate-month', async (req, res) => {
   }
 });
 
-// POST /api/fees/generate-year — create/update monthly fees from January to December for active students
+// POST /api/fees/generate-year — create/update monthly student_fee for full year
 router.post('/generate-year', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
@@ -160,12 +175,13 @@ router.post('/generate-year', async (req, res) => {
     let totalUpdated = 0;
     for (let m = 1; m <= 12; m += 1) {
       const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+      const description = `${monthStr} Student Fee`;
       for (const stu of students) {
         const totalFee = typeof stu.monthlyFee === 'number' && stu.monthlyFee >= 0 ? stu.monthlyFee : 0;
         const existing = await Fee.findOne({
           school_id: schoolId,
           student_id: stu._id,
-          $or: [{ fee_type: 'monthly' }, { fee_type: { $exists: false } }],
+          $or: [{ category: 'student_fee' }, { fee_type: 'monthly' }],
           month: monthStr,
         }).lean();
         if (existing) {
@@ -174,7 +190,7 @@ router.post('/generate-year', async (req, res) => {
           const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
           await Fee.updateOne(
             { _id: existing._id },
-            { $set: { fee_type: 'monthly', total_fee: totalFee, due_amount: due, status } }
+            { $set: { category: 'student_fee', total_fee: totalFee, due_amount: due, status, description } }
           );
           totalUpdated += 1;
         } else {
@@ -182,8 +198,9 @@ router.post('/generate-year', async (req, res) => {
           await Fee.create({
             school_id: schoolId,
             student_id: stu._id,
-            fee_type: 'monthly',
+            category: 'student_fee',
             month: monthStr,
+            description,
             total_fee: totalFee,
             paid_amount: 0,
             due_amount: due,
@@ -203,7 +220,69 @@ router.post('/generate-year', async (req, res) => {
   }
 });
 
-// POST /api/fees/one-time — create one-time fee (admission, exam, book, other) for a student
+// POST /api/fees/additional — create additional fee(s): single student or all students
+router.post('/additional', async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const { category, description, month, amount, student_id: studentIdParam, for_all_students } = req.body;
+
+    if (!category || !FEE_CATEGORIES.includes(category)) {
+      return res.status(400).json({ success: false, error: 'category must be one of: ' + FEE_CATEGORIES.join(', ') });
+    }
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'amount must be a positive number' });
+    }
+
+    const monthStr = typeof month === 'string' ? month.trim() : '';
+    const descStr = typeof description === 'string' ? description.trim() : (monthStr ? `${monthStr} ${category}` : category);
+
+    let students;
+    if (for_all_students) {
+      students = await Student.find({ school_id: schoolId, status: 'active' }, { _id: 1 }).lean();
+    } else {
+      if (!studentIdParam || !mongoose.isValidObjectId(studentIdParam)) {
+        return res.status(400).json({ success: false, error: 'student_id is required when not for_all_students' });
+      }
+      const student = await Student.findOne({
+        _id: new mongoose.Types.ObjectId(studentIdParam),
+        school_id: schoolId,
+      }).lean();
+      if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+      students = [student];
+    }
+
+    const created = [];
+    for (const stu of students) {
+      const fee = await Fee.create({
+        school_id: schoolId,
+        student_id: stu._id,
+        category,
+        month: monthStr,
+        description: descStr,
+        total_fee: numAmount,
+        paid_amount: 0,
+        due_amount: numAmount,
+        status: 'unpaid',
+      });
+      created.push(fee._id);
+    }
+
+    const populated = await Fee.find({ _id: { $in: created } })
+      .populate('student_id', 'name class section rollNo')
+      .lean();
+
+    res.status(201).json({
+      success: true,
+      data: populated.map(normalizeFee),
+      count: created.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Legacy: POST /api/fees/one-time — keep for backward compat; maps fee_type to category
 router.post('/one-time', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
@@ -211,9 +290,8 @@ router.post('/one-time', async (req, res) => {
     if (!student_id || !fee_type || amount === undefined || amount === null) {
       return res.status(400).json({ success: false, error: 'student_id, fee_type, and amount are required' });
     }
-    if (!['admission', 'exam', 'book', 'other'].includes(fee_type)) {
-      return res.status(400).json({ success: false, error: 'fee_type must be admission, exam, book, or other' });
-    }
+    const categoryMap = { admission: 'other', exam: 'exam_fee', book: 'book_sales', other: 'other' };
+    const category = categoryMap[fee_type] || 'other';
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       return res.status(400).json({ success: false, error: 'amount must be a positive number' });
@@ -223,25 +301,14 @@ router.post('/one-time', async (req, res) => {
       _id: new mongoose.Types.ObjectId(student_id),
       school_id: schoolId,
     }).lean();
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-
-    const existing = await Fee.findOne({
-      school_id: schoolId,
-      student_id: new mongoose.Types.ObjectId(student_id),
-      fee_type,
-      month: '',
-    }).lean();
-    if (existing) {
-      return res.status(400).json({ success: false, error: `A ${fee_type} fee already exists for this student` });
-    }
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
 
     const fee = await Fee.create({
       school_id: schoolId,
-      student_id: new mongoose.Types.ObjectId(student_id),
-      fee_type,
+      student_id: student._id,
+      category,
       month: '',
+      description: typeof req.body.description === 'string' ? req.body.description.trim() : `${fee_type} fee`,
       total_fee: numAmount,
       paid_amount: 0,
       due_amount: numAmount,
@@ -252,13 +319,156 @@ router.post('/one-time', async (req, res) => {
       .populate('student_id', 'name class section rollNo')
       .lean();
 
-    res.status(201).json({ success: true, data: populated });
+    res.status(201).json({ success: true, data: normalizeFee(populated) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/fees/pay — record payment by student_id + month (for monthly fees)
+// GET /api/fees/:id/history — payment history for a fee
+router.get('/:id/history', async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const feeId = req.params.id;
+    if (!mongoose.isValidObjectId(feeId)) {
+      return res.status(400).json({ success: false, error: 'Invalid fee id' });
+    }
+
+    const fee = await Fee.findOne({ _id: feeId, school_id: schoolId }).lean();
+    if (!fee) return res.status(404).json({ success: false, error: 'Fee not found' });
+
+    const payments = await FeePayment.find({ fee_id: feeId, school_id: schoolId })
+      .populate('created_by', 'name')
+      .sort({ payment_date: -1, createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, data: payments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/fees/:id — delete a fee (and its payments + related income) e.g. if created by mistake
+router.delete('/:id', async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const feeId = req.params.id;
+    if (!mongoose.isValidObjectId(feeId)) {
+      return res.status(400).json({ success: false, error: 'Invalid fee id' });
+    }
+
+    const fee = await Fee.findOne({ _id: feeId, school_id: schoolId });
+    if (!fee) return res.status(404).json({ success: false, error: 'Fee not found' });
+
+    await FeePayment.deleteMany({ fee_id: feeId, school_id: schoolId });
+    await Income.deleteMany({ fee_id: feeId, school_id: schoolId });
+    await Fee.deleteOne({ _id: feeId, school_id: schoolId });
+
+    res.json({ success: true, data: { deleted: true } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}); 
+
+// POST /api/fees/:id/collect — collect payment: amount, optional discount, note; create FeePayment + Income
+router.post('/:id/collect', async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const userId = req.user._id;
+    const feeId = req.params.id;
+    const { amount, discount = 0, note = '', payment_date } = req.body;
+
+    if (!mongoose.isValidObjectId(feeId)) {
+      return res.status(400).json({ success: false, error: 'Invalid fee id' });
+    }
+    if (amount === undefined || amount === null) {
+      return res.status(400).json({ success: false, error: 'amount is required' });
+    }
+    const numAmount = Number(amount);
+    const numDiscount = Number(discount) || 0;
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'amount must be a positive number' });
+    }
+    if (numDiscount < 0) {
+      return res.status(400).json({ success: false, error: 'discount cannot be negative' });
+    }
+
+    const fee = await Fee.findOne({ _id: feeId, school_id: schoolId });
+    if (!fee) return res.status(404).json({ success: false, error: 'Fee record not found' });
+
+    const totalFee = fee.total_fee || 0;
+    const dueBefore = fee.due_amount || 0;
+    const paidBefore = fee.paid_amount || 0;
+    const effectivePayment = numAmount;
+    const newPaid = paidBefore + effectivePayment;
+    const newDue = Math.max(0, totalFee - newPaid);
+    const newStatus = newDue <= 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+    fee.paid_amount = newPaid;
+    fee.due_amount = newDue;
+    fee.status = newStatus;
+    await fee.save();
+
+    const paymentDate = payment_date ? new Date(payment_date) : new Date();
+    const feePayment = await FeePayment.create({
+      school_id: schoolId,
+      fee_id: fee._id,
+      amount: numAmount,
+      discount: numDiscount,
+      note: typeof note === 'string' ? note.trim() : '',
+      payment_date: paymentDate,
+      created_by: userId,
+    });
+
+    const category = fee.category || FEE_TYPE_TO_CATEGORY[fee.fee_type] || 'other';
+    await Income.create({
+      school_id: schoolId,
+      category,
+      amount: numAmount,
+      student_id: fee.student_id,
+      fee_id: fee._id,
+      date: paymentDate,
+      created_by: userId,
+    });
+
+    const updatedFee = await Fee.findById(fee._id)
+      .populate('student_id', 'name class section rollNo')
+      .lean();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        fee: normalizeFee(updatedFee),
+        feePayment: {
+          _id: feePayment._id,
+          amount: feePayment.amount,
+          discount: feePayment.discount,
+          note: feePayment.note,
+          payment_date: feePayment.payment_date,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Legacy: POST /api/fees/:id/pay — backward compat; same as collect with amount only
+router.post('/:id/pay', async (req, res) => {
+  const payload = {
+    amount: req.body.amount,
+    discount: 0,
+    note: '',
+    payment_date: req.body.payment_date,
+  };
+  req.body = { ...req.body, ...payload };
+  const collectRoute = router.stack.find((r) => r.route && r.route.path === '/:id/collect');
+  const handler = collectRoute && collectRoute.route.stack.find((s) => s.method === 'post');
+  if (handler) return handler.handle(req, res);
+  return res.status(500).json({ success: false, error: 'Collect handler not found' });
+});
+
+// POST /api/fees/pay — record payment by student_id + month (legacy; for monthly/student_fee)
 router.post('/pay', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
@@ -281,7 +491,7 @@ router.post('/pay', async (req, res) => {
     const fee = await Fee.findOne({
       school_id: schoolId,
       student_id: new mongoose.Types.ObjectId(student_id),
-      $or: [{ fee_type: 'monthly' }, { fee_type: { $exists: false } }],
+      $or: [{ category: 'student_fee' }, { fee_type: 'monthly' }],
       month: monthStr,
     });
     if (!fee) {
@@ -291,114 +501,12 @@ router.post('/pay', async (req, res) => {
       });
     }
 
-    const newPaid = (fee.paid_amount || 0) + numAmount;
-    const totalFee = fee.total_fee || 0;
-    const newDue = Math.max(0, totalFee - newPaid);
-    const newStatus = newDue <= 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
-
-    fee.paid_amount = newPaid;
-    fee.due_amount = newDue;
-    fee.status = newStatus;
-    await fee.save();
-
-    const category = FEE_TYPE_TO_CATEGORY[fee.fee_type] || 'Fee';
-    const transaction = await Transaction.create({
-      school_id: schoolId,
-      type: 'income',
-      category,
-      amount: numAmount,
-      date: new Date(),
-      note: fee.fee_type === 'monthly' ? `Fee payment for ${monthStr}` : `${fee.fee_type} fee payment`,
-      related_fee_id: fee._id,
-    });
-
-    const updatedFee = await Fee.findById(fee._id)
-      .populate('student_id', 'name class section rollNo')
-      .lean();
-
-    res.status(201).json({
-      success: true,
-      data: {
-        fee: updatedFee,
-        transaction: {
-          _id: transaction._id,
-          type: transaction.type,
-          category: transaction.category,
-          amount: transaction.amount,
-          date: transaction.date,
-          related_fee_id: transaction.related_fee_id,
-        },
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/fees/:id/pay — record payment by fee id (works for any fee type; used by Collect button)
-router.post('/:id/pay', async (req, res) => {
-  try {
-    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const feeId = req.params.id;
-    const { amount } = req.body;
-    if (!mongoose.isValidObjectId(feeId)) {
-      return res.status(400).json({ success: false, error: 'Invalid fee id' });
-    }
-    if (amount === undefined || amount === null) {
-      return res.status(400).json({ success: false, error: 'amount is required' });
-    }
-    const numAmount = Number(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      return res.status(400).json({ success: false, error: 'amount must be a positive number' });
-    }
-
-    const fee = await Fee.findOne({ _id: feeId, school_id: schoolId });
-    if (!fee) {
-      return res.status(404).json({ success: false, error: 'Fee record not found' });
-    }
-
-    const newPaid = (fee.paid_amount || 0) + numAmount;
-    const totalFee = fee.total_fee || 0;
-    const newDue = Math.max(0, totalFee - newPaid);
-    const newStatus = newDue <= 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
-
-    fee.paid_amount = newPaid;
-    fee.due_amount = newDue;
-    fee.status = newStatus;
-    await fee.save();
-
-    const category = FEE_TYPE_TO_CATEGORY[fee.fee_type] || 'Fee';
-    const note = fee.fee_type === 'monthly' && fee.month
-      ? `Fee payment for ${fee.month}`
-      : `${fee.fee_type} fee payment`;
-    const transaction = await Transaction.create({
-      school_id: schoolId,
-      type: 'income',
-      category,
-      amount: numAmount,
-      date: new Date(),
-      note,
-      related_fee_id: fee._id,
-    });
-
-    const updatedFee = await Fee.findById(fee._id)
-      .populate('student_id', 'name class section rollNo')
-      .lean();
-
-    res.status(201).json({
-      success: true,
-      data: {
-        fee: updatedFee,
-        transaction: {
-          _id: transaction._id,
-          type: transaction.type,
-          category: transaction.category,
-          amount: transaction.amount,
-          date: transaction.date,
-          related_fee_id: transaction.related_fee_id,
-        },
-      },
-    });
+    req.params.id = fee._id.toString();
+    req.body = { amount: numAmount, discount: 0, note: '' };
+    const collectRoute = router.stack.find((r) => r.route && r.route.path === '/:id/collect');
+    const handler = collectRoute && collectRoute.route.stack.find((s) => s.method === 'post');
+    if (handler) return handler.handle(req, res);
+    return res.status(500).json({ success: false, error: 'Collect handler not found' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
