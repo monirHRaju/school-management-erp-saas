@@ -209,21 +209,21 @@ export default function FeesPage() {
     }
   };
 
-  const handleGenerateYear = async () => {
-    if (!token) return;
-    setGeneratingYear(true);
-    try {
-      const res = await generateYear(generateYearValue, token);
-      toast.success(
-        `Generated year ${generateYearValue}: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated.`
-      );
-      fetchFees();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate year');
-    } finally {
-      setGeneratingYear(false);
-    }
-  };
+  // const handleGenerateYear = async () => {
+  //   if (!token) return;
+  //   setGeneratingYear(true);
+  //   try {
+  //     const res = await generateYear(generateYearValue, token);
+  //     toast.success(
+  //       `Generated year ${generateYearValue}: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated.`
+  //     );
+  //     fetchFees();
+  //   } catch (e) {
+  //     toast.error(e instanceof Error ? e.message : 'Failed to generate year');
+  //   } finally {
+  //     setGeneratingYear(false);
+  //   }
+  // };
 
   const openCollectModal = (fee: Fee) => {
     setCollectFee(fee);
