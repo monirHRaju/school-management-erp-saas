@@ -6,6 +6,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const studentPhotoRoutes = require('./routes/studentPhoto');
 const feesRoutes = require('./routes/fees');
 const incomeRoutes = require('./routes/income');
+const transactionsRoutes = require('./routes/transactions');
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students/photo', studentPhotoRoutes);
 app.use('/api/fees', feesRoutes);
 app.use('/api/income', incomeRoutes);
+app.use('/api/transactions', transactionsRoutes);
 
 module.exports = app;

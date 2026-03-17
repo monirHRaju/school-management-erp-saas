@@ -4,6 +4,7 @@ const transactionSchema = new mongoose.Schema(
   {
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
     type: { type: String, enum: ['income', 'expense'], required: true },
+    title: { type: String, trim: true },
     category: { type: String, trim: true },
     amount: { type: Number, required: true },
     date: { type: Date, required: true },

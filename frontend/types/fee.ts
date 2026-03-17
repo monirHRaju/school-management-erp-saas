@@ -146,3 +146,43 @@ export interface IncomeListParams {
   page?: number;
   limit?: number;
 }
+
+// ── Income-Expense Ledger ────────────────────────────────────────────────────
+
+export const EXPENSE_CATEGORIES = [
+  'Teachers Salary',
+  'Rents',
+  'Hospitality',
+  'Printing',
+  'Stationary',
+  'Furniture',
+  'Repair',
+  'Entertainment',
+  'Advertisement',
+  'Other',
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export interface LedgerRow {
+  _id: string;
+  type: 'income' | 'expense';
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export interface LedgerResponse {
+  success: boolean;
+  data: LedgerRow[];
+}
+
+export interface CreateExpensePayload {
+  date: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  note?: string;
+}
