@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api';
-import type { CreateExpensePayload, LedgerResponse, LedgerRow } from '@/types/fee';
+import type { CreateExpensePayload, CreateManualIncomePayload, LedgerResponse, LedgerRow } from '@/types/fee';
 
 export async function getLedger(
   params: { from?: string; to?: string },
@@ -31,6 +31,27 @@ export async function deleteExpense(
   token: string
 ): Promise<{ success: boolean }> {
   return apiRequest<{ success: boolean }>(`/api/transactions/expense/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function createManualIncome(
+  body: CreateManualIncomePayload,
+  token: string
+): Promise<{ success: boolean; data: LedgerRow }> {
+  return apiRequest<{ success: boolean; data: LedgerRow }>('/api/transactions/income', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    token,
+  });
+}
+
+export async function deleteManualIncome(
+  id: string,
+  token: string
+): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>(`/api/transactions/income/${id}`, {
     method: 'DELETE',
     token,
   });

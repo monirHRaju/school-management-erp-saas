@@ -164,9 +164,27 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
+export const MANUAL_INCOME_CATEGORIES = [
+  'Selling Assets',
+  'Receive Donation',
+  'Other',
+] as const;
+
+export type ManualIncomeCategory = (typeof MANUAL_INCOME_CATEGORIES)[number];
+
+export interface CreateManualIncomePayload {
+  date: string;
+  title: string;
+  category: ManualIncomeCategory;
+  amount: number;
+  note?: string;
+}
+
 export interface LedgerRow {
   _id: string;
   type: 'income' | 'expense';
+  /** 'fee' = from fee collection, 'manual_income' = manually added, 'expense' = expense */
+  source?: 'fee' | 'manual_income' | 'expense';
   title: string;
   category: string;
   amount: number;

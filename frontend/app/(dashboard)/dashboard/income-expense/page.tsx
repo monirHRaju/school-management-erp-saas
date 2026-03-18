@@ -14,9 +14,21 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
-import { getLedger, createExpense, deleteExpense } from '@/lib/transactions';
-import type { LedgerRow, ExpenseCategory, CreateExpensePayload } from '@/types/fee';
-import { EXPENSE_CATEGORIES } from '@/types/fee';
+import {
+  getLedger,
+  createExpense,
+  deleteExpense,
+  createManualIncome,
+  deleteManualIncome,
+} from '@/lib/transactions';
+import type {
+  LedgerRow,
+  ExpenseCategory,
+  CreateExpensePayload,
+  ManualIncomeCategory,
+  CreateManualIncomePayload,
+} from '@/types/fee';
+import { EXPENSE_CATEGORIES, MANUAL_INCOME_CATEGORIES } from '@/types/fee';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,7 +67,15 @@ interface LedgerRowWithBalance extends LedgerRow {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-const emptyForm = (): CreateExpensePayload => ({
+const emptyExpenseForm = (): CreateExpensePayload => ({
+  date: today(),
+  title: '',
+  category: 'Other',
+  amount: 0,
+  note: '',
+});
+
+const emptyIncomeForm = (): CreateManualIncomePayload => ({
   date: today(),
   title: '',
   category: 'Other',
@@ -71,16 +91,21 @@ export default function IncomeExpensePage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
-  // Add Expense modal
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState<CreateExpensePayload>(emptyForm());
-  const [submitting, setSubmitting] = useState(false);
+  // Expense modal
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [expenseForm, setExpenseForm] = useState<CreateExpensePayload>(emptyExpenseForm());
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false);
 
-  // Delete confirmation
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // Income modal
+  const [incomeModalOpen, setIncomeModalOpen] = useState(false);
+  const [incomeForm, setIncomeForm] = useState<CreateManualIncomePayload>(emptyIncomeForm());
+  const [incomeSubmitting, setIncomeSubmitting] = useState(false);
+
+  // Delete confirmation — track both the id and whether it's income or expense
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; source: 'manual_income' | 'expense' } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Export state
+  // Export
   const [exporting, setExporting] = useState(false);
 
   const fetchLedger = useCallback(async () => {
@@ -106,54 +131,81 @@ export default function IncomeExpensePage() {
     }
   }, [token, from, to]);
 
-  useEffect(() => {
-    fetchLedger();
-  }, [fetchLedger]);
+  useEffect(() => { fetchLedger(); }, [fetchLedger]);
 
   const totalIncome = rows.reduce((s, r) => (r.type === 'income' ? s + r.amount : s), 0);
   const totalExpense = rows.reduce((s, r) => (r.type === 'expense' ? s + r.amount : s), 0);
   const netBalance = totalIncome - totalExpense;
 
-  // ── Add Expense ────────────────────────────────────────────────────────────
-  const handleFormChange = (field: keyof CreateExpensePayload, value: string | number) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+  // ── Add Expense ──────────────────────────────────────────────────────────
+  const handleExpenseFormChange = (field: keyof CreateExpensePayload, value: string | number) =>
+    setExpenseForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmitExpense = async () => {
     if (!token) return;
-    if (!form.title.trim()) { toast.error('Title is required'); return; }
-    if (!form.date) { toast.error('Date is required'); return; }
-    if (!form.amount || Number(form.amount) <= 0) { toast.error('Amount must be greater than 0'); return; }
-    setSubmitting(true);
+    if (!expenseForm.title.trim()) { toast.error('Title is required'); return; }
+    if (!expenseForm.date) { toast.error('Date is required'); return; }
+    if (!expenseForm.amount || Number(expenseForm.amount) <= 0) { toast.error('Amount must be greater than 0'); return; }
+    setExpenseSubmitting(true);
     try {
-      await createExpense({ ...form, amount: Number(form.amount) }, token);
+      await createExpense({ ...expenseForm, amount: Number(expenseForm.amount) }, token);
       toast.success('Expense added');
-      setModalOpen(false);
-      setForm(emptyForm());
+      setExpenseModalOpen(false);
+      setExpenseForm(emptyExpenseForm());
       fetchLedger();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add expense');
     } finally {
-      setSubmitting(false);
+      setExpenseSubmitting(false);
     }
   };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
-  const handleConfirmDelete = async () => {
-    if (!token || !pendingDeleteId) return;
-    setDeletingId(pendingDeleteId);
-    setPendingDeleteId(null);
+  // ── Add Income ───────────────────────────────────────────────────────────
+  const handleIncomeFormChange = (field: keyof CreateManualIncomePayload, value: string | number) =>
+    setIncomeForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleSubmitIncome = async () => {
+    if (!token) return;
+    if (!incomeForm.title.trim()) { toast.error('Title is required'); return; }
+    if (!incomeForm.date) { toast.error('Date is required'); return; }
+    if (!incomeForm.amount || Number(incomeForm.amount) <= 0) { toast.error('Amount must be greater than 0'); return; }
+    setIncomeSubmitting(true);
     try {
-      await deleteExpense(pendingDeleteId, token);
-      toast.success('Expense deleted');
+      await createManualIncome({ ...incomeForm, amount: Number(incomeForm.amount) }, token);
+      toast.success('Income added');
+      setIncomeModalOpen(false);
+      setIncomeForm(emptyIncomeForm());
       fetchLedger();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to delete expense');
+      toast.error(e instanceof Error ? e.message : 'Failed to add income');
+    } finally {
+      setIncomeSubmitting(false);
+    }
+  };
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const handleConfirmDelete = async () => {
+    if (!token || !pendingDelete) return;
+    const { id, source } = pendingDelete;
+    setDeletingId(id);
+    setPendingDelete(null);
+    try {
+      if (source === 'manual_income') {
+        await deleteManualIncome(id, token);
+        toast.success('Income deleted');
+      } else {
+        await deleteExpense(id, token);
+        toast.success('Expense deleted');
+      }
+      fetchLedger();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ── Export helpers ─────────────────────────────────────────────────────────
+  // ── Export helpers ───────────────────────────────────────────────────────
   const dateRangeLabel =
     from || to
       ? `${from ? new Date(from).toLocaleDateString() : 'Start'} – ${to ? new Date(to).toLocaleDateString() : 'Today'}`
@@ -222,6 +274,7 @@ export default function IncomeExpensePage() {
     if (rows.length === 0) { toast.error('No data to print'); return; }
     const win = window.open('', '', 'height=1200,width=900');
     if (!win) { toast.error('Popup blocked — allow popups and try again.'); return; }
+    win.document.open();
     win.document.write(`<!DOCTYPE html><html><head><title>Income / Expense Ledger</title>
       <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:32px;color:#111;}</style>
       </head><body>${buildDocumentHeader()}${buildTableHtml()}
@@ -293,10 +346,7 @@ export default function IncomeExpensePage() {
       r.balance,
     ]);
     const totalsRow = ['', '', 'TOTAL', '', '', totalIncome, totalExpense, netBalance];
-    const csvContent = [header, ...csvRows, [], totalsRow]
-      .map((row) => row.join(','))
-      .join('\n');
-
+    const csvContent = [header, ...csvRows, [], totalsRow].map((row) => row.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -308,7 +358,7 @@ export default function IncomeExpensePage() {
     toast.success('CSV downloaded!');
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -336,7 +386,14 @@ export default function IncomeExpensePage() {
             )}
             Export PDF
           </Button>
-          <Button onClick={() => { setForm(emptyForm()); setModalOpen(true); }}>
+          <Button
+            variant="outline"
+            onClick={() => { setIncomeForm(emptyIncomeForm()); setIncomeModalOpen(true); }}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Income
+          </Button>
+          <Button onClick={() => { setExpenseForm(emptyExpenseForm()); setExpenseModalOpen(true); }}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Expense
           </Button>
@@ -349,23 +406,11 @@ export default function IncomeExpensePage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="space-y-2">
               <Label htmlFor="le-from">From date</Label>
-              <Input
-                id="le-from"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="w-40"
-              />
+              <Input id="le-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="le-to">To date</Label>
-              <Input
-                id="le-to"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="w-40"
-              />
+              <Input id="le-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
             <Button variant="secondary" onClick={fetchLedger}>Apply</Button>
             {(from || to) && (
@@ -385,9 +430,7 @@ export default function IncomeExpensePage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Income</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                  ৳ {totalIncome.toLocaleString()}
-                </p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">৳ {totalIncome.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -400,9 +443,7 @@ export default function IncomeExpensePage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Expense</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                  ৳ {totalExpense.toLocaleString()}
-                </p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">৳ {totalExpense.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -437,7 +478,7 @@ export default function IncomeExpensePage() {
             </div>
           ) : rows.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">
-              No records found. Collect fee payments or add expenses to get started.
+              No records found. Collect fee payments or add income / expenses to get started.
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
@@ -480,20 +521,18 @@ export default function IncomeExpensePage() {
                       <TableCell
                         className={cn(
                           'text-right font-semibold',
-                          row.balance >= 0
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-orange-600 dark:text-orange-400'
+                          row.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'
                         )}
                       >
                         {row.balance.toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        {row.type === 'expense' && (
+                        {(row.source === 'expense' || row.source === 'manual_income') && (
                           <button
-                            onClick={() => setPendingDeleteId(row._id)}
+                            onClick={() => setPendingDelete({ id: row._id, source: row.source as 'expense' | 'manual_income' })}
                             disabled={deletingId === row._id}
                             className="text-muted-foreground hover:text-destructive disabled:opacity-40 transition-colors"
-                            title="Delete expense"
+                            title={row.source === 'expense' ? 'Delete expense' : 'Delete income'}
                           >
                             {deletingId === row._id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -513,12 +552,17 @@ export default function IncomeExpensePage() {
       </Card>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {pendingDelete?.source === 'manual_income' ? 'Income' : 'Expense'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this expense? This action cannot be undone.
+              Are you sure you want to delete this {pendingDelete?.source === 'manual_income' ? 'income' : 'expense'} entry? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -533,8 +577,85 @@ export default function IncomeExpensePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Add Income Modal */}
+      <Dialog open={incomeModalOpen} onOpenChange={setIncomeModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Income</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="inc-date">Date</Label>
+              <Input
+                id="inc-date"
+                type="date"
+                value={incomeForm.date}
+                onChange={(e) => handleIncomeFormChange('date', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inc-title">Title</Label>
+              <Input
+                id="inc-title"
+                type="text"
+                placeholder="e.g. Land Sale"
+                value={incomeForm.title}
+                onChange={(e) => handleIncomeFormChange('title', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inc-category">Category</Label>
+              <select
+                id="inc-category"
+                value={incomeForm.category}
+                onChange={(e) => handleIncomeFormChange('category', e.target.value as ManualIncomeCategory)}
+                className={cn(
+                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                )}
+              >
+                {MANUAL_INCOME_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inc-amount">Amount (৳)</Label>
+              <Input
+                id="inc-amount"
+                type="number"
+                min={1}
+                placeholder="0"
+                value={incomeForm.amount || ''}
+                onChange={(e) => handleIncomeFormChange('amount', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inc-note">
+                Note <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="inc-note"
+                type="text"
+                placeholder="Any additional details"
+                value={incomeForm.note || ''}
+                onChange={(e) => handleIncomeFormChange('note', e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIncomeModalOpen(false)} disabled={incomeSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitIncome} disabled={incomeSubmitting}>
+              {incomeSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Income
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Expense Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Expense</DialogTitle>
@@ -545,8 +666,8 @@ export default function IncomeExpensePage() {
               <Input
                 id="exp-date"
                 type="date"
-                value={form.date}
-                onChange={(e) => handleFormChange('date', e.target.value)}
+                value={expenseForm.date}
+                onChange={(e) => handleExpenseFormChange('date', e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -555,16 +676,16 @@ export default function IncomeExpensePage() {
                 id="exp-title"
                 type="text"
                 placeholder="e.g. Electricity Bill"
-                value={form.title}
-                onChange={(e) => handleFormChange('title', e.target.value)}
+                value={expenseForm.title}
+                onChange={(e) => handleExpenseFormChange('title', e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="exp-category">Category</Label>
               <select
                 id="exp-category"
-                value={form.category}
-                onChange={(e) => handleFormChange('category', e.target.value as ExpenseCategory)}
+                value={expenseForm.category}
+                onChange={(e) => handleExpenseFormChange('category', e.target.value as ExpenseCategory)}
                 className={cn(
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
@@ -581,8 +702,8 @@ export default function IncomeExpensePage() {
                 type="number"
                 min={1}
                 placeholder="0"
-                value={form.amount || ''}
-                onChange={(e) => handleFormChange('amount', e.target.value)}
+                value={expenseForm.amount || ''}
+                onChange={(e) => handleExpenseFormChange('amount', e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -593,17 +714,17 @@ export default function IncomeExpensePage() {
                 id="exp-note"
                 type="text"
                 placeholder="Any additional details"
-                value={form.note || ''}
-                onChange={(e) => handleFormChange('note', e.target.value)}
+                value={expenseForm.note || ''}
+                onChange={(e) => handleExpenseFormChange('note', e.target.value)}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>
+            <Button variant="outline" onClick={() => setExpenseModalOpen(false)} disabled={expenseSubmitting}>
               Cancel
             </Button>
-            <Button onClick={handleSubmitExpense} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleSubmitExpense} disabled={expenseSubmitting}>
+              {expenseSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add Expense
             </Button>
           </DialogFooter>
