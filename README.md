@@ -1,4 +1,4 @@
-# School Management SaaS — Project Roadmap
+# EduCore - School Management SaaS — Project Roadmap
 
 > An **intermediate-level**, multi-tenant School Management SaaS for small private schools in Bangladesh.  
 > **Stack:** Next.js (App Router) + TypeScript | Express.js + MongoDB | JWT | Vercel + Render/Railway

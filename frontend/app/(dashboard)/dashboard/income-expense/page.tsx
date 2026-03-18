@@ -59,6 +59,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { Pagination } from '@/components/ui/pagination';
 
 interface LedgerRowWithBalance extends LedgerRow {
   sl: number;
@@ -90,6 +91,8 @@ export default function IncomeExpensePage() {
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   // Expense modal
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -121,6 +124,7 @@ export default function IncomeExpensePage() {
         return { ...row, sl: i + 1, balance };
       });
       setRows(withBalance);
+      setPage(1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load ledger';
       setError(msg);
@@ -136,6 +140,8 @@ export default function IncomeExpensePage() {
   const totalIncome = rows.reduce((s, r) => (r.type === 'income' ? s + r.amount : s), 0);
   const totalExpense = rows.reduce((s, r) => (r.type === 'expense' ? s + r.amount : s), 0);
   const netBalance = totalIncome - totalExpense;
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // ── Add Expense ──────────────────────────────────────────────────────────
   const handleExpenseFormChange = (field: keyof CreateExpensePayload, value: string | number) =>
@@ -496,7 +502,7 @@ export default function IncomeExpensePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row) => (
+                  {pagedRows.map((row) => (
                     <TableRow
                       key={row._id}
                       className={row.type === 'expense' ? 'bg-red-50/40 dark:bg-red-950/10' : ''}
@@ -548,6 +554,13 @@ export default function IncomeExpensePage() {
               </Table>
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={rows.length}
+            limit={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
 

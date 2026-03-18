@@ -53,6 +53,9 @@ export interface FeesListResponse {
   success: boolean;
   data: Fee[];
   summary: FeeSummary;
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface GenerateMonthPayload {

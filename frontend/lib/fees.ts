@@ -20,6 +20,8 @@ export async function getFees(
     student_id?: string;
     category?: string;
     fee_type?: string;
+    page?: number;
+    limit?: number;
   },
   token: string
 ) {
@@ -30,6 +32,8 @@ export async function getFees(
   if (params.student_id) search.set('student_id', params.student_id);
   if (params.category) search.set('category', params.category);
   if (params.fee_type) search.set('fee_type', params.fee_type);
+  if (params.page != null) search.set('page', String(params.page));
+  if (params.limit != null) search.set('limit', String(params.limit));
   const query = search.toString();
   return apiRequest<FeesListResponse>(
     `/api/fees${query ? `?${query}` : ''}`,

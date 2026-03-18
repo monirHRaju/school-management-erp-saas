@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import type { Student, StudentFormData } from '@/types/student';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,8 +107,12 @@ export default function StudentsPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsPrintRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const LIMIT = 20;
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (pageNum = 1) => {
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -117,12 +122,16 @@ export default function StudentsPage() {
       if (sectionFilter) params.set('section', sectionFilter);
       if (statusFilter) params.set('status', statusFilter);
       if (searchQuery) params.set('q', searchQuery);
-      const query = params.toString();
-      const res = await apiRequest<{ success: boolean; data: Student[] }>(
-        `/api/students${query ? `?${query}` : ''}`,
+      params.set('page', String(pageNum));
+      params.set('limit', String(LIMIT));
+      const res = await apiRequest<{ success: boolean; data: Student[]; total: number; page: number; totalPages: number }>(
+        `/api/students?${params.toString()}`,
         { token }
       );
       setStudents(res.data || []);
+      setTotal(res.total ?? 0);
+      setTotalPages(res.totalPages ?? 1);
+      setPage(pageNum);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load students';
       setError(msg);
@@ -134,7 +143,7 @@ export default function StudentsPage() {
   }, [token, classFilter, sectionFilter, statusFilter, searchQuery]);
 
   useEffect(() => {
-    fetchStudents();
+    fetchStudents(1);
   }, [fetchStudents]);
 
   const openCreate = () => {
@@ -236,7 +245,7 @@ export default function StudentsPage() {
       }
       setDialogOpen(false);
       toast.success(editingStudent ? 'Student updated successfully.' : 'Student added successfully.');
-      fetchStudents();
+      fetchStudents(editingStudent ? page : 1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Save failed';
       setError(msg);
@@ -375,7 +384,7 @@ export default function StudentsPage() {
       setDeleteDialogOpen(false);
       setStudentToDelete(null);
       toast.success('Student deleted successfully.');
-      fetchStudents();
+      fetchStudents(page);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Delete failed';
       setError(msg);
@@ -775,6 +784,13 @@ export default function StudentsPage() {
               </div>
             </>
           )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            limit={LIMIT}
+            onPageChange={(p) => fetchStudents(p)}
+          />
         </CardContent>
       </Card>
 

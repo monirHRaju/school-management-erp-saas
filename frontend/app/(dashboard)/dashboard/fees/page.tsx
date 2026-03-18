@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getFees, generateMonth, payFee, collectPayment, createOneTimeFee, createAdditionalFee, getFeeHistory, deleteFee } from '@/lib/fees';
 import type { Fee, FeeSummary, FeeCategory, FeePayment } from '@/types/fee';
+import { Pagination } from '@/components/ui/pagination';
 import { FEE_CATEGORIES } from '@/types/fee';
 import type { Student } from '@/types/student';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,10 @@ export default function FeesPage() {
   const { token } = useAuth();
   const [fees, setFees] = useState<Fee[]>([]);
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const LIMIT = 20;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState('');
@@ -108,7 +113,7 @@ export default function FeesPage() {
   const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchFees = useCallback(async () => {
+  const fetchFees = useCallback(async (pageNum = 1) => {
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -119,11 +124,16 @@ export default function FeesPage() {
           status: statusFilter || undefined,
           category: categoryFilter || undefined,
           class: classFilter || undefined,
+          page: pageNum,
+          limit: LIMIT,
         },
         token
       );
       setFees(res.data || []);
       setSummary(res.summary || { totalDue: 0, unpaidCount: 0 });
+      setTotal(res.total ?? 0);
+      setTotalPages(res.totalPages ?? 1);
+      setPage(pageNum);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load fees';
       setError(msg);
@@ -145,8 +155,9 @@ export default function FeesPage() {
     }
   }, [token]);
 
+  // Reset to page 1 whenever filters change
   useEffect(() => {
-    fetchFees();
+    fetchFees(1);
   }, [fetchFees]);
 
   useEffect(() => {
@@ -162,7 +173,7 @@ export default function FeesPage() {
         `Generated: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated for ${generateMonthValue}.`
       );
       setGenerateMonthValue(generateMonthValue);
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate month');
     } finally {
@@ -177,7 +188,7 @@ export default function FeesPage() {
       await deleteFee(feeToDelete._id, token);
       toast.success('Fee entry removed.');
       setFeeToDelete(null);
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete');
     } finally {
@@ -201,7 +212,7 @@ export default function FeesPage() {
       await payFee({ student_id: payStudentId, month: payMonth, amount }, token);
       toast.success('Payment recorded.');
       setPayAmount('');
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to record payment');
     } finally {
@@ -217,7 +228,7 @@ export default function FeesPage() {
   //     toast.success(
   //       `Generated year ${generateYearValue}: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated.`
   //     );
-  //     fetchFees();
+  //     fetchFees(page);
   //   } catch (e) {
   //     toast.error(e instanceof Error ? e.message : 'Failed to generate year');
   //   } finally {
@@ -258,7 +269,7 @@ export default function FeesPage() {
       );
       toast.success('Payment collected.');
       closeCollectModal();
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to collect');
     } finally {
@@ -285,7 +296,7 @@ export default function FeesPage() {
       );
       toast.success(`${ONE_TIME_FEE_TYPES.find((t) => t.value === oneTimeFeeType)?.label} added.`);
       setOneTimeAmount('');
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add fee');
     } finally {
@@ -325,7 +336,7 @@ export default function FeesPage() {
       );
       setAdditionalAmount('');
       setAdditionalDescription('');
-      fetchFees();
+      fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add fee');
     } finally {
@@ -807,6 +818,13 @@ export default function FeesPage() {
               </Table>
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            limit={LIMIT}
+            onPageChange={(p) => fetchFees(p)}
+          />
         </CardContent>
       </Card>
 

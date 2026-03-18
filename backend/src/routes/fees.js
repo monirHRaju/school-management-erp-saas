@@ -35,11 +35,14 @@ function buildCategoryMatch(categoryParam) {
   return { $or: [{ category: categoryParam }, { fee_type: { $in: legacyKeys } }] };
 }
 
-// GET /api/fees — list fees with filters; support category and legacy fee_type
+// GET /api/fees — list fees with filters; supports pagination via page & limit params
 router.get('/', async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const { month, status, class: classFilter, student_id: studentIdParam, category: categoryParam } = req.query;
+    const { month, status, class: classFilter, student_id: studentIdParam, category: categoryParam, page, limit } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
 
     const match = { school_id: schoolId };
     if (month && typeof month === 'string' && month.trim()) {
@@ -54,34 +57,46 @@ router.get('/', async (req, res) => {
       match.student_id = new mongoose.Types.ObjectId(studentIdParam);
     }
 
-    let query = Fee.find(match)
-      .populate('student_id', 'name class section rollNo')
-      .sort({ month: -1, category: 1, createdAt: -1 })
-      .lean();
-
     if (classFilter && typeof classFilter === 'string' && classFilter.trim() && !match.student_id) {
       const studentIds = await Student.find(
         { school_id: schoolId, class: classFilter.trim() },
         { _id: 1 }
       ).lean();
       match.student_id = { $in: studentIds.map((s) => s._id) };
-      query = Fee.find(match)
-        .populate('student_id', 'name class section rollNo')
-        .sort({ month: -1, category: 1, createdAt: -1 })
-        .lean();
     }
 
-    let fees = await query;
-    fees = fees.map(normalizeFee);
+    // Summary aggregation over full result set (not affected by pagination)
+    const summaryAgg = await Fee.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalDue: { $sum: { $cond: [{ $in: ['$status', ['unpaid', 'partial']] }, '$due_amount', 0] } },
+          unpaidCount: { $sum: { $cond: [{ $in: ['$status', ['unpaid', 'partial']] }, 1, 0] } },
+        },
+      },
+    ]);
+    const summary = summaryAgg[0]
+      ? { totalDue: summaryAgg[0].totalDue, unpaidCount: summaryAgg[0].unpaidCount }
+      : { totalDue: 0, unpaidCount: 0 };
 
-    const summary = {
-      totalDue: fees
-        .filter((f) => f.status === 'unpaid' || f.status === 'partial')
-        .reduce((sum, f) => sum + (f.due_amount || 0), 0),
-      unpaidCount: fees.filter((f) => f.status === 'unpaid' || f.status === 'partial').length,
-    };
+    const total = await Fee.countDocuments(match);
 
-    res.json({ success: true, data: fees, summary });
+    const fees = await Fee.find(match)
+      .populate('student_id', 'name class section rollNo')
+      .sort({ month: -1, category: 1, createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    res.json({
+      success: true,
+      data: fees.map(normalizeFee),
+      summary,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -7,10 +7,10 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// GET /api/students — list with optional filters (class, section, status)
+// GET /api/students — list with optional filters; add page & limit for pagination
 router.get('/', async (req, res) => {
   try {
-    const { class: classFilter, section, status, shift, group, q } = req.query;
+    const { class: classFilter, section, status, shift, group, q, page, limit } = req.query;
     const filter = { school_id: new mongoose.Types.ObjectId(req.schoolId) };
     if (classFilter) filter.class = classFilter;
     if (section) filter.section = section;
@@ -24,9 +24,22 @@ router.get('/', async (req, res) => {
       conditions.push({ $or: [{ name: regex }, { rollNo: regex }] });
     }
 
-    const students = await Student.find(conditions.length > 1 ? { $and: conditions } : filter)
-      .sort({ createdAt: -1 })
-      .lean();
+    const finalFilter = conditions.length > 1 ? { $and: conditions } : filter;
+
+    if (page != null) {
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+      const total = await Student.countDocuments(finalFilter);
+      const students = await Student.find(finalFilter)
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean();
+      return res.json({ success: true, data: students, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+    }
+
+    // No pagination — return all (used by dropdowns in other pages)
+    const students = await Student.find(finalFilter).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: students });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
