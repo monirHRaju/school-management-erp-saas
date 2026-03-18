@@ -1,7 +1,16 @@
 # EduCore - School Management SaaS — Project Roadmap
-
 > An **intermediate-level**, multi-tenant School Management SaaS for small private schools in Bangladesh.  
 > **Stack:** Next.js (App Router) + TypeScript | Express.js + MongoDB | JWT | Vercel + Render/Railway
+
+- Live Link: https://my-school-software.vercel.app/
+- Backend Server: https://school-erp-backend-service.onrender.com/
+
+- Login credentials:
+Role	      Email	                      Password	      School Slug
+admin	      admin@school.com	          admin123	      greenfield
+staff	      staff@school.com	          staff123	      greenfield
+accountant  accounts@school.com	         accounts123	  greenfield
+admin	      admin@sunrise-ems.school.com	admin123	    sunrise-ems
 
 ---
 
