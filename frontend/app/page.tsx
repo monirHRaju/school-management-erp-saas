@@ -1,54 +1,34 @@
-'use client';
+import type { Metadata } from 'next';
+import Navbar from '@/components/landing/Navbar';
+import Hero from '@/components/landing/Hero';
+import TrustBar from '@/components/landing/TrustBar';
+import Features from '@/components/landing/Features';
+import HowItWorks from '@/components/landing/HowItWorks';
+import Pricing from '@/components/landing/Pricing';
+import Stats from '@/components/landing/Stats';
+import Testimonials from '@/components/landing/Testimonials';
+import CTABanner from '@/components/landing/CTABanner';
+import Footer from '@/components/landing/Footer';
 
-import { useEffect } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+export const metadata: Metadata = {
+  title: 'Amar School — Modern School Management ERP',
+  description:
+    'The all-in-one SaaS platform for schools. Manage students, collect fees, track attendance, monitor finances, and generate reports from a single powerful dashboard.',
+};
 
-export default function Home() {
-  const { isAuthenticated, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      window.location.href = '/dashboard';
-    }
-  }, [loading, isAuthenticated]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
-        <p className="text-zinc-500">Loading...</p>
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return null;
-  }
-
+export default function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
-      <main className="w-full max-w-2xl text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-          School Management
-        </h1>
-        <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400">
-          Simple fee management, attendance, and income/expense for small private schools.
-        </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Link
-            href="/login"
-            className="rounded-md bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-md border border-zinc-300 px-4 py-2 font-medium text-zinc-900 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
-            Sign up
-          </Link>
-        </div>
-      </main>
-    </div>
+    <main className="bg-zinc-950 text-zinc-100 overflow-x-hidden">
+      <Navbar />
+      <Hero />
+      <TrustBar />
+      <Features />
+      <HowItWorks />
+      <Pricing />
+      <Stats />
+      <Testimonials />
+      <CTABanner />
+      <Footer />
+    </main>
   );
 }

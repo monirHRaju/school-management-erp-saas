@@ -7,6 +7,7 @@ const studentPhotoRoutes = require('./routes/studentPhoto');
 const feesRoutes = require('./routes/fees');
 const incomeRoutes = require('./routes/income');
 const transactionsRoutes = require('./routes/transactions');
+const superAdminRoutes = require('./routes/superAdmin');
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use('/api/students/photo', studentPhotoRoutes);
 app.use('/api/fees', feesRoutes);
 app.use('/api/income', incomeRoutes);
 app.use('/api/transactions', transactionsRoutes);
+app.use('/api/super-admin', superAdminRoutes);
 
 module.exports = app;

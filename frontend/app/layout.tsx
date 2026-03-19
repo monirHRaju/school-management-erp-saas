@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "School Management",
-  description: "School Management SaaS for small private schools",
+  title: "Amar School — Modern School Management ERP",
+  description: "The all-in-one SaaS platform for schools. Manage students, collect fees, track attendance, monitor finances, and generate reports from one powerful dashboard.",
 };
 
 export default function RootLayout({
