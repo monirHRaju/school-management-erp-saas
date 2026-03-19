@@ -52,29 +52,29 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({ success: false, error: 'Email already registered for this school' });
+      return res.status(400).json({ success: false, error: 'Email already in use' });
     }
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/auth/login — login with email, password, school slug
+// POST /api/auth/login — login with email + password only (no school slug required)
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, schoolSlug } = req.body;
-    if (!email || !password || !schoolSlug) {
+    const { email, password } = req.body;
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: email, password, schoolSlug',
+        error: 'Missing required fields: email, password',
       });
     }
-    const school = await School.findOne({ slug: schoolSlug.trim().toLowerCase() });
-    if (!school) {
-      return res.status(401).json({ success: false, error: 'Invalid credentials' });
-    }
-    const user = await User.findOne({ school_id: school._id, email: email.trim().toLowerCase() }).select('+passwordHash');
+    const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+    const school = await School.findById(user.school_id);
+    if (!school) {
+      return res.status(401).json({ success: false, error: 'School not found' });
     }
     const token = jwt.sign(
       { userId: user._id.toString(), schoolId: school._id.toString() },

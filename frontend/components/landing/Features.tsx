@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useInView } from 'framer-motion';
 import { useRef } from 'react';
 import {
-  Users, BangladeshnRupee, CalendarCheck, BookOpen,
+  Users, TurkishLira, CalendarCheck, BookOpen,
   BarChart3, ShieldCheck, Globe, Heart,
 } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const features = [
     desc: 'Manage complete student profiles, batch assignments, enrollment, and full academic history in one place.',
   },
   {
-    icon: BangladeshnRupee,
+    icon: TurkishLira,
     color: 'emerald',
     title: 'Fee & Finance',
     desc: 'Collect fees, track payments, send reminders, and generate payment receipts with zero manual effort.',

@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ school_id: 1 });
-userSchema.index({ school_id: 1, email: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true });
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('passwordHash')) return next();

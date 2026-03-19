@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Users, BangladeshnRupee, CalendarCheck } from 'lucide-react';
+import { ArrowRight, Play, Users, TurkishLira, CalendarCheck } from 'lucide-react';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -48,7 +48,7 @@ function DashboardMockup() {
           <div className="grid grid-cols-3 gap-2">
             {[
               { icon: Users, label: 'Students', value: '1,234', color: 'indigo' },
-              { icon: BangladeshnRupee, label: 'Fees Due', value: '৳45K', color: 'amber' },
+              { icon: TurkishLira, label: 'Fees Due', value: '৳45K', color: 'amber' },
               { icon: CalendarCheck, label: 'Attendance', value: '96%', color: 'emerald' },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="bg-zinc-800/60 rounded-xl p-3 border border-zinc-700/40">
@@ -115,7 +115,7 @@ function DashboardMockup() {
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-zinc-950">
+    <section id="home" className="relative min-h-screen flex items-center overflow-hidden bg-zinc-950">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />

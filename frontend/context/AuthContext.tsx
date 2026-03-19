@@ -12,7 +12,7 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string, schoolSlug: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (params: {
     schoolName: string;
     slug: string;
@@ -74,10 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loadUser]);
 
   const login = useCallback(
-    async (email: string, password: string, schoolSlug: string) => {
+    async (email: string, password: string) => {
       const res = await apiRequest<AuthResponse>('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password, schoolSlug }),
+        body: JSON.stringify({ email, password }),
       });
       if (!res.success || !res.data) throw new Error(res.error || 'Login failed');
       setToken(res.data.token);

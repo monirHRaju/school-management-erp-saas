@@ -1,9 +1,9 @@
-import { School, Users, BangladeshnRupee, Clock, ShieldCheck, UserCheck, Activity } from 'lucide-react';
+import { School, Users, TurkishLira, Clock, ShieldCheck, UserCheck, Activity } from 'lucide-react';
 
 const items = [
   { icon: School, text: '500+ Schools' },
   { icon: Users, text: '50,000+ Students Managed' },
-  { icon: BangladeshnRupee, text: '৳10 Cr+ Fees Processed' },
+  { icon: TurkishLira, text: '৳10 Cr+ Fees Processed' },
   { icon: Clock, text: '99.9% Uptime' },
   { icon: ShieldCheck, text: 'Multi-tenant SaaS Architecture' },
   { icon: UserCheck, text: 'Role-Based Access Control' },
