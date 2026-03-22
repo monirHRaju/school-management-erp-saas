@@ -16,6 +16,7 @@ const navItems = [
   { href: '/dashboard/income', label: 'Income' },
   { href: '/dashboard/attendance', label: 'Attendance' },
   { href: '/dashboard/income-expense', label: 'Income / Expense' },
+  { href: '/dashboard/subscription', label: 'Subscription' },
   { href: '/dashboard/settings', label: 'Settings' },
 ];
 

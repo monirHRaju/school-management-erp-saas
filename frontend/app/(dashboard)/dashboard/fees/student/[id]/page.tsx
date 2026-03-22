@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, CreditCard, TrendingUp, Eye, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, CreditCard, TrendingUp, Eye, Plus, Printer, Link2, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { getFees, getFeeHistory, collectPayment, createAdditionalFee } from '@/lib/fees';
@@ -64,6 +64,11 @@ export default function StudentFeeReportPage() {
   const [addAmount, setAddAmount] = useState('');
   const [addSubmitting, setAddSubmitting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  // Payment link
+  const [linkFee, setLinkFee] = useState<Fee | null>(null);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const fetchStudent = useCallback(async () => {
     if (!token || !studentId) return;
@@ -107,6 +112,33 @@ export default function StudentFeeReportPage() {
 
   const totalPaid = fees.reduce((s, f) => s + (f.paid_amount || 0), 0);
   const totalExpected = fees.reduce((s, f) => s + (f.total_fee || 0), 0);
+
+  async function openPaymentLink(fee: Fee) {
+    setLinkFee(fee);
+    setLinkUrl('');
+    setLinkCopied(false);
+    setLinkLoading(true);
+    try {
+      const res = await apiRequest<{ success: boolean; data: { url: string } }>(
+        '/api/payment/link/generate',
+        { method: 'POST', body: JSON.stringify({ fee_id: fee._id }), token: token! }
+      );
+      if (res.success) setLinkUrl(res.data.url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate link');
+      setLinkFee(null);
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
+  function copyLink() {
+    if (!linkUrl) return;
+    navigator.clipboard.writeText(linkUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   const openCollectModal = (fee: Fee) => {
     setCollectFee(fee);
@@ -416,14 +448,25 @@ export default function StudentFeeReportPage() {
                           View
                         </Button>
                         {(fee.status === 'unpaid' || fee.status === 'partial') && fee.due_amount > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400"
-                            onClick={() => openCollectModal(fee)}
-                          >
-                            Collect
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400"
+                              onClick={() => openCollectModal(fee)}
+                            >
+                              Collect
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:text-pink-400 dark:hover:bg-pink-950/30"
+                              onClick={() => openPaymentLink(fee)}
+                              title="Generate bKash payment link"
+                            >
+                              <Link2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                       </TableCell>
                     </TableRow>
@@ -598,6 +641,45 @@ export default function StudentFeeReportPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Link Modal */}
+      <Dialog open={!!linkFee} onOpenChange={(open) => !open && setLinkFee(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-[#E2136E] font-black">bKash</span> Payment Link
+            </DialogTitle>
+          </DialogHeader>
+          {linkFee && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Share this link with the parent/guardian. They can pay <strong>৳{linkFee.due_amount.toLocaleString()}</strong> directly via bKash — no login required.
+              </p>
+              {linkLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : linkUrl ? (
+                <>
+                  <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+                    <p className="flex-1 text-xs font-mono text-foreground truncate">{linkUrl}</p>
+                    <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2" onClick={copyLink}>
+                      {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  <Button
+                    className="w-full bg-[#E2136E] hover:bg-[#c0125e] text-white"
+                    onClick={copyLink}
+                  >
+                    {linkCopied ? <><Check className="h-4 w-4 mr-2" /> Copied!</> : <><Copy className="h-4 w-4 mr-2" /> Copy Link</>}
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground">Link expires in 7 days</p>
+                </>
+              ) : null}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -7,6 +7,7 @@ const School = require('../models/School');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const Fee = require('../models/Fee');
+const SubscriptionPlan = require('../models/SubscriptionPlan');
 const superAdminAuth = require('../middleware/superAdminAuth');
 
 const router = express.Router();
@@ -148,11 +149,11 @@ router.get('/schools/:id', superAdminAuth, async (req, res) => {
 // PUT /api/super-admin/schools/:id — update subscription plan / expiry / name / contact
 router.put('/schools/:id', superAdminAuth, async (req, res) => {
   try {
-    const { name, contact, subscription_plan, subscription_expiry, settings } = req.body;
+    const { name, contact, plan_slug, subscription_expiry, settings } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (contact !== undefined) update.contact = contact;
-    if (subscription_plan !== undefined) update.subscription_plan = subscription_plan;
+    if (plan_slug !== undefined) update.plan_slug = plan_slug;
     if (subscription_expiry !== undefined) update.subscription_expiry = subscription_expiry;
     if (settings !== undefined) update.settings = settings;
 
@@ -199,7 +200,7 @@ router.post('/schools', superAdminAuth, async (req, res) => {
       name: schoolName.trim(),
       slug: slug.trim().toLowerCase(),
       contact: contact?.trim(),
-      subscription_plan: subscription_plan || 'free',
+      plan_slug: subscription_plan || 'free',
       subscription_expiry: subscription_expiry || undefined,
     });
 
@@ -259,6 +260,106 @@ router.put('/me/password', superAdminAuth, async (req, res) => {
     admin.passwordHash = newPassword;
     await admin.save();
     res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Subscription Plans ─────────────────────────────────────────────────────
+
+// GET /api/super-admin/plans — list all plans
+router.get('/plans', superAdminAuth, async (req, res) => {
+  try {
+    const plans = await SubscriptionPlan.find().sort({ order: 1 }).lean();
+    res.json({ success: true, data: plans });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/super-admin/plans — create a plan
+router.post('/plans', superAdminAuth, async (req, res) => {
+  try {
+    const { name, slug, price, currency, maxStudents, maxAdmins, features, isActive, order } = req.body;
+    if (!name || !slug) {
+      return res.status(400).json({ success: false, error: 'name and slug are required' });
+    }
+    const plan = await SubscriptionPlan.create({
+      name, slug, price: price ?? 0, currency, maxStudents: maxStudents ?? 50,
+      maxAdmins: maxAdmins ?? 1, features, isActive: isActive ?? true, order: order ?? 0,
+    });
+    res.status(201).json({ success: true, data: plan });
+  } catch (err) {
+    if (err.code === 11000) return res.status(400).json({ success: false, error: 'Plan slug already exists' });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/super-admin/plans/:id — update a plan
+router.put('/plans/:id', superAdminAuth, async (req, res) => {
+  try {
+    const { name, price, currency, maxStudents, maxAdmins, features, isActive, order } = req.body;
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (price !== undefined) update.price = price;
+    if (currency !== undefined) update.currency = currency;
+    if (maxStudents !== undefined) update.maxStudents = maxStudents;
+    if (maxAdmins !== undefined) update.maxAdmins = maxAdmins;
+    if (features !== undefined) update.features = features;
+    if (isActive !== undefined) update.isActive = isActive;
+    if (order !== undefined) update.order = order;
+
+    const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    if (!plan) return res.status(404).json({ success: false, error: 'Plan not found' });
+    res.json({ success: true, data: plan });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/super-admin/plans/:id — delete a plan
+router.delete('/plans/:id', superAdminAuth, async (req, res) => {
+  try {
+    const plan = await SubscriptionPlan.findByIdAndDelete(req.params.id);
+    if (!plan) return res.status(404).json({ success: false, error: 'Plan not found' });
+    res.json({ success: true, message: 'Plan deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/super-admin/schools/:id/plan — update school's subscription plan
+router.put('/schools/:id/plan', superAdminAuth, async (req, res) => {
+  try {
+    const { plan_slug, subscription_expiry } = req.body;
+    if (!plan_slug) return res.status(400).json({ success: false, error: 'plan_slug required' });
+
+    const plan = await SubscriptionPlan.findOne({ slug: plan_slug });
+    if (!plan) return res.status(404).json({ success: false, error: 'Plan not found' });
+
+    const school = await School.findByIdAndUpdate(
+      req.params.id,
+      { plan_slug, subscription_expiry: subscription_expiry || null },
+      { new: true }
+    );
+    if (!school) return res.status(404).json({ success: false, error: 'School not found' });
+    res.json({ success: true, data: school });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/super-admin/schools/:id/limits — manually override school's usage limits
+router.put('/schools/:id/limits', superAdminAuth, async (req, res) => {
+  try {
+    const { maxStudents, maxAdmins } = req.body;
+    const custom_limits = {
+      maxStudents: maxStudents !== undefined ? Number(maxStudents) : null,
+      maxAdmins: maxAdmins !== undefined ? Number(maxAdmins) : null,
+    };
+    const school = await School.findByIdAndUpdate(req.params.id, { custom_limits }, { new: true });
+    if (!school) return res.status(404).json({ success: false, error: 'School not found' });
+    res.json({ success: true, data: school });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
