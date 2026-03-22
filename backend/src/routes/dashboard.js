@@ -4,6 +4,7 @@ const Student = require('../models/Student');
 const Fee = require('../models/Fee');
 const Transaction = require('../models/Transaction');
 const Income = require('../models/Income');
+const Attendance = require('../models/Attendance');
 const mongoose = require('mongoose');
 
 const router = express.Router();
@@ -13,7 +14,18 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
 
-    const totalStudents = await Student.countDocuments({ school_id: schoolId });
+    const totalStudents = await Student.countDocuments({ school_id: schoolId, status: 'active' });
+
+    // Today's attendance
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const presentToday = await Attendance.countDocuments({
+      school_id: schoolId,
+      date: todayStart,
+      status: 'present',
+    });
+    const todayAttendancePercent =
+      totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
 
     const dueAgg = await Fee.aggregate([
       { $match: { school_id: schoolId, status: { $in: ['unpaid', 'partial'] } } },
@@ -73,7 +85,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const data = {
       totalStudents,
-      todayAttendancePercent: 0,
+      todayAttendancePercent,
       monthIncome,
       monthExpense,
       netBalance,

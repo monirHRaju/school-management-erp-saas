@@ -10,6 +10,7 @@ const transactionsRoutes = require('./routes/transactions');
 const superAdminRoutes = require('./routes/superAdmin');
 const subscriptionRoutes = require('./routes/subscription');
 const paymentRoutes      = require('./routes/payment');
+const attendanceRoutes   = require('./routes/attendance');
 
 const app = express();
 
@@ -35,5 +36,6 @@ app.use('/api/transactions', transactionsRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/payment',      paymentRoutes);
+app.use('/api/attendance',   attendanceRoutes);
 
 module.exports = app;
