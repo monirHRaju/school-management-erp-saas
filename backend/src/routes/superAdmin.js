@@ -8,6 +8,8 @@ const User = require('../models/User');
 const Student = require('../models/Student');
 const Fee = require('../models/Fee');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
+const SmsOrder = require('../models/SmsOrder');
+const Notice = require('../models/Notice');
 const superAdminAuth = require('../middleware/superAdminAuth');
 
 const router = express.Router();
@@ -360,6 +362,182 @@ router.put('/schools/:id/limits', superAdminAuth, async (req, res) => {
     const school = await School.findByIdAndUpdate(req.params.id, { custom_limits }, { new: true });
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
     res.json({ success: true, data: school });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── SMS Orders ─────────────────────────────────────────────────────────────
+
+// GET /api/super-admin/sms-orders — list all orders (filterable by status)
+router.get('/sms-orders', superAdminAuth, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    const filter = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) filter.status = status;
+
+    const total = await SmsOrder.countDocuments(filter);
+    const orders = await SmsOrder.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    // Attach school names
+    const schoolIds = [...new Set(orders.map((o) => o.school_id.toString()))];
+    const schools = await School.find({ _id: { $in: schoolIds } }).select('name slug').lean();
+    const schoolMap = Object.fromEntries(schools.map((s) => [s._id.toString(), s]));
+
+    const enriched = orders.map((o) => ({
+      ...o,
+      school: schoolMap[o.school_id.toString()] || null,
+    }));
+
+    res.json({ success: true, data: enriched, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/super-admin/sms-orders/:id/approve
+router.put('/sms-orders/:id/approve', superAdminAuth, async (req, res) => {
+  try {
+    const order = await SmsOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, error: `Order is already ${order.status}` });
+    }
+
+    order.status = 'approved';
+    await order.save();
+
+    await School.findByIdAndUpdate(order.school_id, { $inc: { sms_balance: order.sms_count } });
+
+    await Notice.create({
+      title: 'SMS ব্যালেন্স যোগ হয়েছে',
+      message: `${order.sms_count} SMS ব্যালেন্স যোগ করা হয়েছে (ম্যানুয়াল পেমেন্ট অনুমোদিত)। অর্ডার আইডি: ${order._id}`,
+      target: order.school_id.toString(),
+      type: 'auto',
+      from: 'system',
+    });
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/super-admin/sms-orders/:id/reject
+router.put('/sms-orders/:id/reject', superAdminAuth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const order = await SmsOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, error: `Order is already ${order.status}` });
+    }
+
+    order.status = 'rejected';
+    order.reject_reason = reason || null;
+    await order.save();
+
+    await Notice.create({
+      title: 'SMS অর্ডার প্রত্যাখ্যাত',
+      message: `আপনার ${order.sms_count} SMS অর্ডার প্রত্যাখ্যান করা হয়েছে।${reason ? ` কারণ: ${reason}` : ''}`,
+      target: order.school_id.toString(),
+      type: 'auto',
+      from: 'system',
+    });
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/super-admin/schools/:id/sms-balance — manually add SMS balance
+router.post('/schools/:id/sms-balance', superAdminAuth, async (req, res) => {
+  try {
+    const { count } = req.body;
+    const smsCount = parseInt(count);
+    if (!smsCount || smsCount <= 0) {
+      return res.status(400).json({ success: false, error: 'count must be a positive number' });
+    }
+
+    const school = await School.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { sms_balance: smsCount } },
+      { new: true }
+    );
+    if (!school) return res.status(404).json({ success: false, error: 'School not found' });
+
+    await Notice.create({
+      title: 'SMS ব্যালেন্স যোগ হয়েছে',
+      message: `${smsCount} SMS ব্যালেন্স সুপার অ্যাডমিন দ্বারা যোগ করা হয়েছে।`,
+      target: school._id.toString(),
+      type: 'auto',
+      from: 'system',
+    });
+
+    res.json({ success: true, data: { sms_balance: school.sms_balance } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Notices ────────────────────────────────────────────────────────────────
+
+// GET /api/super-admin/notices — all notices
+router.get('/notices', superAdminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    const total = await Notice.countDocuments();
+    const notices = await Notice.find()
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    res.json({ success: true, data: notices, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/super-admin/notices — create manual notice
+router.post('/notices', superAdminAuth, async (req, res) => {
+  try {
+    const { title, message, target } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ success: false, error: 'title and message are required' });
+    }
+
+    const notice = await Notice.create({
+      title,
+      message,
+      target: target || 'all',
+      type: 'manual',
+      from: 'super_admin',
+    });
+
+    res.status(201).json({ success: true, data: notice });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/super-admin/notices/:id
+router.delete('/notices/:id', superAdminAuth, async (req, res) => {
+  try {
+    const notice = await Notice.findByIdAndDelete(req.params.id);
+    if (!notice) return res.status(404).json({ success: false, error: 'Notice not found' });
+    res.json({ success: true, message: 'Notice deleted' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

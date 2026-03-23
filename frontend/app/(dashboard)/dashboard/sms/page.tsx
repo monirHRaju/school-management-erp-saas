@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Loader2, MessageSquare, Send, History, AlertTriangle, CheckCircle2, XCircle, Megaphone } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, MessageSquare, Send, History, AlertTriangle, CheckCircle2, Megaphone, RotateCw, ShoppingCart } from 'lucide-react';
 
 const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 
@@ -21,6 +22,7 @@ interface SmsLogEntry {
   _id: string;
   type: string;
   recipients: number;
+  to: string;
   message: string;
   sent: number;
   failed: number;
@@ -38,6 +40,7 @@ export default function SmsPage() {
   // Status
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [balance, setBalance] = useState('—');
+  const [smsBalance, setSmsBalance] = useState(0);
   const [statusLoading, setStatusLoading] = useState(true);
 
   // Logs
@@ -52,6 +55,9 @@ export default function SmsPage() {
   const [manualMsg, setManualMsg] = useState('');
   const [manualSending, setManualSending] = useState(false);
 
+  // Resend
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
   // Due reminders
   const [reminderMonth, setReminderMonth] = useState(currentMonthStr());
   const [reminderClass, setReminderClass] = useState('');
@@ -65,10 +71,11 @@ export default function SmsPage() {
       try {
         const [statusRes, balanceRes] = await Promise.all([
           apiRequest<{ success: boolean; data: { smsEnabled: boolean } }>('/api/sms/status', { token }),
-          apiRequest<{ success: boolean; data: { balance: string } }>('/api/sms/balance', { token }),
+          apiRequest<{ success: boolean; data: { balance: string; sms_balance: number } }>('/api/sms/balance', { token }),
         ]);
         setSmsEnabled(statusRes.data.smsEnabled);
         setBalance(balanceRes.data.balance || '0');
+        setSmsBalance(balanceRes.data.sms_balance || 0);
       } catch {
         // silent
       } finally {
@@ -145,6 +152,24 @@ export default function SmsPage() {
     }
   };
 
+  // Resend
+  const handleResend = async (logId: string) => {
+    if (!token) return;
+    setResendingId(logId);
+    try {
+      const res = await apiRequest<{ success: boolean; data: { sent: number; failed: number; total: number } }>(`/api/sms/resend/${logId}`, {
+        method: 'POST',
+        token,
+      });
+      toast.success(`Resent: ${res.data.sent} sent, ${res.data.failed} failed`);
+      loadLogs(logsPage);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend.');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
@@ -167,8 +192,11 @@ export default function SmsPage() {
           )}
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">Balance</p>
-          <p className="text-xl font-bold text-foreground">{balance}</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">SMS Balance</p>
+          <p className="text-xl font-bold text-foreground">{smsBalance.toLocaleString()}</p>
+          <Link href="/dashboard/sms-order" className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
+            <ShoppingCart className="w-3 h-3" /> Buy SMS
+          </Link>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Total Sent</p>
@@ -277,6 +305,7 @@ export default function SmsPage() {
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Message</th>
                   <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">Sent</th>
                   <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">Failed</th>
+                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,6 +330,21 @@ export default function SmsPage() {
                     <td className="px-4 py-2.5 text-center">
                       {log.failed > 0 && <span className="text-red-500 font-semibold">{log.failed}</span>}
                       {log.failed === 0 && <span className="text-muted-foreground">0</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {log.to ? (
+                        <button
+                          onClick={() => handleResend(log._id)}
+                          disabled={resendingId === log._id || !smsEnabled}
+                          title="Resend this SMS"
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 transition-colors"
+                        >
+                          {resendingId === log._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
+                          Resend
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground/40 text-xs">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

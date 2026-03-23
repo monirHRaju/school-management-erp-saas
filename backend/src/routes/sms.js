@@ -2,19 +2,21 @@ const express = require('express');
 const mongoose = require('mongoose');
 const authMiddleware = require('../middleware/auth');
 const { sendSMS, getBalance } = require('../services/sms');
-const { canSendSMS, notifyFeeDue } = require('../services/notifications');
+const { canSendSMS, deductSmsBalance, notifyFeeDue } = require('../services/notifications');
 const SmsLog = require('../models/SmsLog');
 const Student = require('../models/Student');
 const Fee = require('../models/Fee');
+const School = require('../models/School');
 
 const router = express.Router();
 router.use(authMiddleware);
 
-// ─── GET /api/sms/balance — check SMS account balance ────────────────────────
-router.get('/balance', async (_req, res) => {
+// ─── GET /api/sms/balance — check SMS provider account balance + school balance ─
+router.get('/balance', async (req, res) => {
   try {
     const result = await getBalance();
-    res.json({ success: true, data: result });
+    const school = await School.findById(req.schoolId).select('sms_balance').lean();
+    res.json({ success: true, data: { ...result, sms_balance: school?.sms_balance || 0 } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -81,12 +83,20 @@ router.post('/send', async (req, res) => {
       return res.status(400).json({ success: false, error: 'to and message are required.' });
     }
 
+    if (!(await deductSmsBalance(req.schoolId, 1))) {
+      return res.status(400).json({ success: false, error: 'SMS ব্যালেন্স নেই। SMS কিনুন।' });
+    }
+
     const result = await sendSMS(to, message);
+
+    // Restore if failed
+    if (!result.success) await School.findByIdAndUpdate(req.schoolId, { $inc: { sms_balance: 1 } });
 
     await SmsLog.create({
       school_id: schoolId,
       type: 'manual',
       recipients: 1,
+      to,
       message,
       sent: result.success ? 1 : 0,
       failed: result.success ? 0 : 1,
@@ -129,6 +139,61 @@ router.post('/send-due-reminders', async (req, res) => {
     }
 
     res.json({ success: true, data: { sent, failed, total: fees.length } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── POST /api/sms/resend/:id — resend an SMS from history ───────────────────
+router.post('/resend/:id', async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    if (!(await canSendSMS(req.schoolId))) {
+      return res.status(403).json({ success: false, error: 'SMS not available on your current plan.' });
+    }
+
+    const logId = req.params.id;
+    if (!mongoose.isValidObjectId(logId)) {
+      return res.status(400).json({ success: false, error: 'Invalid log id.' });
+    }
+
+    const log = await SmsLog.findOne({ _id: logId, school_id: schoolId }).lean();
+    if (!log) return res.status(404).json({ success: false, error: 'SMS log not found.' });
+    if (!log.to || !log.message) {
+      return res.status(400).json({ success: false, error: 'Cannot resend — missing phone number or message.' });
+    }
+
+    // If multiple phones (attendance bulk), send to all
+    const phones = log.to.split(',').map((p) => p.trim()).filter(Boolean);
+
+    if (!(await deductSmsBalance(req.schoolId, phones.length))) {
+      return res.status(400).json({ success: false, error: `SMS ব্যালেন্স নেই। ${phones.length} SMS প্রয়োজন।` });
+    }
+
+    let totalSent = 0;
+    let totalFailed = 0;
+
+    for (const phone of phones) {
+      const result = await sendSMS(phone, log.message);
+      if (result.success) totalSent++;
+      else totalFailed++;
+    }
+
+    // Restore balance for failed sends
+    if (totalFailed > 0) await School.findByIdAndUpdate(req.schoolId, { $inc: { sms_balance: totalFailed } });
+
+    // Log the resend
+    await SmsLog.create({
+      school_id: schoolId,
+      type: log.type,
+      recipients: phones.length,
+      to: log.to,
+      message: log.message,
+      sent: totalSent,
+      failed: totalFailed,
+    });
+
+    res.json({ success: true, data: { sent: totalSent, failed: totalFailed, total: phones.length } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

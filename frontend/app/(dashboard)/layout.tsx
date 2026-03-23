@@ -17,6 +17,8 @@ const navItems = [
   { href: '/dashboard/attendance', label: 'Attendance' },
   { href: '/dashboard/income-expense', label: 'Income / Expense' },
   { href: '/dashboard/sms', label: 'SMS' },
+  { href: '/dashboard/sms-order', label: 'Buy SMS' },
+  { href: '/dashboard/notices', label: 'Notices' },
   { href: '/dashboard/subscription', label: 'Subscription' },
   { href: '/dashboard/settings', label: 'Settings' },
 ];

@@ -13,6 +13,7 @@ const schoolSchema = new mongoose.Schema(
       maxStudents: { type: Number, default: null },
       maxAdmins:   { type: Number, default: null },
     },
+    sms_balance: { type: Number, default: 0 },
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }

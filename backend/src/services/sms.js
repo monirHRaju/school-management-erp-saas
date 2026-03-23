@@ -108,6 +108,15 @@ async function getBalance() {
   try {
     const res = await fetch(`https://api.bdbulksms.net/g_api.php?token=${SMS_TOKEN}&balance&json`);
     const text = await res.text();
+    // API returns JSON like: [{"token":"...","action":"balance","response":"0"}]
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed[0]?.response !== undefined) {
+        return { success: true, balance: String(parsed[0].response) };
+      }
+    } catch {
+      // Not JSON — treat as plain text
+    }
     return { success: true, balance: text.trim() };
   } catch (err) {
     return { success: false, balance: '0', error: err.message };

@@ -9,6 +9,7 @@ const smsLogSchema = new mongoose.Schema(
       required: true,
     },
     recipients: { type: Number, default: 1 },
+    to: { type: String, default: '' },
     message: { type: String },
     sent: { type: Number, default: 0 },
     failed: { type: Number, default: 0 },

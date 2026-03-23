@@ -12,6 +12,8 @@ const subscriptionRoutes = require('./routes/subscription');
 const paymentRoutes      = require('./routes/payment');
 const attendanceRoutes   = require('./routes/attendance');
 const smsRoutes          = require('./routes/sms');
+const smsOrderRoutes     = require('./routes/smsOrder');
+const noticeRoutes       = require('./routes/notice');
 
 const app = express();
 
@@ -39,5 +41,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/payment',      paymentRoutes);
 app.use('/api/attendance',   attendanceRoutes);
 app.use('/api/sms',          smsRoutes);
+app.use('/api/sms-order',   smsOrderRoutes);
+app.use('/api/notices',     noticeRoutes);
 
 module.exports = app;

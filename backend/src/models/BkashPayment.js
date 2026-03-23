@@ -12,7 +12,7 @@ const bkashPaymentSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ['fee', 'subscription'],
+      enum: ['fee', 'subscription', 'sms'],
       required: true,
     },
 
@@ -22,6 +22,9 @@ const bkashPaymentSchema = new mongoose.Schema(
 
     // ── Subscription payment fields ─────────────────────────────────────────
     plan_slug: { type: String, default: null },
+
+    // ── SMS order payment fields ──────────────────────────────────────────
+    sms_order_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SmsOrder', default: null },
 
     // ── bKash response fields ───────────────────────────────────────────────
     /** Returned by Create Payment API; used to execute & query */

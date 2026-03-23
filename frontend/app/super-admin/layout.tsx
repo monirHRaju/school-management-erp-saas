@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSuperAdmin } from '@/context/SuperAdminContext';
 import {
-  Shield, LayoutDashboard, School, CreditCard,
+  Shield, LayoutDashboard, School, CreditCard, MessageSquare, Bell,
   LogOut, Menu, X, ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/super-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/super-admin/schools',   label: 'Schools',   icon: School },
-  { href: '/super-admin/plans',     label: 'Plans',     icon: CreditCard },
+  { href: '/super-admin/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/super-admin/schools',    label: 'Schools',    icon: School },
+  { href: '/super-admin/plans',      label: 'Plans',      icon: CreditCard },
+  { href: '/super-admin/sms-orders', label: 'SMS Orders', icon: MessageSquare },
+  { href: '/super-admin/notices',    label: 'Notices',    icon: Bell },
 ];
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
