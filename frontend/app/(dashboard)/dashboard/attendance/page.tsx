@@ -10,13 +10,52 @@ import {
 } from '@/lib/attendance';
 import type { AttendanceRecord, MonthlyStudentRow, ClassSummary } from '@/types/attendance';
 import toast from 'react-hot-toast';
-import { Loader2, Users, CalendarDays, BarChart3, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Users, CalendarDays, BarChart3, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
 
 const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
 const SHIFT_OPTIONS = ['Morning', 'Day'];
 
 type Tab = 'mark' | 'monthly' | 'reports';
+
+// ─── Download CSV helper ─────────────────────────────────────────────────────
+function downloadCSV(filename: string, csvContent: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Print helper ────────────────────────────────────────────────────────────
+function printElement(elementId: string, title: string) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const win = window.open('', '_blank');
+  if (!win) return;
+  win.document.write(`
+    <html><head><title>${title}</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 20px; color: #111; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: center; }
+      th { background: #f5f5f5; font-weight: 600; }
+      td:first-child, th:first-child { text-align: left; }
+      h2 { margin-bottom: 12px; }
+      .text-emerald-500 { color: #10b981; }
+      .text-red-500 { color: #ef4444; }
+      .text-amber-500 { color: #f59e0b; }
+      @media print { button { display: none; } }
+    </style></head><body>
+    <h2>${title}</h2>
+    ${el.innerHTML}
+    </body></html>
+  `);
+  win.document.close();
+  win.print();
+}
 
 function todayStr() {
   const d = new Date();
@@ -102,7 +141,9 @@ function MarkAttendanceTab() {
       const records = students.map((s) => ({ student_id: s.student_id, status: s.status }));
       const res = await markAttendance(date, cls, section, shift, records, token);
       if (res.success) {
-        toast.success(`Attendance saved for Class ${cls}${section ? ' ' + section : ''}`);
+        const smsCount = (res.data as { smsSent?: number })?.smsSent || 0;
+        const smsMsg = smsCount > 0 ? `. ${smsCount} absence SMS sent` : '';
+        toast.success(`Attendance saved for Class ${cls}${section ? ' ' + section : ''}${smsMsg}`);
       }
     } catch {
       toast.error('Failed to save attendance.');
@@ -283,50 +324,79 @@ function MonthlyViewTab() {
       )}
 
       {students.length > 0 && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="text-xs min-w-max">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground sticky left-0 bg-muted/30 z-10 min-w-[140px]">Student</th>
-                  <th className="text-left px-2 py-2 font-medium text-muted-foreground w-14">Roll</th>
-                  {dayNumbers.map((d) => (
-                    <th key={d} className="text-center px-1 py-2 font-medium text-muted-foreground w-8">{d}</th>
-                  ))}
-                  <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">Total</th>
-                  <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => (
-                  <tr key={s._id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
-                    <td className="px-3 py-2 font-medium text-foreground sticky left-0 bg-card z-10">{s.name}</td>
-                    <td className="px-2 py-2 text-muted-foreground">{s.rollNo}</td>
-                    {dayNumbers.map((d) => {
-                      const val = s.days[String(d)];
-                      return (
-                        <td key={d} className="text-center px-1 py-2">
-                          {val === 'P' && <span className="text-emerald-500 font-bold">P</span>}
-                          {val === 'A' && <span className="text-red-500 font-bold">A</span>}
-                          {!val && <span className="text-muted-foreground/30">·</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-center px-2 py-2 font-medium text-foreground">
-                      {s.totalPresent}/{totalDays}
-                    </td>
-                    <td className={`text-center px-2 py-2 font-bold ${s.percentage >= 80 ? 'text-emerald-500' : s.percentage >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
-                      {s.percentage}%
-                    </td>
+        <>
+          {/* Download & Print */}
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => {
+                const header = ['Student', 'Roll', ...dayNumbers.map(String), 'Total', '%'];
+                const rows = students.map((s) => [
+                  s.name,
+                  s.rollNo,
+                  ...dayNumbers.map((d) => s.days[String(d)] || '-'),
+                  `${s.totalPresent}/${totalDays}`,
+                  `${s.percentage}%`,
+                ]);
+                const csv = [header, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+                downloadCSV(`attendance-${cls}-${month}.csv`, csv);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Download CSV
+            </button>
+            <button
+              onClick={() => printElement('monthly-table', `Monthly Attendance — Class ${cls} (${month})`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print
+            </button>
+          </div>
+
+          <div id="monthly-table" className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="text-xs min-w-max">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground sticky left-0 bg-muted/30 z-10 min-w-35">Student</th>
+                    <th className="text-left px-2 py-2 font-medium text-muted-foreground w-14">Roll</th>
+                    {dayNumbers.map((d) => (
+                      <th key={d} className="text-center px-1 py-2 font-medium text-muted-foreground w-8">{d}</th>
+                    ))}
+                    <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">Total</th>
+                    <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">%</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {students.map((s) => (
+                    <tr key={s._id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium text-foreground sticky left-0 bg-card z-10">{s.name}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{s.rollNo}</td>
+                      {dayNumbers.map((d) => {
+                        const val = s.days[String(d)];
+                        return (
+                          <td key={d} className="text-center px-1 py-2">
+                            {val === 'P' && <span className="text-emerald-500 font-bold">P</span>}
+                            {val === 'A' && <span className="text-red-500 font-bold">A</span>}
+                            {!val && <span className="text-muted-foreground/30">·</span>}
+                          </td>
+                        );
+                      })}
+                      <td className="text-center px-2 py-2 font-medium text-foreground">
+                        {s.totalPresent}/{totalDays}
+                      </td>
+                      <td className={`text-center px-2 py-2 font-bold ${s.percentage >= 80 ? 'text-emerald-500' : s.percentage >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {s.percentage}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              {totalDays} day{totalDays !== 1 ? 's' : ''} with attendance data recorded
+            </div>
           </div>
-          <div className="px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-            {totalDays} day{totalDays !== 1 ? 's' : ''} with attendance data recorded
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -387,6 +457,30 @@ function ReportsTab() {
 
       {loaded && schoolSummary && (
         <>
+          {/* Download & Print */}
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => {
+                const header = ['Class', 'Section', 'Students', 'Avg Attendance (%)'];
+                const rows = classSummary.map((c) => [c.class, c.section || '-', String(c.totalStudents), `${c.avgAttendance}%`]);
+                rows.push(['', '', '', '']);
+                rows.push(['School Total', '', String(schoolSummary.totalStudents), `${schoolSummary.avgAttendance}%`]);
+                const csv = [header, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+                downloadCSV(`attendance-report-${month}.csv`, csv);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Download CSV
+            </button>
+            <button
+              onClick={() => printElement('report-content', `Attendance Report — ${month}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print
+            </button>
+          </div>
+
+          <div id="report-content">
           {/* School Summary */}
           <div className="bg-card border border-border rounded-xl p-5">
             <h3 className="font-semibold text-foreground mb-3">School Summary</h3>
@@ -442,6 +536,7 @@ function ReportsTab() {
           {classSummary.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">No attendance data recorded for this month.</p>
           )}
+          </div>
         </>
       )}
     </div>

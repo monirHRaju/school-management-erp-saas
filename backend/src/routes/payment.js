@@ -13,6 +13,8 @@ const FeePayment   = require('../models/FeePayment');
 const Income       = require('../models/Income');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const School       = require('../models/School');
+const Student      = require('../models/Student');
+const { notifyPaymentLink, notifyPaymentReceived } = require('../services/notifications');
 
 const { FEE_TYPE_TO_CATEGORY } = (() => {
   const map = { monthly: 'student_fee', admission: 'other', exam: 'exam_fee', book: 'book_sales', other: 'other' };
@@ -84,10 +86,15 @@ router.post('/link/generate', authMiddleware, async (req, res) => {
       amount: fee.due_amount,
     });
 
+    const payUrl = `${FRONTEND_URL}/pay/${link.token}`;
+
+    // Send payment link via SMS to guardian
+    notifyPaymentLink(schoolId, fee.student_id, fee.due_amount, payUrl).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
-        url: `${FRONTEND_URL}/pay/${link.token}`,
+        url: payUrl,
         token: link.token,
         amount: link.amount,
         expiresAt: link.expiresAt,
@@ -313,6 +320,9 @@ router.post('/bkash/execute-fee', async (req, res) => {
     const populatedFee = await Fee.findById(fee._id)
       .populate('student_id', 'name class section')
       .lean();
+
+    // SMS payment confirmation to guardian
+    notifyPaymentReceived(fee.school_id, fee.student_id, paidAmount, execResult.trxID, category).catch(() => {});
 
     res.json({
       success: true,

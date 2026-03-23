@@ -6,6 +6,7 @@ const Income = require('../models/Income');
 const Transaction = require('../models/Transaction');
 const Student = require('../models/Student');
 const authMiddleware = require('../middleware/auth');
+const { notifyFeeGenerated, notifyPaymentReceived } = require('../services/notifications');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -287,6 +288,11 @@ router.post('/additional', async (req, res) => {
       .populate('student_id', 'name class section rollNo')
       .lean();
 
+    // Send SMS for individual fees (skip bulk to avoid SMS flood)
+    if (!for_all_students && students.length === 1) {
+      notifyFeeGenerated(schoolId, students[0]._id, numAmount, monthStr, descStr).catch(() => {});
+    }
+
     res.status(201).json({
       success: true,
       data: populated.map(normalizeFee),
@@ -449,6 +455,9 @@ router.post('/:id/collect', async (req, res) => {
     const updatedFee = await Fee.findById(fee._id)
       .populate('student_id', 'name class section rollNo')
       .lean();
+
+    // SMS payment confirmation
+    notifyPaymentReceived(schoolId, fee.student_id, numAmount, null, category).catch(() => {});
 
     res.status(201).json({
       success: true,

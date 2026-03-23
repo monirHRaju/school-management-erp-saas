@@ -11,6 +11,7 @@ const superAdminRoutes = require('./routes/superAdmin');
 const subscriptionRoutes = require('./routes/subscription');
 const paymentRoutes      = require('./routes/payment');
 const attendanceRoutes   = require('./routes/attendance');
+const smsRoutes          = require('./routes/sms');
 
 const app = express();
 
@@ -37,5 +38,6 @@ app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/payment',      paymentRoutes);
 app.use('/api/attendance',   attendanceRoutes);
+app.use('/api/sms',          smsRoutes);
 
 module.exports = app;

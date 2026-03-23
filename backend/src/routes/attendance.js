@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const authMiddleware = require('../middleware/auth');
 const Attendance = require('../models/Attendance');
 const Student = require('../models/Student');
+const { notifyAbsentStudents } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -28,9 +29,17 @@ router.post('/mark', authMiddleware, async (req, res) => {
 
     await Attendance.bulkWrite(ops);
 
+    // Auto-send SMS to absent students' guardians (fire-and-forget)
+    const absentIds = records.filter((r) => r.status === 'absent').map((r) => r.student_id);
+    let smsSent = 0;
+    if (absentIds.length > 0) {
+      const smsResult = await notifyAbsentStudents(schoolId, absentIds, date, cls);
+      smsSent = smsResult.sent || 0;
+    }
+
     res.json({
       success: true,
-      data: { marked: records.length, date: date, class: cls, section: section || '' },
+      data: { marked: records.length, date: date, class: cls, section: section || '', smsSent },
     });
   } catch (err) {
     console.error('Attendance mark error:', err);
