@@ -32,7 +32,6 @@ const paymentLinkSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-paymentLinkSchema.index({ token: 1 }, { unique: true });
 paymentLinkSchema.index({ fee_id: 1 });
 paymentLinkSchema.index({ school_id: 1, status: 1 });
 

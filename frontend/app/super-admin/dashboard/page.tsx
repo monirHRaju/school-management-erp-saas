@@ -39,7 +39,7 @@ export default function SuperAdminDashboard() {
   const [createError, setCreateError] = useState('');
   const [createForm, setCreateForm] = useState({
     schoolName: '', slug: '', contact: '',
-    subscription_plan: 'free', subscription_expiry: '',
+    plan_slug: 'free', subscription_expiry: '',
     adminName: '', adminEmail: '', adminPassword: '',
   });
 
@@ -102,7 +102,7 @@ export default function SuperAdminDashboard() {
         token: token!,
       });
       setShowCreate(false);
-      setCreateForm({ schoolName: '', slug: '', contact: '', subscription_plan: 'free', subscription_expiry: '', adminName: '', adminEmail: '', adminPassword: '' });
+      setCreateForm({ schoolName: '', slug: '', contact: '', plan_slug: 'free', subscription_expiry: '', adminName: '', adminEmail: '', adminPassword: '' });
       fetchData(1, search);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create school');
@@ -215,11 +215,11 @@ export default function SuperAdminDashboard() {
                       <td className="px-6 py-3 text-zinc-400 font-mono text-xs">{s.slug}</td>
                       <td className="px-6 py-3">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          s.subscription_plan === 'pro'
+                          s.plan_slug === 'pro'
                             ? 'bg-indigo-900/40 text-indigo-300'
                             : 'bg-zinc-700 text-zinc-300'
                         }`}>
-                          {s.subscription_plan}
+                          {s.plan_slug}
                         </span>
                       </td>
                       <td className="px-6 py-3 text-zinc-400 text-xs">
@@ -303,7 +303,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1">Plan</label>
-                  <select value={createForm.subscription_plan} onChange={e => setCreateForm(f => ({ ...f, subscription_plan: e.target.value }))}
+                  <select value={createForm.plan_slug} onChange={e => setCreateForm(f => ({ ...f, plan_slug: e.target.value }))}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none">
                     <option value="free">Free</option>
                     <option value="pro">Pro</option>

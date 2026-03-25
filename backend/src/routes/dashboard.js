@@ -1,5 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const Student = require('../models/Student');
 const Fee = require('../models/Fee');
 const Transaction = require('../models/Transaction');
@@ -10,7 +11,7 @@ const mongoose = require('mongoose');
 const router = express.Router();
 
 // GET /api/dashboard — dashboard stats for current school
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
 

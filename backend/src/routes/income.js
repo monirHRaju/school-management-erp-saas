@@ -2,9 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Income = require('../models/Income');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole('admin', 'staff', 'accountant'));
 
 const { INCOME_CATEGORIES } = require('../models/Income');
 

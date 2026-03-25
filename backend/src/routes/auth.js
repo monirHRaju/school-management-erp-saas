@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const School = require('../models/School');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { normalizePhone } = require('../services/guardianService');
 
 const router = express.Router();
 
@@ -58,17 +59,29 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/login — login with email + password only (no school slug required)
+// POST /api/auth/login — login with email+password or phone+password
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
+    const { email, phone, password } = req.body;
+    if ((!email && !phone) || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: email, password',
+        error: 'Missing required fields: (email or phone) and password',
       });
     }
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
+
+    let user;
+    if (phone) {
+      // Phone-based login (guardians and any user with phone)
+      const normalized = normalizePhone(phone);
+      if (!normalized) {
+        return res.status(400).json({ success: false, error: 'Invalid phone number format' });
+      }
+      user = await User.findOne({ phone: normalized }).select('+passwordHash');
+    } else {
+      user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
+    }
+
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }

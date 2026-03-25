@@ -7,8 +7,11 @@ const BkashPayment = require('../models/BkashPayment');
 const School = require('../models/School');
 const Notice = require('../models/Notice');
 
+const requireRole = require('../middleware/requireRole');
+
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole('admin'));
 
 const PRICE_PER_SMS = 0.35;
 const MIN_COUNT = 500;

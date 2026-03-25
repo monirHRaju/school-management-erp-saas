@@ -6,10 +6,12 @@ const Income = require('../models/Income');
 const Transaction = require('../models/Transaction');
 const Student = require('../models/Student');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const { notifyFeeGenerated, notifyPaymentReceived } = require('../services/notifications');
 
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole('admin', 'accountant', 'staff'));
 
 const { FEE_CATEGORIES } = require('../models/Fee');
 const { INCOME_CATEGORIES } = require('../models/Income');
@@ -104,7 +106,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/fees/generate-month — create/update monthly student_fee for all active students
-router.post('/generate-month', async (req, res) => {
+router.post('/generate-month', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month } = req.body;
@@ -173,7 +175,7 @@ router.post('/generate-month', async (req, res) => {
 });
 
 // POST /api/fees/generate-year — create/update monthly student_fee for full year
-router.post('/generate-year', async (req, res) => {
+router.post('/generate-year', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { year } = req.body;
@@ -237,7 +239,7 @@ router.post('/generate-year', async (req, res) => {
 });
 
 // POST /api/fees/additional — create additional fee(s): single student or all students
-router.post('/additional', async (req, res) => {
+router.post('/additional', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { category, description, month, amount, student_id: studentIdParam, for_all_students } = req.body;
@@ -304,7 +306,7 @@ router.post('/additional', async (req, res) => {
 });
 
 // Legacy: POST /api/fees/one-time — keep for backward compat; maps fee_type to category
-router.post('/one-time', async (req, res) => {
+router.post('/one-time', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { student_id, fee_type, amount } = req.body;
@@ -370,7 +372,7 @@ router.get('/:id/history', async (req, res) => {
 });
 
 // DELETE /api/fees/:id — delete a fee (and its payments + related income) e.g. if created by mistake
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const feeId = req.params.id;
@@ -392,7 +394,7 @@ router.delete('/:id', async (req, res) => {
 }); 
 
 // POST /api/fees/:id/collect — collect payment: amount, optional discount, note; create FeePayment + Income
-router.post('/:id/collect', async (req, res) => {
+router.post('/:id/collect', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const userId = req.user._id;
@@ -478,7 +480,7 @@ router.post('/:id/collect', async (req, res) => {
 });
 
 // Legacy: POST /api/fees/:id/pay — backward compat; same as collect with amount only
-router.post('/:id/pay', async (req, res) => {
+router.post('/:id/pay', requireRole('admin', 'accountant'), async (req, res) => {
   const payload = {
     amount: req.body.amount,
     discount: 0,
@@ -493,7 +495,7 @@ router.post('/:id/pay', async (req, res) => {
 });
 
 // POST /api/fees/pay — record payment by student_id + month (legacy; for monthly/student_fee)
-router.post('/pay', async (req, res) => {
+router.post('/pay', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { student_id, month, amount } = req.body;

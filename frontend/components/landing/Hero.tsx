@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Users, TurkishLira, CalendarCheck } from 'lucide-react';
 
-const fadeUp = {
+const fadeUp: import('framer-motion').Variants = {
   hidden: { opacity: 0, y: 24 },
   show: (i: number) => ({
     opacity: 1,

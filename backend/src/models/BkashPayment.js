@@ -49,7 +49,6 @@ const bkashPaymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-bkashPaymentSchema.index({ paymentID: 1 }, { unique: true });
 bkashPaymentSchema.index({ school_id: 1 });
 bkashPaymentSchema.index({ school_id: 1, type: 1, status: 1 });
 bkashPaymentSchema.index({ fee_id: 1 });

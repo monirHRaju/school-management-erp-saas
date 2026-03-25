@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const Attendance = require('../models/Attendance');
 const Student = require('../models/Student');
 const { notifyAbsentStudents } = require('../services/notifications');
@@ -8,7 +9,7 @@ const { notifyAbsentStudents } = require('../services/notifications');
 const router = express.Router();
 
 // ─── POST /mark ── Bulk upsert attendance for a class on a date ──────────────
-router.post('/mark', authMiddleware, async (req, res) => {
+router.post('/mark', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, class: cls, section, shift, records } = req.body;
@@ -48,7 +49,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
 });
 
 // ─── GET /daily ── Get attendance for a class/date ───────────────────────────
-router.get('/daily', authMiddleware, async (req, res) => {
+router.get('/daily', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, class: cls, section, shift } = req.query;
@@ -97,7 +98,7 @@ router.get('/daily', authMiddleware, async (req, res) => {
 });
 
 // ─── GET /monthly ── Monthly grid (student × days) ──────────────────────────
-router.get('/monthly', authMiddleware, async (req, res) => {
+router.get('/monthly', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month, class: cls, section, shift } = req.query;
@@ -181,7 +182,7 @@ router.get('/monthly', authMiddleware, async (req, res) => {
 });
 
 // ─── GET /report ── Class-wise and school summary ───────────────────────────
-router.get('/report', authMiddleware, async (req, res) => {
+router.get('/report', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month } = req.query;

@@ -6,11 +6,12 @@
 - Backend Server: https://school-erp-backend-service.onrender.com/
 
 - Login credentials:
-Role	      Email	                      Password	      School Slug
-admin	      admin@school.com	          admin123	      greenfield
-staff	      staff@school.com	          staff123	      greenfield
-accountant  accounts@school.com	         accounts123	  greenfield
-admin	      admin@sunrise-ems.school.com	admin123	    sunrise-ems
+Role	      Email	                        Password	      
+admin	      admin@school.com	            admin123	      
+staff	      staff@school.com	            staff123	 
+accountant  accounts@school.com	          accounts123	 
+guardian    01234567890                   123456
+admin	      admin@sunrise-ems.school.com	admin123	    
 
 ---
 

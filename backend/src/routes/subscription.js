@@ -1,5 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const School = require('../models/School');
 const User = require('../models/User');
 const Student = require('../models/Student');
@@ -20,7 +21,7 @@ function effectiveLimits(school, plan) {
 }
 
 // GET /api/subscription/plan — current plan info + features
-router.get('/plan', authMiddleware, async (req, res) => {
+router.get('/plan', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const school = await School.findById(req.schoolId).lean();
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
@@ -44,7 +45,7 @@ router.get('/plan', authMiddleware, async (req, res) => {
 });
 
 // GET /api/subscription/usage — usage stats for current school
-router.get('/usage', authMiddleware, async (req, res) => {
+router.get('/usage', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const school = await School.findById(req.schoolId).lean();
     const plan = await SubscriptionPlan.findOne({ slug: school?.plan_slug || 'free' }).lean();
@@ -68,7 +69,7 @@ router.get('/usage', authMiddleware, async (req, res) => {
 });
 
 // GET /api/subscription/plans — all active plans (for upgrade comparison)
-router.get('/plans', authMiddleware, async (req, res) => {
+router.get('/plans', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const plans = await SubscriptionPlan.find({ isActive: true }).sort({ order: 1 }).lean();
     res.json({ success: true, data: plans });

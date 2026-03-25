@@ -1,14 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Student = require('../models/Student');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
+const { findOrCreateGuardian, linkStudent, unlinkStudent } = require('../services/guardianService');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 // GET /api/students — list with optional filters; add page & limit for pagination
-router.get('/', async (req, res) => {
+router.get('/', requireRole('admin', 'staff', 'accountant'), async (req, res) => {
   try {
     const { class: classFilter, section, status, shift, group, q, page, limit } = req.query;
     const filter = { school_id: new mongoose.Types.ObjectId(req.schoolId) };
@@ -47,7 +50,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/students/:id — get one
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireRole('admin', 'staff', 'accountant'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
@@ -66,7 +69,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/students — create
-router.post('/', async (req, res) => {
+router.post('/', requireRole('admin', 'staff'), async (req, res) => {
   try {
     const {
       name,
@@ -119,6 +122,22 @@ router.post('/', async (req, res) => {
       admissionDate: admissionDate ? new Date(admissionDate) : undefined,
       status: status && ['active', 'inactive', 'left'].includes(status) ? status : 'active',
     });
+    // Auto-create guardian if phone provided
+    if (guardianPhone) {
+      try {
+        const result = await findOrCreateGuardian(
+          req.schoolId,
+          guardianPhone,
+          guardianName?.trim() || fatherName?.trim() || 'Guardian'
+        );
+        if (result?.user) {
+          await linkStudent(result.user._id, student._id);
+        }
+      } catch (err) {
+        console.error('[Guardian] Auto-create failed:', err.message);
+      }
+    }
+
     res.status(201).json({ success: true, data: student.toObject() });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -126,7 +145,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/students/:id — update
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
@@ -175,6 +194,11 @@ router.patch('/:id', async (req, res) => {
       update.admissionDate = admissionDate ? new Date(admissionDate) : undefined;
     if (status !== undefined && ['active', 'inactive', 'left'].includes(status)) update.status = status;
 
+    // Get old student to check if guardianPhone changed
+    const oldStudent = guardianPhone !== undefined
+      ? await Student.findOne({ _id: req.params.id, school_id: new mongoose.Types.ObjectId(req.schoolId) }).select('guardianPhone guardianName').lean()
+      : null;
+
     const student = await Student.findOneAndUpdate(
       { _id: req.params.id, school_id: new mongoose.Types.ObjectId(req.schoolId) },
       { $set: update },
@@ -183,6 +207,28 @@ router.patch('/:id', async (req, res) => {
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
+
+    // Re-link guardian if phone changed
+    if (oldStudent && update.guardianPhone !== undefined && oldStudent.guardianPhone !== update.guardianPhone) {
+      try {
+        // Unlink from old guardian
+        if (oldStudent.guardianPhone) {
+          const oldGuardian = await User.findOne({ school_id: req.schoolId, phone: oldStudent.guardianPhone, role: 'guardian' });
+          if (oldGuardian) await unlinkStudent(oldGuardian._id, student._id);
+        }
+        // Link to new guardian
+        if (update.guardianPhone) {
+          const result = await findOrCreateGuardian(
+            req.schoolId, update.guardianPhone,
+            update.guardianName || student.guardianName || 'Guardian'
+          );
+          if (result?.user) await linkStudent(result.user._id, student._id);
+        }
+      } catch (err) {
+        console.error('[Guardian] Re-link failed:', err.message);
+      }
+    }
+
     res.json({ success: true, data: student });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -190,7 +236,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/students/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('admin', 'staff'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid student id' });

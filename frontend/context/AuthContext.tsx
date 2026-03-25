@@ -12,7 +12,7 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (credentials: { email?: string; phone?: string; password: string }) => Promise<void>;
   register: (params: {
     schoolName: string;
     slug: string;
@@ -74,17 +74,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loadUser]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (credentials: { email?: string; phone?: string; password: string }) => {
       const res = await apiRequest<AuthResponse>('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(credentials),
       });
       if (!res.success || !res.data) throw new Error(res.error || 'Login failed');
       setToken(res.data.token);
       setTokenState(res.data.token);
       setUser(res.data.user);
       setSchool(res.data.school);
-      router.push('/dashboard');
+      // Role-based redirect
+      const role = res.data.user.role;
+      if (role === 'guardian') {
+        router.push('/guardian');
+      } else {
+        router.push('/dashboard');
+      }
     },
     [router]
   );

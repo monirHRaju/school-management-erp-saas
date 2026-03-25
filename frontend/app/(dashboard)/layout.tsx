@@ -1,67 +1,120 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, LogOut, ChevronRight } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Menu,
+  LogOut,
+  ChevronRight,
+  ChevronLeft,
+  LayoutDashboard,
+  GraduationCap,
+  Receipt,
+  TrendingUp,
+  CalendarCheck,
+  ArrowLeftRight,
+  MessageSquare,
+  ShoppingCart,
+  Bell,
+  Users,
+  CreditCard,
+  Settings,
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
-const navItems = [
-  { href: '/dashboard', label: 'Home' },
-  { href: '/dashboard/students', label: 'Students' },
-  { href: '/dashboard/fees', label: 'Fees' },
-  { href: '/dashboard/income', label: 'Income' },
-  { href: '/dashboard/attendance', label: 'Attendance' },
-  { href: '/dashboard/income-expense', label: 'Income / Expense' },
-  { href: '/dashboard/sms', label: 'SMS' },
-  { href: '/dashboard/sms-order', label: 'Buy SMS' },
-  { href: '/dashboard/notices', label: 'Notices' },
-  { href: '/dashboard/subscription', label: 'Subscription' },
-  { href: '/dashboard/settings', label: 'Settings' },
+type Role = 'admin' | 'staff' | 'accountant' | 'guardian';
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  roles: Role[];
+  group: 'main' | 'communication' | 'system';
+}
+
+const navItems: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff', 'accountant'], group: 'main' },
+  { href: '/dashboard/students', label: 'Students', icon: GraduationCap, roles: ['admin', 'staff'], group: 'main' },
+  { href: '/dashboard/fees', label: 'Fees', icon: Receipt, roles: ['admin', 'staff', 'accountant'], group: 'main' },
+  { href: '/dashboard/income', label: 'Income', icon: TrendingUp, roles: ['admin', 'staff', 'accountant'], group: 'main' },
+  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff'], group: 'main' },
+  { href: '/dashboard/income-expense', label: 'Income / Expense', icon: ArrowLeftRight, roles: ['admin', 'accountant'], group: 'main' },
+  { href: '/dashboard/sms', label: 'SMS', icon: MessageSquare, roles: ['admin'], group: 'communication' },
+  { href: '/dashboard/sms-order', label: 'Buy SMS', icon: ShoppingCart, roles: ['admin'], group: 'communication' },
+  { href: '/dashboard/notices', label: 'Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
+  { href: '/dashboard/users', label: 'Users', icon: Users, roles: ['admin'], group: 'system' },
+  { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, roles: ['admin'], group: 'system' },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin'], group: 'system' },
 ];
 
-function NavLinks({
+const STORAGE_KEY = 'sidebar-collapsed';
+
+function NavGroup({
+  items,
   pathname,
+  showLabels,
   onLinkClick,
   mobile = false,
 }: {
+  items: NavItem[];
   pathname: string;
+  showLabels: boolean;
   onLinkClick?: () => void;
   mobile?: boolean;
 }) {
   return (
-    <nav className={mobile ? 'flex flex-1 flex-col gap-1 p-4' : 'flex-1 space-y-0.5 p-2'}>
-      {navItems.map(({ href, label }) => {
+    <>
+      {items.map(({ href, label, icon: Icon }) => {
         const isActive =
           pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+        if (mobile) {
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={onLinkClick}
+              className={`flex items-center justify-between rounded-lg px-4 py-3 text-base font-medium transition-colors ${
+                isActive
+                  ? 'bg-sidebar-primary/10 text-sidebar-primary'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <Icon className="h-5 w-5" />
+                {label}
+              </span>
+              <ChevronRight className="h-4 w-4 opacity-40" />
+            </Link>
+          );
+        }
         return (
           <Link
             key={href}
             href={href}
             onClick={onLinkClick}
-            className={
-              mobile
-                ? `flex items-center justify-between rounded-lg px-4 py-3 text-base font-medium transition-colors ${
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  }`
-                : `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  }`
-            }
+            title={!showLabels ? label : undefined}
+            className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 ${
+              isActive
+                ? 'bg-sidebar-primary/10 text-sidebar-primary'
+                : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+            }`}
           >
-            {label}
-            {mobile && <ChevronRight className="h-4 w-4 opacity-50" />}
+            {isActive && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.75 rounded-r-full bg-sidebar-primary" />
+            )}
+            <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${isActive ? 'text-sidebar-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80'}`} />
+            {showLabels && (
+              <span className="truncate whitespace-nowrap">{label}</span>
+            )}
           </Link>
         );
       })}
-    </nav>
+    </>
   );
 }
 
@@ -69,12 +122,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { isAuthenticated, loading, user, school, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  // Load collapsed state from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'true') setCollapsed(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const showLabels = !collapsed || hovered;
+
+  const filteredNav = useMemo(() => {
+    const role = user?.role || 'staff';
+    return navItems.filter((item) => item.roles.includes(role as Role));
+  }, [user?.role]);
+
+  const groupedNav = useMemo(() => {
+    const main = filteredNav.filter((i) => i.group === 'main');
+    const communication = filteredNav.filter((i) => i.group === 'communication');
+    const system = filteredNav.filter((i) => i.group === 'system');
+    return { main, communication, system };
+  }, [filteredNav]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       window.location.href = '/login';
     }
-  }, [loading, isAuthenticated]);
+    if (!loading && isAuthenticated && user?.role === 'guardian') {
+      window.location.href = '/guardian';
+    }
+  }, [loading, isAuthenticated, user?.role]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -104,20 +192,80 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' '))
           .join(' / ') || 'Dashboard';
 
+  const schoolInitial = (school?.name || 'S')[0].toUpperCase();
+
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Desktop sidebar - hidden on mobile */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      {/* Desktop sidebar */}
+      <aside
+        onMouseEnter={() => collapsed && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`hidden md:flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out ${
+          showLabels ? 'w-64' : 'w-17'
+        }`}
+      >
         <div className="flex h-full flex-col">
-          <div className="border-b border-sidebar-border p-4">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-sidebar-border p-4 min-h-14.25">
             <Link
               href="/dashboard"
-              className="text-lg font-semibold tracking-tight text-sidebar-foreground"
+              className="flex items-center gap-2.5 min-w-0"
             >
-              {school?.name || 'School'}
+              {showLabels ? (
+                <span className="text-lg font-semibold tracking-tight text-sidebar-foreground truncate">
+                  {school?.name || 'School'}
+                </span>
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary/10 text-sm font-bold text-sidebar-primary">
+                  {schoolInitial}
+                </span>
+              )}
             </Link>
+            {showLabels && (
+              <button
+                onClick={toggleCollapsed}
+                className="rounded-md p-1.5 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <ChevronLeft className={`h-4 w-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} />
+              </button>
+            )}
           </div>
-          <NavLinks pathname={pathname} />
+
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 space-y-1">
+            {/* Main group */}
+            <NavGroup items={groupedNav.main} pathname={pathname} showLabels={showLabels} />
+
+            {/* Communication group */}
+            {groupedNav.communication.length > 0 && (
+              <>
+                <div className="my-2 mx-1 border-t border-sidebar-border/50" />
+                <NavGroup items={groupedNav.communication} pathname={pathname} showLabels={showLabels} />
+              </>
+            )}
+
+            {/* System group */}
+            {groupedNav.system.length > 0 && (
+              <>
+                <div className="my-2 mx-1 border-t border-sidebar-border/50" />
+                <NavGroup items={groupedNav.system} pathname={pathname} showLabels={showLabels} />
+              </>
+            )}
+          </div>
+
+          {/* Footer - collapse toggle (when no labels shown / collapsed+not hovered) */}
+          {!showLabels && (
+            <div className="border-t border-sidebar-border p-2">
+              <button
+                onClick={toggleCollapsed}
+                className="flex w-full items-center justify-center rounded-lg p-2.5 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                aria-label="Expand sidebar"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -129,7 +277,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {school?.name || 'School'}
             </span>
           </div>
-          <NavLinks pathname={pathname} onLinkClick={() => setMobileMenuOpen(false)} mobile />
+          <nav className="flex flex-1 flex-col gap-1 p-4">
+            <NavGroup
+              items={filteredNav}
+              pathname={pathname}
+              showLabels
+              onLinkClick={() => setMobileMenuOpen(false)}
+              mobile
+            />
+          </nav>
         </SheetContent>
       </Sheet>
 

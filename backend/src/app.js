@@ -14,6 +14,8 @@ const attendanceRoutes   = require('./routes/attendance');
 const smsRoutes          = require('./routes/sms');
 const smsOrderRoutes     = require('./routes/smsOrder');
 const noticeRoutes       = require('./routes/notice');
+const guardianRoutes     = require('./routes/guardian');
+const usersRoutes        = require('./routes/users');
 
 const app = express();
 
@@ -43,5 +45,7 @@ app.use('/api/attendance',   attendanceRoutes);
 app.use('/api/sms',          smsRoutes);
 app.use('/api/sms-order',   smsOrderRoutes);
 app.use('/api/notices',     noticeRoutes);
+app.use('/api/guardian',   guardianRoutes);
+app.use('/api/users',      usersRoutes);
 
 module.exports = app;

@@ -4,6 +4,7 @@ const express      = require('express');
 const crypto       = require('crypto');
 const mongoose     = require('mongoose');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 const bkash        = require('../services/bkash');
 const PaymentLink  = require('../models/PaymentLink');
@@ -42,7 +43,7 @@ function isValidOid(id) {
  *
  * Idempotent — returns existing active link if one already exists for this fee.
  */
-router.post('/link/generate', authMiddleware, async (req, res) => {
+router.post('/link/generate', authMiddleware, requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { fee_id } = req.body;
@@ -351,7 +352,7 @@ router.post('/bkash/execute-fee', async (req, res) => {
  * Body: { plan_slug }
  * Returns: { paymentID, bkashURL }
  */
-router.post('/bkash/create-sub', authMiddleware, async (req, res) => {
+router.post('/bkash/create-sub', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { plan_slug } = req.body;
@@ -405,7 +406,7 @@ router.post('/bkash/create-sub', authMiddleware, async (req, res) => {
  *
  * NOTE: Does NOT auto-activate the plan. Super admin reviews and activates manually.
  */
-router.post('/bkash/execute-sub', authMiddleware, async (req, res) => {
+router.post('/bkash/execute-sub', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { paymentID } = req.body;
@@ -478,7 +479,7 @@ router.post('/bkash/execute-sub', authMiddleware, async (req, res) => {
  * GET /api/payment/history?type=fee|subscription&page=1&limit=20
  * Auth: school user
  */
-router.get('/history', authMiddleware, async (req, res) => {
+router.get('/history', authMiddleware, requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { type, page = 1, limit = 20 } = req.query;

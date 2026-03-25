@@ -8,8 +8,11 @@ const Student = require('../models/Student');
 const Fee = require('../models/Fee');
 const School = require('../models/School');
 
+const requireRole = require('../middleware/requireRole');
+
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole('admin'));
 
 // ─── GET /api/sms/balance — check SMS provider account balance + school balance ─
 router.get('/balance', async (req, res) => {

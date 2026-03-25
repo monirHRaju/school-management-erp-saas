@@ -1,10 +1,12 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const cloudinary = require('../utils/cloudinary');
 
 const router = express.Router();
 
 router.use(authMiddleware);
+router.use(requireRole('admin', 'staff'));
 
 // POST /api/students/photo - upload student photo and return URL
 router.post('/', async (req, res) => {
