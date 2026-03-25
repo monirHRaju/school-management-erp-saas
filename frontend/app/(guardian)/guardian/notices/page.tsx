@@ -9,7 +9,7 @@ interface Notice {
   title: string;
   message: string;
   type: string;
-  from: string;
+  created_by?: { name: string; role: string };
   createdAt: string;
   isRead: boolean;
 }
@@ -22,7 +22,7 @@ export default function GuardianNoticesPage() {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    apiRequest<{ success: boolean; data: Notice[] }>('/api/guardian/notices', { token })
+    apiRequest<{ success: boolean; data: Notice[] }>('/api/school-notices?limit=50', { token })
       .then((res) => {
         if (res.success) setNotices(res.data || []);
       })
@@ -36,12 +36,11 @@ export default function GuardianNoticesPage() {
       return;
     }
     setExpanded(id);
-    // Mark as read
     const notice = notices.find((n) => n._id === id);
     if (notice && !notice.isRead) {
       const token = getToken();
       if (token) {
-        apiRequest(`/api/notices/${id}/read`, { method: 'POST', token }).catch(() => {});
+        apiRequest(`/api/school-notices/${id}/read`, { method: 'POST', token }).catch(() => {});
         setNotices((prev) =>
           prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
         );
@@ -80,9 +79,16 @@ export default function GuardianNoticesPage() {
                 {!notice.isRead && (
                   <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
                 )}
-                <span className={`truncate text-sm ${notice.isRead ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
-                  {notice.title}
-                </span>
+                <div className="min-w-0">
+                  <span className={`block truncate text-sm ${notice.isRead ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
+                    {notice.title}
+                  </span>
+                  {notice.created_by && (
+                    <span className="text-xs text-muted-foreground capitalize">
+                      From: {notice.created_by.name} ({notice.created_by.role})
+                    </span>
+                  )}
+                </div>
               </div>
               <span className="text-xs text-muted-foreground shrink-0 ml-3">
                 {new Date(notice.createdAt).toLocaleDateString()}

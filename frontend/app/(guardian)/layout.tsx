@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, LogOut, ChevronRight, Home, Users, CreditCard, Bell, UserCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
@@ -147,6 +148,7 @@ export default function GuardianLayout({ children }: { children: React.ReactNode
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />
+            <NotificationBell noticesHref="/guardian/notices" />
             <div className="hidden items-center gap-2 border-l border-border pl-3 md:flex">
               <span className="text-sm text-foreground">{user?.name}</span>
             </div>

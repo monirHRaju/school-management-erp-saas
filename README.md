@@ -10,7 +10,7 @@ Role	      Email	                        Password
 admin	      admin@school.com	            admin123	      
 staff	      staff@school.com	            staff123	 
 accountant  accounts@school.com	          accounts123	 
-guardian    01234567890                   123456
+guardian    01711111120                   01711111120
 admin	      admin@sunrise-ems.school.com	admin123	    
 
 ---

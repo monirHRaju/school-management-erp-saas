@@ -18,12 +18,14 @@ import {
   MessageSquare,
   ShoppingCart,
   Bell,
+  Megaphone,
   Users,
   CreditCard,
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
@@ -46,7 +48,8 @@ const navItems: NavItem[] = [
   { href: '/dashboard/income-expense', label: 'Income / Expense', icon: ArrowLeftRight, roles: ['admin', 'accountant'], group: 'main' },
   { href: '/dashboard/sms', label: 'SMS', icon: MessageSquare, roles: ['admin'], group: 'communication' },
   { href: '/dashboard/sms-order', label: 'Buy SMS', icon: ShoppingCart, roles: ['admin'], group: 'communication' },
-  { href: '/dashboard/notices', label: 'Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
+  { href: '/dashboard/school-notices', label: 'School Notices', icon: Megaphone, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
+  { href: '/dashboard/notices', label: 'System Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
   { href: '/dashboard/users', label: 'Users', icon: Users, roles: ['admin'], group: 'system' },
   { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, roles: ['admin'], group: 'system' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin'], group: 'system' },
@@ -308,6 +311,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />
+            <NotificationBell noticesHref="/dashboard/school-notices" />
             <div className="hidden items-center gap-2 border-l border-border pl-3 md:flex">
               <span className="text-sm text-foreground">{user?.name}</span>
               <span className="text-xs text-muted-foreground">({user?.role})</span>

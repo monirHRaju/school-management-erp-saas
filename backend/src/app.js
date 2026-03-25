@@ -16,6 +16,7 @@ const smsOrderRoutes     = require('./routes/smsOrder');
 const noticeRoutes       = require('./routes/notice');
 const guardianRoutes     = require('./routes/guardian');
 const usersRoutes        = require('./routes/users');
+const schoolNoticeRoutes = require('./routes/schoolNotice');
 
 const app = express();
 
@@ -47,5 +48,6 @@ app.use('/api/sms-order',   smsOrderRoutes);
 app.use('/api/notices',     noticeRoutes);
 app.use('/api/guardian',   guardianRoutes);
 app.use('/api/users',      usersRoutes);
+app.use('/api/school-notices', schoolNoticeRoutes);
 
 module.exports = app;
