@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, LogOut, ChevronRight, Home, Users, CreditCard, Bell, UserCircle } from 'lucide-react';
+import { Menu, LogOut, ChevronRight, Home, Users, CreditCard, Bell, UserCircle, BookOpen } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/guardian/children', label: 'My Children', icon: Users },
   { href: '/guardian/fees', label: 'Fees & Payment', icon: CreditCard },
   { href: '/guardian/notices', label: 'Notices', icon: Bell },
+  { href: '/guardian/homework', label: 'Homework', icon: BookOpen },
   { href: '/guardian/profile', label: 'Profile', icon: UserCircle },
 ];
 

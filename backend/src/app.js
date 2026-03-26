@@ -18,6 +18,7 @@ const guardianRoutes     = require('./routes/guardian');
 const usersRoutes        = require('./routes/users');
 const schoolNoticeRoutes = require('./routes/schoolNotice');
 const academicConfigRoutes = require('./routes/academicConfig');
+const homeworkRoutes = require('./routes/homework');
 
 const app = express();
 
@@ -51,5 +52,6 @@ app.use('/api/guardian',   guardianRoutes);
 app.use('/api/users',      usersRoutes);
 app.use('/api/school-notices', schoolNoticeRoutes);
 app.use('/api/academic-config', academicConfigRoutes);
+app.use('/api/homework', homeworkRoutes);
 
 module.exports = app;

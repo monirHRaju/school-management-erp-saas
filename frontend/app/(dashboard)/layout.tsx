@@ -22,6 +22,7 @@ import {
   Users,
   CreditCard,
   Settings,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard/fees', label: 'Fees', icon: Receipt, roles: ['admin', 'staff', 'accountant'], group: 'main' },
   { href: '/dashboard/income', label: 'Income', icon: TrendingUp, roles: ['admin', 'staff', 'accountant'], group: 'main' },
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff'], group: 'main' },
+  { href: '/dashboard/homework', label: 'Homework', icon: BookOpen, roles: ['admin', 'staff'], group: 'main' },
   { href: '/dashboard/income-expense', label: 'Income / Expense', icon: ArrowLeftRight, roles: ['admin', 'accountant'], group: 'main' },
   { href: '/dashboard/sms', label: 'SMS', icon: MessageSquare, roles: ['admin'], group: 'communication' },
   { href: '/dashboard/sms-order', label: 'Buy SMS', icon: ShoppingCart, roles: ['admin'], group: 'communication' },
