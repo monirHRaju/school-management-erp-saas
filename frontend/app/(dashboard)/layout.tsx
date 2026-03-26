@@ -52,7 +52,6 @@ const navItems: NavItem[] = [
   { href: '/dashboard/notices', label: 'System Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
   { href: '/dashboard/users', label: 'Users', icon: Users, roles: ['admin'], group: 'system' },
   { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, roles: ['admin'], group: 'system' },
-  { href: '/dashboard/settings/academic', label: 'Academic Settings', icon: GraduationCap, roles: ['admin'], group: 'system' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin'], group: 'system' },
 ];
 
@@ -204,7 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside
         onMouseEnter={() => collapsed && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`hidden md:flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out ${
+        className={`hidden md:flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out sticky top-0 h-screen ${
           showLabels ? 'w-64' : 'w-17'
         }`}
       >

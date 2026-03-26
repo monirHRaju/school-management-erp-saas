@@ -56,7 +56,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex flex-col bg-zinc-900 border-r border-zinc-800/60 transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto ${
+      <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex flex-col bg-zinc-900 border-r border-zinc-800/60 transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex items-center gap-3 px-5 py-5 border-b border-zinc-800/60">

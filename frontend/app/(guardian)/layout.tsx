@@ -106,7 +106,7 @@ export default function GuardianLayout({ children }: { children: React.ReactNode
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex sticky top-0 h-screen">
         <div className="flex h-full flex-col">
           <div className="border-b border-sidebar-border p-4">
             <Link href="/guardian" className="text-lg font-semibold tracking-tight text-sidebar-foreground">
