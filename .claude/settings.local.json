@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(ls \"e:/Web Apps/MERN/next+typscript/SAAS/school-management-erp/frontend/app/\\(dashboard\\)/dashboard/\")",
-      "WebFetch(domain:developer.bka.sh)"
+      "WebFetch(domain:developer.bka.sh)",
+      "Bash(ls -la \"e:/Web Apps/MERN/next+typscript/SAAS/school-management-erp/frontend/app/\\(dashboard\\)/dashboard/students/[id]/\")",
+      "Bash(ls -la \"e:/Web Apps/MERN/next+typscript/SAAS/school-management-erp/frontend/app/\\(dashboard\\)/dashboard/students/new/\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

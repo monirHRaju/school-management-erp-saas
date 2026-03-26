@@ -52,6 +52,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard/notices', label: 'System Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
   { href: '/dashboard/users', label: 'Users', icon: Users, roles: ['admin'], group: 'system' },
   { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, roles: ['admin'], group: 'system' },
+  { href: '/dashboard/settings/academic', label: 'Academic Settings', icon: GraduationCap, roles: ['admin'], group: 'system' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin'], group: 'system' },
 ];
 

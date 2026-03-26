@@ -17,13 +17,14 @@ const noticeRoutes       = require('./routes/notice');
 const guardianRoutes     = require('./routes/guardian');
 const usersRoutes        = require('./routes/users');
 const schoolNoticeRoutes = require('./routes/schoolNotice');
+const academicConfigRoutes = require('./routes/academicConfig');
 
 const app = express();
 
 // In development, allow common dev origins so "Failed to fetch" from CORS is avoided
 const corsOrigin = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? false : true);
 app.use(cors({ origin: corsOrigin, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -49,5 +50,6 @@ app.use('/api/notices',     noticeRoutes);
 app.use('/api/guardian',   guardianRoutes);
 app.use('/api/users',      usersRoutes);
 app.use('/api/school-notices', schoolNoticeRoutes);
+app.use('/api/academic-config', academicConfigRoutes);
 
 module.exports = app;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   getDailyAttendance,
@@ -11,10 +11,7 @@ import {
 import type { AttendanceRecord, MonthlyStudentRow, ClassSummary } from '@/types/attendance';
 import toast from 'react-hot-toast';
 import { Loader2, Users, CalendarDays, BarChart3, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
-
-const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
-const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
-const SHIFT_OPTIONS = ['Morning', 'Day'];
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 
 type Tab = 'mark' | 'monthly' | 'reports';
 
@@ -99,7 +96,8 @@ function Select({
 // ═══════════════════════════════════════════════════════════════════════════════
 function MarkAttendanceTab() {
   const { token } = useAuth();
-  const [cls, setCls] = useState(CLASS_OPTIONS[0]);
+  const { classes: CLASS_OPTIONS, sections: SECTION_OPTIONS, shifts: SHIFT_OPTIONS } = useAcademicConfig();
+  const [cls, setCls] = useState('');
   const [section, setSection] = useState('');
   const [shift, setShift] = useState('');
   const [date, setDate] = useState(todayStr());
@@ -107,6 +105,9 @@ function MarkAttendanceTab() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  // Set default class once config loads
+  useEffect(() => { if (CLASS_OPTIONS.length && !cls) setCls(CLASS_OPTIONS[0]); }, [CLASS_OPTIONS]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -263,7 +264,8 @@ function MarkAttendanceTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 function MonthlyViewTab() {
   const { token } = useAuth();
-  const [cls, setCls] = useState(CLASS_OPTIONS[0]);
+  const { classes: CLASS_OPTIONS, sections: SECTION_OPTIONS, shifts: SHIFT_OPTIONS } = useAcademicConfig();
+  const [cls, setCls] = useState('');
   const [section, setSection] = useState('');
   const [shift, setShift] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
@@ -272,6 +274,8 @@ function MonthlyViewTab() {
   const [daysInMonth, setDaysInMonth] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => { if (CLASS_OPTIONS.length && !cls) setCls(CLASS_OPTIONS[0]); }, [CLASS_OPTIONS]);
 
   const load = useCallback(async () => {
     if (!token) return;

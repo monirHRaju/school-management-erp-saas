@@ -23,6 +23,10 @@ router.post('/', async (req, res) => {
 
     const uploadResult = await cloudinary.uploader.upload(image, {
       folder: `school-management/students/${req.schoolId}`,
+      transformation: [
+        { width: 600, height: 600, crop: 'limit' },
+        { quality: 'auto:low', fetch_format: 'auto' },
+      ],
     });
 
     res.json({

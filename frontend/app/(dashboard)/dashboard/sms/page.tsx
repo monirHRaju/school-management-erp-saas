@@ -6,8 +6,8 @@ import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Loader2, MessageSquare, Send, History, AlertTriangle, CheckCircle2, Megaphone, RotateCw, ShoppingCart } from 'lucide-react';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 
-const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 
 const TYPE_LABELS: Record<string, string> = {
   attendance_absent: 'Attendance',
@@ -36,6 +36,7 @@ function currentMonthStr() {
 
 export default function SmsPage() {
   const { token } = useAuth();
+  const { classes: CLASS_OPTIONS } = useAcademicConfig();
 
   // Status
   const [smsEnabled, setSmsEnabled] = useState(false);

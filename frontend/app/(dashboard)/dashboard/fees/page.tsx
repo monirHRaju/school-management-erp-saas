@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 
 const FEE_TYPE_OPTIONS: { value: '' | FeeCategory; label: string }[] = [
   { value: '', label: 'All categories' },
@@ -41,7 +42,6 @@ const ONE_TIME_FEE_TYPES: { value: 'admission' | 'exam' | 'book' | 'other'; labe
   { value: 'book', label: 'Book Fee' },
   { value: 'other', label: 'Other' },
 ];
-const CLASS_OPTIONS = ['Play', 'Nursery', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 const STATUS_OPTIONS: { value: '' | 'unpaid' | 'partial' | 'paid'; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'unpaid', label: 'Unpaid' },
@@ -63,6 +63,7 @@ const MONTH_OPTIONS = getMonthOptions();
 
 export default function FeesPage() {
   const { token } = useAuth();
+  const { classes: CLASS_OPTIONS } = useAcademicConfig();
   const [fees, setFees] = useState<Fee[]>([]);
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
   const [page, setPage] = useState(1);
@@ -445,40 +446,54 @@ export default function FeesPage() {
         </Card>
       </div>
 
-      {/* Actions: Generate month + Record payment */}
+      {/* Section 1: Generate Monthly Fees */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Actions
+            Generate Monthly Fees
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Auto-create monthly fee entries for all active students based on their monthly fee amount.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2">
-              <Label htmlFor="generate-month">Generate fees for month</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="generate-month"
-                  type="month"
-                  value={generateMonthValue}
-                  onChange={(e) => setGenerateMonthValue(e.target.value)}
-                  className="max-w-[180px]"
-                />
-                <Button
-                  onClick={handleGenerateMonth}
-                  disabled={generating}
-                  className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                >
-                  {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate month
-                </Button>
-              </div>
+              <Label htmlFor="generate-month">Month</Label>
+              <Input
+                id="generate-month"
+                type="month"
+                value={generateMonthValue}
+                onChange={(e) => setGenerateMonthValue(e.target.value)}
+                className="max-w-[180px]"
+              />
             </div>
+            <Button
+              onClick={handleGenerateMonth}
+              disabled={generating}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            >
+              {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Generate month
+            </Button>
           </div>
-          <hr className="border-border" />
-          <form onSubmit={handlePay} className="space-y-4">
-            <p className="text-sm font-medium">Record payment</p>
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Record Payment */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            Record Payment
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Record a payment received from a student for a specific month.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handlePay}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="pay-student">Student</Label>
@@ -528,154 +543,170 @@ export default function FeesPage() {
               </div>
             </div>
           </form>
-          <hr className="border-border" />
-          <form onSubmit={handleAdditionalSubmit} className="space-y-4">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Add fee (monthly, exam, book, fine, etc.) — one student or all students
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <select
-                  value={additionalCategory}
-                  onChange={(e) => setAdditionalCategory(e.target.value as FeeCategory)}
-                  className={cn(
-                    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                  )}
-                >
-                  {FEE_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Description (optional)</Label>
-                <Input
-                  value={additionalDescription}
-                  onChange={(e) => setAdditionalDescription(e.target.value)}
-                  placeholder="e.g. March Exam Fee"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Month (optional)</Label>
-                <Input
-                  type="month"
-                  value={additionalMonth}
-                  onChange={(e) => setAdditionalMonth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Amount (৳)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={additionalAmount}
-                  onChange={(e) => setAdditionalAmount(e.target.value)}
-                  placeholder="e.g. 500"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>For</Label>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      checked={additionalForAll}
-                      onChange={() => setAdditionalForAll(true)}
-                    />
-                    All students
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      checked={!additionalForAll}
-                      onChange={() => setAdditionalForAll(false)}
-                    />
-                    One student
-                  </label>
-                  {!additionalForAll && (
-                    <select
-                      value={additionalStudentId}
-                      onChange={(e) => setAdditionalStudentId(e.target.value)}
-                      className={cn(
-                        'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
-                      )}
-                    >
-                      <option value="">Select student</option>
-                      {students.map((s) => (
-                        <option key={s._id} value={s._id}>
-                          {s.name} {s.class ? `(${s.class})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Add Fees */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Add Fee
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Create additional or one-time fees for individual students or all students at once.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Additional fee */}
+          <div>
+            <p className="text-sm font-medium mb-3">Fee for one or all students (exam, book, fine, etc.)</p>
+            <form onSubmit={handleAdditionalSubmit}>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <select
+                    value={additionalCategory}
+                    onChange={(e) => setAdditionalCategory(e.target.value as FeeCategory)}
+                    className={cn(
+                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                    )}
+                  >
+                    {FEE_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description (optional)</Label>
+                  <Input
+                    value={additionalDescription}
+                    onChange={(e) => setAdditionalDescription(e.target.value)}
+                    placeholder="e.g. March Exam Fee"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Month (optional)</Label>
+                  <Input
+                    type="month"
+                    value={additionalMonth}
+                    onChange={(e) => setAdditionalMonth(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount (৳)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={additionalAmount}
+                    onChange={(e) => setAdditionalAmount(e.target.value)}
+                    placeholder="e.g. 500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>For</Label>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        checked={additionalForAll}
+                        onChange={() => setAdditionalForAll(true)}
+                      />
+                      All students
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        checked={!additionalForAll}
+                        onChange={() => setAdditionalForAll(false)}
+                      />
+                      One student
+                    </label>
+                    {!additionalForAll && (
+                      <select
+                        value={additionalStudentId}
+                        onChange={(e) => setAdditionalStudentId(e.target.value)}
+                        className={cn(
+                          'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+                        )}
+                      >
+                        <option value="">Select student</option>
+                        {students.map((s) => (
+                          <option key={s._id} value={s._id}>
+                            {s.name} {s.class ? `(${s.class})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-end">
+              <div className="mt-4">
                 <Button type="submit" disabled={additionalSubmitting}>
                   {additionalSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add additional fee
-                </Button>
-              </div>
-            </div>
-          </form>
-          <hr className="border-border" />
-          <form onSubmit={handleOneTimeSubmit} className="space-y-4">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Add one-time fee (Admission, Exam, Book, Other)
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label>Student</Label>
-                <select
-                  value={oneTimeStudentId}
-                  onChange={(e) => setOneTimeStudentId(e.target.value)}
-                  className={cn(
-                    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                  )}
-                >
-                  <option value="">Select student</option>
-                  {students.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name} {s.class ? `(${s.class})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fee type</Label>
-                <select
-                  value={oneTimeFeeType}
-                  onChange={(e) => setOneTimeFeeType(e.target.value as 'admission' | 'exam' | 'book' | 'other')}
-                  className={cn(
-                    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                  )}
-                >
-                  {ONE_TIME_FEE_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Amount (৳)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={oneTimeAmount}
-                  onChange={(e) => setOneTimeAmount(e.target.value)}
-                  placeholder="e.g. 5000"
-                />
-              </div>
-              <div className="flex items-end">
-                <Button type="submit" disabled={oneTimeSubmitting}>
-                  {oneTimeSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Add fee
                 </Button>
               </div>
-            </div>
-          </form>
+            </form>
+          </div>
+
+          <hr className="border-border" />
+
+          {/* One-time fee */}
+          <div>
+            <p className="text-sm font-medium mb-3">One-time fee (Admission, Exam, Book, Other)</p>
+            <form onSubmit={handleOneTimeSubmit}>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <select
+                    value={oneTimeStudentId}
+                    onChange={(e) => setOneTimeStudentId(e.target.value)}
+                    className={cn(
+                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                    )}
+                  >
+                    <option value="">Select student</option>
+                    {students.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {s.name} {s.class ? `(${s.class})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Fee type</Label>
+                  <select
+                    value={oneTimeFeeType}
+                    onChange={(e) => setOneTimeFeeType(e.target.value as 'admission' | 'exam' | 'book' | 'other')}
+                    className={cn(
+                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                    )}
+                  >
+                    {ONE_TIME_FEE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount (৳)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={oneTimeAmount}
+                    onChange={(e) => setOneTimeAmount(e.target.value)}
+                    placeholder="e.g. 5000"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button type="submit" disabled={oneTimeSubmitting}>
+                    {oneTimeSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add fee
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
         </CardContent>
       </Card>
 
