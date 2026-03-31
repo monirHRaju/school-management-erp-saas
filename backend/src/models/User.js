@@ -8,8 +8,20 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     name: { type: String, required: true, trim: true },
     phone: { type: String, trim: true },
-    role: { type: String, enum: ['admin', 'staff', 'accountant', 'guardian'], default: 'staff' },
+    role: { type: String, enum: ['admin', 'staff', 'accountant', 'guardian', 'teacher'], default: 'staff' },
     student_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
+    // Profile fields
+    photoUrl: { type: String, trim: true },
+    address: { type: String, trim: true },
+    dateOfBirth: { type: Date },
+    gender: { type: String, enum: ['male', 'female', 'other'], trim: true },
+    religion: { type: String, trim: true },
+    designation: { type: String, trim: true },
+    qualification: { type: String, trim: true },
+    experience: { type: String, trim: true },
+    subjects: [{ type: String, trim: true }],
+    joiningDate: { type: Date },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   },
   { timestamps: true }
 );

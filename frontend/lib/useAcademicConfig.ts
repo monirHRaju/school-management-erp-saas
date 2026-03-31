@@ -4,11 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 
+export interface ClassSubjects {
+  class: string;
+  subjects: string[];
+}
+
 export interface AcademicConfig {
   classes: string[];
   sections: string[];
   shifts: string[];
   groups: string[];
+  classSubjects: ClassSubjects[];
 }
 
 const DEFAULTS: AcademicConfig = {
@@ -16,6 +22,7 @@ const DEFAULTS: AcademicConfig = {
   sections: ['A', 'B', 'C', 'D'],
   shifts: ['Morning', 'Day'],
   groups: ['General', 'Science', 'Commerce', 'Arts'],
+  classSubjects: [],
 };
 
 // Simple in-memory cache so multiple components don't re-fetch
@@ -48,11 +55,11 @@ export function useAcademicConfig() {
         sections: res.data.sections ?? DEFAULTS.sections,
         shifts: res.data.shifts ?? DEFAULTS.shifts,
         groups: res.data.groups ?? DEFAULTS.groups,
+        classSubjects: res.data.classSubjects ?? [],
       };
       cache = { data, ts: Date.now() };
       setConfig(data);
     } catch {
-      // fallback to defaults on error
       setConfig(DEFAULTS);
     } finally {
       setLoading(false);

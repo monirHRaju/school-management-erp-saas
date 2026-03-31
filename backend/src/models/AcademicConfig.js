@@ -7,6 +7,10 @@ const academicConfigSchema = new mongoose.Schema(
     sections: [{ type: String, trim: true }],
     shifts: [{ type: String, trim: true }],
     groups: [{ type: String, trim: true }],
+    classSubjects: [{
+      class: { type: String, required: true, trim: true },
+      subjects: [{ type: String, trim: true }],
+    }],
   },
   { timestamps: true }
 );

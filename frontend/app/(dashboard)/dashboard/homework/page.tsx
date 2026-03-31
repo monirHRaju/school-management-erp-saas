@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 import {
   BookOpen, Plus, Pencil, Trash2, Loader2, X, Paperclip, AlertCircle,
 } from 'lucide-react';
@@ -46,6 +47,10 @@ const EMPTY_FORM: FormState = {
   section: '', group: '', due_date: '', attachment_url: '',
 };
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function isOverdue(due_date: string) {
   return new Date(due_date) < new Date(new Date().toDateString());
 }
@@ -56,6 +61,7 @@ function formatDate(d: string) {
 
 export default function HomeworkPage() {
   const { user } = useAuth();
+  const { classes, sections, groups, classSubjects } = useAcademicConfig();
 
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +73,7 @@ export default function HomeworkPage() {
   const [filterSection, setFilterSection] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
   const [filterStatus, setFilterStatus] = useState('active');
+  const [filterDate, setFilterDate] = useState(todayISO()); // default today
 
   // Form dialog
   const [showForm, setShowForm] = useState(false);
@@ -78,16 +85,23 @@ export default function HomeworkPage() {
   const [deleteTarget, setDeleteTarget] = useState<Homework | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canManage = user?.role === 'admin' || user?.role === 'staff';
+  const canManage = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'teacher';
+
+  // Subjects for the currently selected class in the form
+  const formClassSubjects = classSubjects.find((cs) => cs.class === form.class)?.subjects ?? [];
 
   const fetchHomeworks = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      const token = getToken();
+      const token = getToken() ?? undefined;
       const params = new URLSearchParams({ page: String(p), limit: '20', status: filterStatus });
       if (filterClass) params.set('class', filterClass);
       if (filterSection) params.set('section', filterSection);
       if (filterSubject) params.set('subject', filterSubject);
+      if (filterDate) {
+        params.set('from_date', filterDate);
+        params.set('to_date', filterDate);
+      }
 
       const res = await apiRequest<{ success: boolean; data: Homework[]; totalPages: number }>(
         `/api/homework?${params}`, { token }
@@ -102,7 +116,7 @@ export default function HomeworkPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterClass, filterSection, filterSubject, filterStatus]);
+  }, [filterClass, filterSection, filterSubject, filterStatus, filterDate]);
 
   useEffect(() => { fetchHomeworks(1); }, [fetchHomeworks]);
 
@@ -136,7 +150,7 @@ export default function HomeworkPage() {
 
     setSaving(true);
     try {
-      const token = getToken();
+      const token = getToken() ?? undefined;
       if (editTarget) {
         const res = await apiRequest<{ success: boolean; data: Homework }>(
           `/api/homework/${editTarget._id}`,
@@ -168,7 +182,7 @@ export default function HomeworkPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const token = getToken();
+      const token = getToken() ?? undefined;
       await apiRequest(`/api/homework/${deleteTarget._id}`, { method: 'DELETE', token });
       setHomeworks((prev) => prev.filter((h) => h._id !== deleteTarget._id));
       toast.success('Homework deleted');
@@ -183,6 +197,8 @@ export default function HomeworkPage() {
   function canEdit(hw: Homework) {
     return user?.role === 'admin' || hw.created_by?._id === user?._id;
   }
+
+  const hasActiveFilters = filterClass || filterSection || filterSubject || filterDate;
 
   return (
     <div className="space-y-5">
@@ -200,25 +216,49 @@ export default function HomeworkPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Class"
+      <div className="flex flex-wrap gap-2 items-center">
+        <select
           value={filterClass}
           onChange={(e) => setFilterClass(e.target.value)}
-          className="w-28"
-        />
-        <Input
-          placeholder="Section"
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="">All Classes</option>
+          {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
           value={filterSection}
           onChange={(e) => setFilterSection(e.target.value)}
-          className="w-28"
-        />
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="">All Sections</option>
+          {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
         <Input
           placeholder="Subject"
           value={filterSubject}
           onChange={(e) => setFilterSubject(e.target.value)}
           className="w-36"
         />
+        {/* Single date filter */}
+        <div className="flex items-center gap-1">
+          <Input
+            type="date"
+            title="Filter by due date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="w-36"
+          />
+          {filterDate && (
+            <button
+              type="button"
+              onClick={() => setFilterDate('')}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Clear date filter"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -227,17 +267,24 @@ export default function HomeworkPage() {
           <option value="active">Active</option>
           <option value="archived">Archived</option>
         </select>
-        {(filterClass || filterSection || filterSubject) && (
+        {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { setFilterClass(''); setFilterSection(''); setFilterSubject(''); }}
+            onClick={() => { setFilterClass(''); setFilterSection(''); setFilterSubject(''); setFilterDate(''); }}
             className="gap-1 text-muted-foreground"
           >
-            <X className="h-3.5 w-3.5" /> Clear
+            <X className="h-3.5 w-3.5" /> Clear all
           </Button>
         )}
       </div>
+
+      {/* Date badge — shows when a date is active */}
+      {filterDate && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          Showing homework due on <span className="font-medium text-foreground">{formatDate(filterDate)}</span>
+        </p>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -247,7 +294,12 @@ export default function HomeworkPage() {
       ) : homeworks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
           <BookOpen className="h-10 w-10 opacity-20" />
-          <p>No homework found.</p>
+          <p>No homework found{filterDate ? ` for ${formatDate(filterDate)}` : ''}.</p>
+          {filterDate && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDate('')} className="gap-1 text-muted-foreground">
+              <X className="h-3.5 w-3.5" /> Show all dates
+            </Button>
+          )}
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
@@ -342,12 +394,15 @@ export default function HomeworkPage() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Subject <span className="text-destructive">*</span></Label>
-                <Input
-                  placeholder="e.g. Math, English"
-                  value={form.subject}
-                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                />
+                <Label>Class <span className="text-destructive">*</span></Label>
+                <select
+                  value={form.class}
+                  onChange={(e) => setForm((f) => ({ ...f, class: e.target.value, subject: '' }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select class</option>
+                  {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <Label>Due Date <span className="text-destructive">*</span></Label>
@@ -358,6 +413,38 @@ export default function HomeworkPage() {
                 />
               </div>
             </div>
+
+            {/* Subject — dropdown if class has subjects configured, otherwise free text */}
+            <div className="space-y-1.5">
+              <Label>Subject <span className="text-destructive">*</span></Label>
+              {formClassSubjects.length > 0 ? (
+                <select
+                  value={form.subject}
+                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select subject</option>
+                  {formClassSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="__other__">Other (type below)</option>
+                </select>
+              ) : (
+                <Input
+                  placeholder="e.g. Math, English"
+                  value={form.subject}
+                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                />
+              )}
+              {/* Show text input when "Other" is selected */}
+              {formClassSubjects.length > 0 && form.subject === '__other__' && (
+                <Input
+                  placeholder="Type subject name"
+                  value={''}
+                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                  autoFocus
+                />
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label>Title <span className="text-destructive">*</span></Label>
               <Input
@@ -376,30 +463,28 @@ export default function HomeworkPage() {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Class <span className="text-destructive">*</span></Label>
-                <Input
-                  placeholder="e.g. 5, Six"
-                  value={form.class}
-                  onChange={(e) => setForm((f) => ({ ...f, class: e.target.value }))}
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Section <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                <Input
-                  placeholder="e.g. A, B"
+                <select
                   value={form.section}
                   onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))}
-                />
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">All sections</option>
+                  {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <Label>Group <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                <Input
-                  placeholder="e.g. Science"
+                <select
                   value={form.group}
                   onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
-                />
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">All groups</option>
+                  {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
               </div>
             </div>
             <div className="space-y-1.5">

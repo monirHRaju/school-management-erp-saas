@@ -11,7 +11,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // GET /api/students — list with optional filters; add page & limit for pagination
-router.get('/', requireRole('admin', 'staff', 'accountant'), async (req, res) => {
+router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
     const { class: classFilter, section, status, shift, group, q, page, limit } = req.query;
     const filter = { school_id: new mongoose.Types.ObjectId(req.schoolId) };
@@ -50,7 +50,7 @@ router.get('/', requireRole('admin', 'staff', 'accountant'), async (req, res) =>
 });
 
 // GET /api/students/:id — get one
-router.get('/:id', requireRole('admin', 'staff', 'accountant'), async (req, res) => {
+router.get('/:id', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
@@ -77,6 +77,12 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       motherName,
       guardianName,
       guardianPhone,
+      guardianRelation,
+      guardianProfession,
+      fatherProfession,
+      motherProfession,
+      whatsappNumber,
+      address,
       photoUrl,
       shift,
       group,
@@ -105,6 +111,12 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
         motherName?.trim() ||
         undefined,
       guardianPhone: guardianPhone ? String(guardianPhone).trim() : undefined,
+      guardianRelation: guardianRelation ? String(guardianRelation).trim() : undefined,
+      guardianProfession: guardianProfession ? String(guardianProfession).trim() : undefined,
+      fatherProfession: fatherProfession ? String(fatherProfession).trim() : undefined,
+      motherProfession: motherProfession ? String(motherProfession).trim() : undefined,
+      whatsappNumber: whatsappNumber ? String(whatsappNumber).trim() : undefined,
+      address: address ? String(address).trim() : undefined,
       photoUrl: photoUrl ? String(photoUrl).trim() : undefined,
       shift: shift ? String(shift).trim() : undefined,
       group: group ? String(group).trim() : undefined,
@@ -156,6 +168,12 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       motherName,
       guardianName,
       guardianPhone,
+      guardianRelation,
+      guardianProfession,
+      fatherProfession,
+      motherProfession,
+      whatsappNumber,
+      address,
       photoUrl,
       shift,
       group,
@@ -177,6 +195,12 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
     if (guardianName !== undefined) update.guardianName = guardianName ? guardianName.trim() : '';
     if (guardianPhone !== undefined)
       update.guardianPhone = guardianPhone ? String(guardianPhone).trim() : '';
+    if (guardianRelation !== undefined) update.guardianRelation = guardianRelation ? String(guardianRelation).trim() : '';
+    if (guardianProfession !== undefined) update.guardianProfession = guardianProfession ? String(guardianProfession).trim() : '';
+    if (fatherProfession !== undefined) update.fatherProfession = fatherProfession ? String(fatherProfession).trim() : '';
+    if (motherProfession !== undefined) update.motherProfession = motherProfession ? String(motherProfession).trim() : '';
+    if (whatsappNumber !== undefined) update.whatsappNumber = whatsappNumber ? String(whatsappNumber).trim() : '';
+    if (address !== undefined) update.address = address ? String(address).trim() : '';
     if (photoUrl !== undefined) update.photoUrl = photoUrl ? String(photoUrl).trim() : '';
     if (shift !== undefined) update.shift = shift ? String(shift).trim() : '';
     if (group !== undefined) update.group = group ? String(group).trim() : '';

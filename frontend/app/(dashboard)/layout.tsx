@@ -23,6 +23,7 @@ import {
   CreditCard,
   Settings,
   BookOpen,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -30,7 +31,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
-type Role = 'admin' | 'staff' | 'accountant' | 'guardian';
+type Role = 'admin' | 'staff' | 'accountant' | 'guardian' | 'teacher';
 
 interface NavItem {
   href: string;
@@ -41,17 +42,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff', 'accountant'], group: 'main' },
-  { href: '/dashboard/students', label: 'Students', icon: GraduationCap, roles: ['admin', 'staff'], group: 'main' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff', 'accountant', 'teacher'], group: 'main' },
+  { href: '/dashboard/students', label: 'Students', icon: GraduationCap, roles: ['admin', 'staff', 'teacher'], group: 'main' },
   { href: '/dashboard/fees', label: 'Fees', icon: Receipt, roles: ['admin', 'staff', 'accountant'], group: 'main' },
   { href: '/dashboard/income', label: 'Income', icon: TrendingUp, roles: ['admin', 'staff', 'accountant'], group: 'main' },
-  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff'], group: 'main' },
-  { href: '/dashboard/homework', label: 'Homework', icon: BookOpen, roles: ['admin', 'staff'], group: 'main' },
+  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff', 'teacher'], group: 'main' },
+  { href: '/dashboard/homework', label: 'Homework', icon: BookOpen, roles: ['admin', 'staff', 'teacher'], group: 'main' },
   { href: '/dashboard/income-expense', label: 'Income / Expense', icon: ArrowLeftRight, roles: ['admin', 'accountant'], group: 'main' },
   { href: '/dashboard/sms', label: 'SMS', icon: MessageSquare, roles: ['admin'], group: 'communication' },
   { href: '/dashboard/sms-order', label: 'Buy SMS', icon: ShoppingCart, roles: ['admin'], group: 'communication' },
-  { href: '/dashboard/school-notices', label: 'School Notices', icon: Megaphone, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
+  { href: '/dashboard/school-notices', label: 'School Notices', icon: Megaphone, roles: ['admin', 'staff', 'accountant', 'teacher'], group: 'communication' },
   { href: '/dashboard/notices', label: 'System Notices', icon: Bell, roles: ['admin', 'staff', 'accountant'], group: 'communication' },
+  { href: '/dashboard/teachers', label: 'Teachers', icon: UserCheck, roles: ['admin'], group: 'system' },
   { href: '/dashboard/users', label: 'Users', icon: Users, roles: ['admin'], group: 'system' },
   { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, roles: ['admin'], group: 'system' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin'], group: 'system' },
@@ -315,7 +317,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ThemeToggle />
             <NotificationBell noticesHref="/dashboard/school-notices" />
             <div className="hidden items-center gap-2 border-l border-border pl-3 md:flex">
-              <span className="text-sm text-foreground">{user?.name}</span>
+              <Link href="/dashboard/profile" className="text-sm text-foreground hover:text-primary transition-colors">
+                {user?.name}
+              </Link>
               <span className="text-xs text-muted-foreground">({user?.role})</span>
             </div>
             <Button

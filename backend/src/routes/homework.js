@@ -81,7 +81,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // ── POST / — create homework ──────────────────────────────────────────────────
-router.post('/', requireRole('admin', 'staff'), async (req, res, next) => {
+router.post('/', requireRole('admin', 'staff', 'teacher'), async (req, res, next) => {
   try {
     const { title, description, subject, class: cls, section, group, due_date, attachment_url } = req.body;
 
@@ -112,7 +112,7 @@ router.post('/', requireRole('admin', 'staff'), async (req, res, next) => {
 });
 
 // ── PATCH /:id — update homework ──────────────────────────────────────────────
-router.patch('/:id', requireRole('admin', 'staff'), async (req, res, next) => {
+router.patch('/:id', requireRole('admin', 'staff', 'teacher'), async (req, res, next) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const hw = await Homework.findOne({ _id: req.params.id, school_id: schoolId });
@@ -142,7 +142,7 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res, next) => {
 });
 
 // ── DELETE /:id — delete homework ─────────────────────────────────────────────
-router.delete('/:id', requireRole('admin', 'staff'), async (req, res, next) => {
+router.delete('/:id', requireRole('admin', 'staff', 'teacher'), async (req, res, next) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const hw = await Homework.findOne({ _id: req.params.id, school_id: schoolId });

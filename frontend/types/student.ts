@@ -3,9 +3,15 @@ export interface Student {
   school_id: string;
   name: string;
   fatherName?: string;
+  fatherProfession?: string;
   motherName?: string;
+  motherProfession?: string;
   guardianName?: string;
   guardianPhone?: string;
+  guardianRelation?: string;
+  guardianProfession?: string;
+  whatsappNumber?: string;
+  address?: string;
   photoUrl?: string;
   shift?: string;
   group?: string;
@@ -26,9 +32,15 @@ export interface Student {
 export interface StudentFormData {
   name: string;
   fatherName?: string;
+  fatherProfession?: string;
   motherName?: string;
+  motherProfession?: string;
   guardianName?: string;
   guardianPhone?: string;
+  guardianRelation?: string;
+  guardianProfession?: string;
+  whatsappNumber?: string;
+  address?: string;
   photoUrl?: string;
   shift?: string;
   group?: string;

@@ -19,6 +19,8 @@ const usersRoutes        = require('./routes/users');
 const schoolNoticeRoutes = require('./routes/schoolNotice');
 const academicConfigRoutes = require('./routes/academicConfig');
 const homeworkRoutes = require('./routes/homework');
+const settingsRoutes = require('./routes/settings');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
 
@@ -53,5 +55,7 @@ app.use('/api/users',      usersRoutes);
 app.use('/api/school-notices', schoolNoticeRoutes);
 app.use('/api/academic-config', academicConfigRoutes);
 app.use('/api/homework', homeworkRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/profile', profileRoutes);
 
 module.exports = app;

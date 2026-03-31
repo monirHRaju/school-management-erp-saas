@@ -9,7 +9,7 @@ const { notifyAbsentStudents } = require('../services/notifications');
 const router = express.Router();
 
 // ─── POST /mark ── Bulk upsert attendance for a class on a date ──────────────
-router.post('/mark', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
+router.post('/mark', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, class: cls, section, shift, records } = req.body;
@@ -49,7 +49,7 @@ router.post('/mark', authMiddleware, requireRole('admin', 'staff'), async (req, 
 });
 
 // ─── GET /daily ── Get attendance for a class/date ───────────────────────────
-router.get('/daily', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
+router.get('/daily', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, class: cls, section, shift } = req.query;
@@ -98,7 +98,7 @@ router.get('/daily', authMiddleware, requireRole('admin', 'staff'), async (req, 
 });
 
 // ─── GET /monthly ── Monthly grid (student × days) ──────────────────────────
-router.get('/monthly', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
+router.get('/monthly', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month, class: cls, section, shift } = req.query;
@@ -182,7 +182,7 @@ router.get('/monthly', authMiddleware, requireRole('admin', 'staff'), async (req
 });
 
 // ─── GET /report ── Class-wise and school summary ───────────────────────────
-router.get('/report', authMiddleware, requireRole('admin', 'staff'), async (req, res) => {
+router.get('/report', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month } = req.query;

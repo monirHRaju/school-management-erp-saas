@@ -14,10 +14,13 @@ router.use(requireRole('admin'));
 // ── GET /api/users — list school users with optional role filter ──────────────
 router.get('/', async (req, res) => {
   try {
-    const { role, page, limit } = req.query;
+    const { role, status, page, limit } = req.query;
     const filter = { school_id: new mongoose.Types.ObjectId(req.schoolId) };
-    if (role && ['admin', 'staff', 'accountant', 'guardian'].includes(role)) {
+    if (role && ['admin', 'staff', 'accountant', 'guardian', 'teacher'].includes(role)) {
       filter.role = role;
+    }
+    if (status && ['active', 'inactive'].includes(status)) {
+      filter.status = status;
     }
 
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -38,13 +41,13 @@ router.get('/', async (req, res) => {
 // ── POST /api/users — create user ────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { name, email, phone, password, role } = req.body;
+    const { name, email, phone, password, role, status, joiningDate } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, error: 'Name is required' });
     }
-    if (!role || !['staff', 'accountant', 'guardian'].includes(role)) {
-      return res.status(400).json({ success: false, error: 'Valid role is required (staff, accountant, guardian)' });
+    if (!role || !['staff', 'accountant', 'guardian', 'teacher'].includes(role)) {
+      return res.status(400).json({ success: false, error: 'Valid role is required (staff, accountant, guardian, teacher)' });
     }
 
     // Guardian creation uses guardianService (auto-generates password + sends SMS)
@@ -83,6 +86,8 @@ router.post('/', async (req, res) => {
       phone: phone ? phone.trim() : undefined,
       passwordHash: password, // pre-save hook hashes
       role,
+      status: status && ['active', 'inactive'].includes(status) ? status : 'active',
+      joiningDate: joiningDate ? new Date(joiningDate) : undefined,
     });
 
     const userObj = user.toObject();
@@ -104,13 +109,15 @@ router.patch('/:id', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid user id' });
     }
 
-    const { name, email, phone, role, password } = req.body;
+    const { name, email, phone, role, password, status, joiningDate } = req.body;
     const update = {};
 
     if (name !== undefined) update.name = name.trim();
     if (email !== undefined) update.email = email ? email.trim().toLowerCase() : undefined;
     if (phone !== undefined) update.phone = phone ? phone.trim() : undefined;
-    if (role && ['staff', 'accountant', 'guardian'].includes(role)) update.role = role;
+    if (role && ['staff', 'accountant', 'guardian', 'teacher'].includes(role)) update.role = role;
+    if (status && ['active', 'inactive'].includes(status)) update.status = status;
+    if (joiningDate !== undefined) update.joiningDate = joiningDate ? new Date(joiningDate) : undefined;
 
     // Password reset by admin
     if (password && password.length >= 4) {

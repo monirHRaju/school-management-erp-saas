@@ -16,7 +16,7 @@ const DEFAULTS = {
 };
 
 // GET /api/academic-config — return config (auto-seed defaults if none)
-router.get('/', requireRole('admin', 'staff', 'accountant'), async (req, res) => {
+router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
     let config = await AcademicConfig.findOne({ school_id: new mongoose.Types.ObjectId(req.schoolId) }).lean();
     if (!config) {
@@ -35,12 +35,22 @@ router.get('/', requireRole('admin', 'staff', 'accountant'), async (req, res) =>
 // PATCH /api/academic-config — update arrays (admin only)
 router.patch('/', requireRole('admin'), async (req, res) => {
   try {
-    const { classes, sections, shifts, groups } = req.body;
+    const { classes, sections, shifts, groups, classSubjects } = req.body;
     const update = {};
     if (Array.isArray(classes)) update.classes = classes.map((c) => String(c).trim()).filter(Boolean);
     if (Array.isArray(sections)) update.sections = sections.map((s) => String(s).trim()).filter(Boolean);
     if (Array.isArray(shifts)) update.shifts = shifts.map((s) => String(s).trim()).filter(Boolean);
     if (Array.isArray(groups)) update.groups = groups.map((g) => String(g).trim()).filter(Boolean);
+    if (Array.isArray(classSubjects)) {
+      update.classSubjects = classSubjects
+        .filter((cs) => cs.class && String(cs.class).trim())
+        .map((cs) => ({
+          class: String(cs.class).trim(),
+          subjects: Array.isArray(cs.subjects)
+            ? cs.subjects.map((s) => String(s).trim()).filter(Boolean)
+            : [],
+        }));
+    }
 
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ success: false, error: 'Nothing to update' });
