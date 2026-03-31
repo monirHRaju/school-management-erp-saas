@@ -17,6 +17,7 @@ interface UserItem {
 const ROLE_OPTIONS = [
   { value: 'staff', label: 'Staff' },
   { value: 'accountant', label: 'Accountant' },
+  { value: 'teacher', label: 'Teacher' },
   { value: 'guardian', label: 'Guardian' },
 ];
 
@@ -24,6 +25,7 @@ const ROLE_COLORS: Record<string, string> = {
   admin: 'bg-purple-500/10 text-purple-500',
   staff: 'bg-blue-500/10 text-blue-500',
   accountant: 'bg-emerald-500/10 text-emerald-500',
+  teacher: 'bg-teal-500/10 text-teal-500',
   guardian: 'bg-amber-500/10 text-amber-500',
 };
 

@@ -13,6 +13,7 @@ const DEMO_ACCOUNTS = {
     { label: 'Admin', email: 'admin@school.com', password: 'admin123' },
     { label: 'Staff', email: 'staff@school.com', password: 'staff123' },
     { label: 'Accountant', email: 'accounts@school.com', password: 'accounts123' },
+    { label: 'Teacher', email: 'teacher@school.com', password: 'teacher123' },
   ],
   guardian: [
     { label: 'Guardian', phone: '01711111120', password: '01711111120' },

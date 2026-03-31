@@ -57,7 +57,8 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default function StudentsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const canManage = user?.role !== 'teacher';
   const { classes, sections } = useAcademicConfig();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,12 +283,14 @@ export default function StudentsPage() {
             Manage admissions, classes, and monthly fees for your school.
           </p>
         </div>
-        <Link href="/dashboard/students/new">
-          <Button className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
-            <Plus className="h-4 w-4" />
-            Add student
-          </Button>
-        </Link>
+        {canManage && (
+          <Link href="/dashboard/students/new">
+            <Button className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+              <Plus className="h-4 w-4" />
+              Add student
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
@@ -391,14 +394,16 @@ export default function StudentsPage() {
               <Users className="h-12 w-12 text-muted-foreground" />
               <div>
                 <p className="font-medium">No students yet</p>
-                <p className="text-sm text-muted-foreground">Add your first student to get started.</p>
+                <p className="text-sm text-muted-foreground">{canManage ? 'Add your first student to get started.' : 'No students found.'}</p>
               </div>
-              <Link href="/dashboard/students/new">
-                <Button>
-                  <Plus className="h-4 w-4" />
-                  Add student
-                </Button>
-              </Link>
+              {canManage && (
+                <Link href="/dashboard/students/new">
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    Add student
+                  </Button>
+                </Link>
+              )}
             </div>
           ) : (
             <>
@@ -514,30 +519,34 @@ export default function StudentsPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Link href={`/dashboard/fees/student/${s._id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Fee report"
-                                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
-                              >
-                                <CreditCard className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Link href={`/dashboard/students/${s._id}/edit`}>
-                              <Button variant="ghost" size="icon" aria-label="Edit">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openDeleteConfirm(s)}
-                              aria-label="Delete"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canManage && (
+                              <>
+                                <Link href={`/dashboard/fees/student/${s._id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Fee report"
+                                    className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                                  >
+                                    <CreditCard className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                                <Link href={`/dashboard/students/${s._id}/edit`}>
+                                  <Button variant="ghost" size="icon" aria-label="Edit">
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteConfirm(s)}
+                                  aria-label="Delete"
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -609,30 +618,34 @@ export default function StudentsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Link href={`/dashboard/fees/student/${s._id}`}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Fee report"
-                              className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
-                            >
-                              <CreditCard className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Link href={`/dashboard/students/${s._id}/edit`}>
-                            <Button variant="ghost" size="icon" aria-label="Edit">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openDeleteConfirm(s)}
-                            aria-label="Delete"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canManage && (
+                            <>
+                              <Link href={`/dashboard/fees/student/${s._id}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Fee report"
+                                  className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                                >
+                                  <CreditCard className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Link href={`/dashboard/students/${s._id}/edit`}>
+                                <Button variant="ghost" size="icon" aria-label="Edit">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteConfirm(s)}
+                                aria-label="Delete"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </CardContent>

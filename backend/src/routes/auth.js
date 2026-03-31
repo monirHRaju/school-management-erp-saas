@@ -85,6 +85,9 @@ router.post('/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
+    if (user.role === 'teacher' && user.status === 'inactive') {
+      return res.status(401).json({ success: false, error: 'Account is inactive. Contact your admin.' });
+    }
     const school = await School.findById(user.school_id);
     if (!school) {
       return res.status(401).json({ success: false, error: 'School not found' });

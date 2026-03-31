@@ -25,9 +25,15 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const emptyForm: StudentFormData = {
   name: '',
   fatherName: '',
+  fatherProfession: '',
   motherName: '',
+  motherProfession: '',
   guardianName: '',
   guardianPhone: '',
+  guardianRelation: '',
+  guardianProfession: '',
+  whatsappNumber: '',
+  address: '',
   photoUrl: '',
   shift: '',
   group: '',
@@ -61,9 +67,15 @@ export default function StudentForm({ student }: StudentFormProps) {
     return {
       name: student.name,
       fatherName: student.fatherName ?? '',
+      fatherProfession: student.fatherProfession ?? '',
       motherName: student.motherName ?? '',
+      motherProfession: student.motherProfession ?? '',
       guardianName: student.guardianName ?? '',
       guardianPhone: student.guardianPhone ?? '',
+      guardianRelation: student.guardianRelation ?? '',
+      guardianProfession: student.guardianProfession ?? '',
+      whatsappNumber: student.whatsappNumber ?? '',
+      address: student.address ?? '',
       photoUrl: student.photoUrl ?? '',
       shift: student.shift ?? '',
       group: student.group ?? '',
@@ -118,9 +130,15 @@ export default function StudentForm({ student }: StudentFormProps) {
       const payload = {
         name: form.name.trim(),
         fatherName: form.fatherName?.trim() || undefined,
+        fatherProfession: form.fatherProfession?.trim() || undefined,
         motherName: form.motherName?.trim() || undefined,
+        motherProfession: form.motherProfession?.trim() || undefined,
         guardianName: form.guardianName?.trim() || undefined,
         guardianPhone: form.guardianPhone?.trim() || undefined,
+        guardianRelation: form.guardianRelation?.trim() || undefined,
+        guardianProfession: form.guardianProfession?.trim() || undefined,
+        whatsappNumber: form.whatsappNumber?.trim() || undefined,
+        address: form.address?.trim() || undefined,
         photoUrl,
         shift: form.shift?.trim() || undefined,
         group: form.group?.trim() || undefined,
@@ -237,7 +255,7 @@ export default function StudentForm({ student }: StudentFormProps) {
               </div>
             </div>
 
-            {/* Father & Mother name */}
+            {/* Father */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fatherName">Father Name</Label>
@@ -249,12 +267,34 @@ export default function StudentForm({ student }: StudentFormProps) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="fatherProfession">Father Profession</Label>
+                <Input
+                  id="fatherProfession"
+                  value={form.fatherProfession ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, fatherProfession: e.target.value }))}
+                  placeholder="e.g. Farmer, Teacher, Business"
+                />
+              </div>
+            </div>
+
+            {/* Mother */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
                 <Label htmlFor="motherName">Mother Name</Label>
                 <Input
                   id="motherName"
                   value={form.motherName ?? ''}
                   onChange={(e) => setForm((f) => ({ ...f, motherName: e.target.value }))}
                   placeholder="Mother name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="motherProfession">Mother Profession</Label>
+                <Input
+                  id="motherProfession"
+                  value={form.motherProfession ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, motherProfession: e.target.value }))}
+                  placeholder="e.g. Homemaker, Doctor"
                 />
               </div>
             </div>
@@ -271,6 +311,17 @@ export default function StudentForm({ student }: StudentFormProps) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="guardianRelation">Relation with Student</Label>
+                <Input
+                  id="guardianRelation"
+                  value={form.guardianRelation ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, guardianRelation: e.target.value }))}
+                  placeholder="e.g. Father, Mother, Uncle"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
                 <Label htmlFor="guardianPhone">Guardian Phone</Label>
                 <Input
                   id="guardianPhone"
@@ -279,6 +330,39 @@ export default function StudentForm({ student }: StudentFormProps) {
                   placeholder="e.g. 01XXXXXXXXX"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="guardianProfession">Guardian Profession</Label>
+                <Input
+                  id="guardianProfession"
+                  value={form.guardianProfession ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, guardianProfession: e.target.value }))}
+                  placeholder="e.g. Business, Service"
+                />
+              </div>
+            </div>
+
+            {/* WhatsApp & Address */}
+            <div className="space-y-2">
+              <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
+              <Input
+                id="whatsappNumber"
+                value={form.whatsappNumber ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, whatsappNumber: e.target.value }))}
+                placeholder="e.g. 01XXXXXXXXX"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <textarea
+                id="address"
+                value={form.address ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="Village, Upazila, District"
+                rows={2}
+                className={cn(
+                  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none'
+                )}
+              />
             </div>
 
             {/* Photo */}

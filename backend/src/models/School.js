@@ -14,6 +14,7 @@ const schoolSchema = new mongoose.Schema(
       maxAdmins:   { type: Number, default: null },
     },
     sms_balance: { type: Number, default: 0 },
+    logoUrl: { type: String, trim: true },
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
