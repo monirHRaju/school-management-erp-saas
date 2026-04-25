@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import ImportStudentsDialog from './_components/ImportStudentsDialog';
 
 const STATUS_OPTIONS: { value: Student['status']; label: string }[] = [
   { value: 'active', label: 'Active' },
@@ -60,6 +61,7 @@ export default function StudentsPage() {
   const { token, user } = useAuth();
   const canManage = user?.role !== 'teacher';
   const { classes, sections } = useAcademicConfig();
+  const [importOpen, setImportOpen] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -284,12 +286,22 @@ export default function StudentsPage() {
           </p>
         </div>
         {canManage && (
-          <Link href="/dashboard/students/new">
-            <Button className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
-              <Plus className="h-4 w-4" />
-              Add student
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setImportOpen(true)}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Import CSV / Excel
             </Button>
-          </Link>
+            <Link href="/dashboard/students/new">
+              <Button className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+                <Plus className="h-4 w-4" />
+                Add student
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -767,6 +779,12 @@ export default function StudentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportStudentsDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => fetchStudents(1)}
+      />
     </div>
   );
 }
