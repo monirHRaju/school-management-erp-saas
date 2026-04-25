@@ -5,7 +5,8 @@
       "WebFetch(domain:developer.bka.sh)",
       "Bash(ls -la \"e:/Web Apps/MERN/next+typscript/SAAS/school-management-erp/frontend/app/\\(dashboard\\)/dashboard/students/[id]/\")",
       "Bash(ls -la \"e:/Web Apps/MERN/next+typscript/SAAS/school-management-erp/frontend/app/\\(dashboard\\)/dashboard/students/new/\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"require\\('xlsx'\\); console.log\\('ok'\\)\")"
     ]
   }
 }

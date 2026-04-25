@@ -49,6 +49,92 @@ router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (r
   }
 });
 
+// POST /api/students/bulk — batch import (must be before /:id)
+router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
+  try {
+    const { defaults = {}, students: rows } = req.body;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'No student rows provided' });
+    }
+    if (rows.length > 500) {
+      return res.status(400).json({ success: false, error: 'Maximum 500 students per import' });
+    }
+
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const created = [];
+    const failed = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const name = (row.name || '').trim();
+      if (!name) {
+        failed.push({ row: i + 1, name: name || '(blank)', error: 'Name is required' });
+        continue;
+      }
+
+      // Merge: row values take precedence over defaults
+      const cls    = (row.class        || defaults.class        || '').trim();
+      const sec    = (row.section      || defaults.section      || '').trim();
+      const shift  = (row.shift        || defaults.shift        || '').trim();
+      const grp    = (row.group        || defaults.group        || '').trim();
+      const phone  = (row.guardianPhone || '').trim();
+      const fee    = row.monthlyFee != null && row.monthlyFee !== ''
+        ? Number(row.monthlyFee)
+        : defaults.monthlyFee != null && defaults.monthlyFee !== ''
+          ? Number(defaults.monthlyFee)
+          : undefined;
+      const admDate = row.admissionDate || defaults.admissionDate;
+
+      try {
+        const student = await Student.create({
+          school_id: schoolId,
+          name,
+          fatherName:    row.fatherName    ? String(row.fatherName).trim()    : undefined,
+          motherName:    row.motherName    ? String(row.motherName).trim()    : undefined,
+          guardianName:  row.guardianName  ? String(row.guardianName).trim()  : (row.fatherName ? String(row.fatherName).trim() : undefined),
+          guardianPhone: phone || undefined,
+          gender:        row.gender        ? String(row.gender).trim()        : undefined,
+          religion:      row.religion      ? String(row.religion).trim()      : undefined,
+          dateOfBirth:   row.dateOfBirth   ? new Date(row.dateOfBirth)        : undefined,
+          rollNo:        row.rollNo != null ? String(row.rollNo).trim()       : undefined,
+          address:       row.address       ? String(row.address).trim()       : undefined,
+          whatsappNumber: row.whatsappNumber ? String(row.whatsappNumber).trim() : undefined,
+          class:         cls  || undefined,
+          section:       sec  || undefined,
+          shift:         shift || undefined,
+          group:         grp  || undefined,
+          monthlyFee:    fee,
+          admissionDate: admDate ? new Date(admDate) : undefined,
+          status: 'active',
+        });
+
+        if (phone) {
+          try {
+            const result = await findOrCreateGuardian(
+              req.schoolId, phone,
+              row.guardianName?.trim() || row.fatherName?.trim() || 'Guardian'
+            );
+            if (result?.user) await linkStudent(result.user._id, student._id);
+          } catch (_) { /* guardian creation non-fatal */ }
+        }
+
+        created.push(student._id);
+      } catch (err) {
+        failed.push({ row: i + 1, name, error: err.message });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      created: created.length,
+      failed,
+      total: rows.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/students/:id — get one
 router.get('/:id', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
