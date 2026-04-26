@@ -17,6 +17,7 @@ interface SchoolProfile {
   name: string;
   slug: string;
   contact?: string;
+  address?: string;
   logoUrl?: string;
 }
 
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<SchoolProfile | null>(null);
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
+  const [address, setAddress] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -40,6 +42,7 @@ export default function SettingsPage() {
           setProfile(res.data);
           setName(res.data.name);
           setContact(res.data.contact ?? '');
+          setAddress(res.data.address ?? '');
           setLogoUrl(res.data.logoUrl ?? '');
           setLogoPreview(res.data.logoUrl ?? '');
         }
@@ -92,7 +95,7 @@ export default function SettingsPage() {
 
       await apiRequest('/api/settings', {
         method: 'PATCH',
-        body: JSON.stringify({ name: name.trim(), contact: contact.trim(), logoUrl: finalLogoUrl }),
+        body: JSON.stringify({ name: name.trim(), contact: contact.trim(), address: address.trim(), logoUrl: finalLogoUrl }),
         token,
       });
       setLogoUrl(finalLogoUrl);
@@ -199,6 +202,17 @@ export default function SettingsPage() {
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 placeholder="e.g. +880 1700 000000"
+              />
+            </div>
+
+            {/* Address */}
+            <div className="space-y-1.5">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. Dattapara, Tongi, Gazipur"
               />
             </div>
 
