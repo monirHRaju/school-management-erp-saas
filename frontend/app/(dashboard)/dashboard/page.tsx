@@ -6,7 +6,11 @@ import {
   Users, CreditCard, ClipboardList, Wallet, Settings, ArrowRight,
   TrendingUp, TrendingDown, AlertCircle, CalendarCheck,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart, Pie, Cell, ResponsiveContainer,
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 
@@ -19,6 +23,9 @@ interface DashboardStats {
   totalDueFees: number;
   recentTransactions: { _id?: string; type?: string; category?: string; amount?: number; date?: string; note?: string }[];
   recentPayments: { _id?: string; studentName?: string; amount?: number; date?: string; month?: string }[];
+  monthlyFinance: { month: string; income: number; expense: number }[];
+  feeStats: { paid: number; partial: number; unpaid: number };
+  studentsByClass: { class: string; count: number }[];
 }
 
 interface DashboardResponse {
@@ -101,6 +108,23 @@ export default function DashboardPage() {
 
   const netPositive = netBalance >= 0;
 
+  const monthlyFinance = stats?.monthlyFinance ?? [];
+  const feeStats = stats?.feeStats ?? { paid: 0, partial: 0, unpaid: 0 };
+  const studentsByClass = stats?.studentsByClass ?? [];
+
+  const feeStatusData = [
+    { name: 'Paid', value: feeStats.paid, color: '#10b981' },
+    { name: 'Partial', value: feeStats.partial, color: '#f59e0b' },
+    { name: 'Unpaid', value: feeStats.unpaid, color: '#f43f5e' },
+  ].filter((d) => d.value > 0);
+
+  const attendanceData = [
+    { value: todayAttendancePercent },
+    { value: 100 - todayAttendancePercent },
+  ];
+
+  const tkFmt = (v: unknown) => `৳ ${Number(v).toLocaleString()}`;
+
   return (
     <div className="space-y-8">
       <div>
@@ -178,6 +202,123 @@ export default function DashboardPage() {
           borderColor={netPositive ? 'border-purple-500' : 'border-red-500'}
           loading={loading}
         />
+      </div>
+
+      {/* Charts row 1 — Monthly Finance + Fee Status */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Monthly Income vs Expense</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-56 animate-pulse rounded-lg bg-muted" />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={monthlyFinance} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} width={48} />
+                  <Tooltip formatter={tkFmt} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="expense" name="Expense" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Fee Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-56 animate-pulse rounded-lg bg-muted" />
+            ) : feeStatusData.length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">No fee data</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={feeStatusData}
+                    cx="50%" cy="46%"
+                    innerRadius="55%" outerRadius="80%"
+                    dataKey="value"
+                    strokeWidth={2}
+                    stroke="transparent"
+                  >
+                    {feeStatusData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: unknown) => [`${v} fees`, '']} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts row 2 — Students by Class + Attendance Gauge */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Students by Class</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-52 animate-pulse rounded-lg bg-muted" />
+            ) : studentsByClass.length === 0 ? (
+              <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">No class data</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(180, studentsByClass.length * 36)}>
+                <BarChart data={studentsByClass} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="class" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={72} />
+                  <Tooltip formatter={(v: unknown) => [`${v} students`, 'Count']} />
+                  <Bar dataKey="count" name="Students" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Today&apos;s Attendance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-52 animate-pulse rounded-lg bg-muted" />
+            ) : (
+              <div className="relative flex items-center justify-center" style={{ height: 208 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={attendanceData}
+                      cx="50%" cy="50%"
+                      innerRadius="62%" outerRadius="82%"
+                      startAngle={90} endAngle={-270}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      <Cell fill="#10b981" />
+                      <Cell fill="currentColor" style={{ opacity: 0.08 }} />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                  <span className="text-4xl font-bold tabular-nums">{todayAttendancePercent}%</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Present</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent activity + quick links */}

@@ -84,6 +84,57 @@ router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant'), asy
       date: t.date,
     }));
 
+    // Monthly finance — last 6 months
+    const monthlyFinance = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = d.toLocaleString('en', { month: 'short' });
+
+      const [incAgg, expAgg, txIncAgg] = await Promise.all([
+        Income.aggregate([
+          { $match: { school_id: schoolId, date: { $gte: start, $lte: end } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        Transaction.aggregate([
+          { $match: { school_id: schoolId, type: 'expense', date: { $gte: start, $lte: end } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        Transaction.aggregate([
+          { $match: { school_id: schoolId, type: 'income', date: { $gte: start, $lte: end } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+      ]);
+
+      monthlyFinance.push({
+        month: label,
+        income: (incAgg[0]?.total ?? 0) + (txIncAgg[0]?.total ?? 0),
+        expense: expAgg[0]?.total ?? 0,
+      });
+    }
+
+    // Fee status counts
+    const feeStatusAgg = await Fee.aggregate([
+      { $match: { school_id: schoolId } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    const feeStats = { paid: 0, partial: 0, unpaid: 0 };
+    feeStatusAgg.forEach(({ _id, count }) => { if (_id in feeStats) feeStats[_id] = count; });
+
+    // Students by class
+    const studentsByClassAgg = await Student.aggregate([
+      { $match: { school_id: schoolId, status: 'active' } },
+      { $group: { _id: '$class', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    const studentsByClass = studentsByClassAgg.map(({ _id, count }) => ({
+      class: _id || 'Unassigned',
+      count,
+    }));
+
     const data = {
       totalStudents,
       todayAttendancePercent,
@@ -93,6 +144,9 @@ router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant'), asy
       totalDueFees,
       recentTransactions,
       recentPayments,
+      monthlyFinance,
+      feeStats,
+      studentsByClass,
     };
 
     res.json({ success: true, data });
