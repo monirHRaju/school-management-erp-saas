@@ -58,7 +58,7 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default function StudentsPage() {
-  const { token, user } = useAuth();
+  const { token, user, school } = useAuth();
   const canManage = user?.role !== 'teacher';
   const { classes, sections } = useAcademicConfig();
   const [importOpen, setImportOpen] = useState(false);
@@ -84,6 +84,14 @@ export default function StudentsPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const LIMIT = 20;
+  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string } }>('/api/settings', { token })
+      .then((res) => { if (res.success && res.data) setSchoolSettings(res.data); })
+      .catch(() => {});
+  }, [token]);
 
   const fetchStudents = useCallback(async (pageNum = 1) => {
     if (!token) return;
@@ -138,63 +146,236 @@ export default function StudentsPage() {
       return;
     }
     const fmt = (v: string | number | undefined | null) =>
-      v === undefined || v === null || v === '' ? '—' : String(v);
+      v === undefined || v === null || v === '' ? '' : String(v);
     const fmtDate = (d: string | undefined) =>
-      d ? new Date(d).toLocaleDateString() : '—';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Student Details - ${s.name}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 24px; color: #111; max-width: 640px; margin: 0 auto; }
-            .title { text-align: center; color: #555; margin-bottom: 20px; font-size: 1.1rem; }
-            .photo-wrap { text-align: center; margin-bottom: 20px; }
-            .photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
-            .initial { width: 96px; height: 96px; border-radius: 50%; background: #e5e7eb; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 600; color: #374151; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
-            .field { margin-bottom: 4px; }
-            .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.02em; }
-            .value { font-size: 14px; font-weight: 500; }
-          </style>
-        </head>
-        <body>
-          <div class="title">Student Admission Form</div>
-          <div class="photo-wrap">
-            ${s.photoUrl
-              ? `<img src="${s.photoUrl}" alt="${s.name}" class="photo" />`
-              : `<div class="initial">${s.name.charAt(0).toUpperCase()}</div>`
-            }
-          </div>
-          <div class="grid">
-            <div class="field"><div class="label">Name</div><div class="value">${fmt(s.name)}</div></div>
-            <div class="field"><div class="label">Roll no.</div><div class="value">${fmt(s.rollNo)}</div></div>
-            <div class="field"><div class="label">Father name</div><div class="value">${fmt((s as any).fatherName)}</div></div>
-            <div class="field"><div class="label">Mother name</div><div class="value">${fmt((s as any).motherName)}</div></div>
-            <div class="field"><div class="label">Date of birth</div><div class="value">${fmtDate(s.dateOfBirth)}</div></div>
-            <div class="field"><div class="label">Birth reg. no.</div><div class="value">${fmt(s.birthRegNo)}</div></div>
-            <div class="field"><div class="label">Gender</div><div class="value">${fmt(s.gender)}</div></div>
-            <div class="field"><div class="label">Religion</div><div class="value">${fmt(s.religion)}</div></div>
-            <div class="field"><div class="label">Class</div><div class="value">${fmt(s.class)}</div></div>
-            <div class="field"><div class="label">Section</div><div class="value">${fmt(s.section)}</div></div>
-            <div class="field"><div class="label">Shift</div><div class="value">${fmt(s.shift)}</div></div>
-            <div class="field"><div class="label">Group</div><div class="value">${fmt(s.group)}</div></div>
-            <div class="field"><div class="label">Guardian name</div><div class="value">${fmt(s.guardianName)}</div></div>
-            <div class="field"><div class="label">Guardian phone</div><div class="value">${fmt(s.guardianPhone)}</div></div>
-            <div class="field"><div class="label">Monthly fee</div><div class="value">${s.monthlyFee != null ? '৳ ' + s.monthlyFee.toLocaleString() : '—'}</div></div>
-            <div class="field"><div class="label">Admission date</div><div class="value">${fmtDate(s.admissionDate)}</div></div>
-            <div class="field"><div class="label">Status</div><div class="value">${STATUS_OPTIONS.find((o) => o.value === s.status)?.label ?? s.status}</div></div>
-          </div>
-        </body>
-      </html>
-    `;
+      d ? new Date(d).toLocaleDateString('en-GB') : '';
+    const schoolName = school?.name ?? '';
+    const schoolContact = schoolSettings?.contact ?? '';
+    const schoolAddress = schoolSettings?.address ?? '';
+    const schoolLogo = schoolSettings?.logoUrl ?? '';
+    const statusLabel = STATUS_OPTIONS.find((o) => o.value === s.status)?.label ?? s.status;
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Student Information - ${s.name}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #fff; color: #111; }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm 14mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .header-logo { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
+    .header-logo-placeholder {
+      width: 72px; height: 72px; flex-shrink: 0;
+      background: #e5e7eb; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: bold; color: #374151;
+    }
+    .header-text { flex: 1; text-align: center; }
+    .header-text h1 { font-size: 22pt; font-weight: bold; line-height: 1.2; }
+    .header-text p { font-size: 9.5pt; margin-top: 3px; }
+    .divider-thick { border: none; border-top: 2.5px solid #111; margin: 6px 0 4px; }
+    /* Form title */
+    .form-title {
+      text-align: center;
+      font-size: 13pt;
+      font-weight: bold;
+      text-decoration: underline;
+      margin: 8px 0 6px;
+      letter-spacing: 0.03em;
+    }
+    /* Student ID + photo row */
+    .id-photo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .student-id-line { font-size: 10.5pt; font-weight: 500; }
+    .photo-box {
+      width: 85px; height: 105px;
+      border: 1px solid #555;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-placeholder { font-size: 8.5pt; color: #888; text-align: center; padding: 4px; }
+    /* Info table */
+    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    td { border: 1px solid #444; padding: 4px 7px; vertical-align: middle; }
+    .section-hdr {
+      background: #e8e8e8;
+      font-weight: bold;
+      text-align: center;
+      font-size: 10.5pt;
+      text-decoration: underline;
+      padding: 5px 7px;
+    }
+    .lbl { width: 28%; font-weight: 500; white-space: nowrap; background: #fafafa; }
+    .colon { width: 12px; text-align: center; border-left: none; border-right: none; background: #fafafa; }
+    .val { min-height: 18px; }
+    .val-right { min-height: 18px; color: #333; }
+    @media print {
+      html, body { margin: 0; padding: 0; }
+      .page { padding: 10mm 12mm; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    ${schoolLogo
+      ? `<img src="${schoolLogo}" class="header-logo" alt="Logo">`
+      : `<div class="header-logo-placeholder">${schoolName.charAt(0).toUpperCase()}</div>`
+    }
+    <div class="header-text">
+      <h1>${schoolName}</h1>
+      ${schoolAddress ? `<p>Address: ${schoolAddress}</p>` : ''}
+      ${schoolContact ? `<p>Mobile: ${schoolContact}</p>` : ''}
+    </div>
+    <div style="width:72px;flex-shrink:0;"></div>
+  </div>
+  <hr class="divider-thick">
+
+  <!-- Title -->
+  <div class="form-title">Student Information</div>
+
+  <!-- Student ID + Photo -->
+  <div class="id-photo-row">
+    <div class="student-id-line">Student ID :&nbsp; ${s._id.slice(-8).toUpperCase()}</div>
+    <div class="photo-box">
+      ${s.photoUrl
+        ? `<img src="${s.photoUrl}" alt="Photo">`
+        : `<div class="photo-placeholder">Student<br>Photo</div>`
+      }
+    </div>
+  </div>
+
+  <!-- Personal Information -->
+  <table>
+    <tr><td colspan="4" class="section-hdr">PERSONAL INFORMATION</td></tr>
+
+    <tr>
+      <td class="lbl">Student Name (In Bangla)</td>
+      <td class="colon">:</td>
+      <td class="val" colspan="2"></td>
+    </tr>
+    <tr>
+      <td class="lbl">(In English)</td>
+      <td class="colon">:</td>
+      <td class="val" colspan="2">${fmt(s.name)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of Birth</td>
+      <td class="colon">:</td>
+      <td class="val" colspan="2">${fmtDate(s.dateOfBirth)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Birth Reg. No.</td>
+      <td class="colon">:</td>
+      <td class="val" style="width:28%">${fmt(s.birthRegNo)}</td>
+      <td class="val-right">Blood Group :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="lbl">Father's Name</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.fatherName)}</td>
+      <td class="val-right">Mobile :</td>
+    </tr>
+    <tr>
+      <td class="lbl">Profession</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.fatherProfession)}</td>
+      <td class="val-right">Monthly Income :</td>
+    </tr>
+    <tr>
+      <td class="lbl">Mother's Name</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.motherName)}</td>
+      <td class="val-right">Mobile :</td>
+    </tr>
+    <tr>
+      <td class="lbl">Profession</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.motherProfession)}</td>
+      <td class="val-right">Monthly Income :</td>
+    </tr>
+    <tr>
+      <td class="lbl">Guardian Name</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.guardianName)}</td>
+      <td class="val-right">WhatsApp :&nbsp; ${fmt(s.whatsappNumber)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Relation</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.guardianRelation)}</td>
+      <td class="val-right">Monthly Income :</td>
+    </tr>
+    <tr>
+      <td class="lbl">Address</td>
+      <td class="colon">:</td>
+      <td class="val" colspan="2">${fmt(s.address)}</td>
+    </tr>
+
+    <!-- Academic Information -->
+    <tr><td colspan="4" class="section-hdr">ACADEMIC INFORMATION</td></tr>
+
+    <tr>
+      <td class="lbl">Class</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.class)}</td>
+      <td class="val-right">Section :&nbsp; ${fmt(s.section)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Roll No.</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.rollNo)}</td>
+      <td class="val-right">Shift :&nbsp; ${fmt(s.shift)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Group</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.group)}</td>
+      <td class="val-right">Gender :&nbsp; ${fmt(s.gender)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Religion</td>
+      <td class="colon">:</td>
+      <td class="val">${fmt(s.religion)}</td>
+      <td class="val-right">Status :&nbsp; ${statusLabel}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Admission Date</td>
+      <td class="colon">:</td>
+      <td class="val">${fmtDate(s.admissionDate)}</td>
+      <td class="val-right">Monthly Fee :&nbsp; ${s.monthlyFee != null ? '৳ ' + s.monthlyFee.toLocaleString() : ''}</td>
+    </tr>
+  </table>
+
+</div>
+</body>
+</html>`;
+
     win.document.write(html);
     win.document.close();
     win.focus();
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 300);
+    setTimeout(() => { win.print(); win.close(); }, 500);
   };
 
   const handleDownloadPdf = async () => {

@@ -278,13 +278,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Mobile nav sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-72 p-0">
-          <div className="flex flex-col border-b border-sidebar-border p-4">
+        <SheetContent side="left" className="w-72 p-0 flex flex-col">
+          <div className="flex flex-col border-b border-sidebar-border p-4 shrink-0">
             <span className="text-lg font-semibold text-sidebar-foreground">
               {school?.name || 'School'}
             </span>
           </div>
-          <nav className="flex flex-1 flex-col gap-1 p-4">
+          <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 p-4">
             <NavGroup
               items={filteredNav}
               pathname={pathname}
