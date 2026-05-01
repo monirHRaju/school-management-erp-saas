@@ -26,6 +26,7 @@ export interface SubscriptionPlan {
   maxAdmins: number;    // -1 = unlimited
   features: SubscriptionPlanFeatures;
   isActive: boolean;
+  mostPopular: boolean;
   order: number;
   createdAt: string;
   updatedAt: string;

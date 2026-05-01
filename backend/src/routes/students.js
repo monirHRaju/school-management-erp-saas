@@ -6,6 +6,8 @@ const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian, linkStudent, unlinkStudent } = require('../services/guardianService');
 
+const { checkStudentLimit } = require('../middleware/planGate');
+
 const router = express.Router();
 
 router.use(authMiddleware);
@@ -58,6 +60,11 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
     }
     if (rows.length > 500) {
       return res.status(400).json({ success: false, error: 'Maximum 500 students per import' });
+    }
+
+    const limitCheck = await checkStudentLimit(req.schoolId, rows.length);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ success: false, error: limitCheck.error });
     }
 
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
@@ -185,6 +192,10 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
     } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, error: 'Name is required' });
+    }
+    const limitCheck = await checkStudentLimit(req.schoolId, 1);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ success: false, error: limitCheck.error });
     }
     const student = await Student.create({
       school_id: new mongoose.Types.ObjectId(req.schoolId),

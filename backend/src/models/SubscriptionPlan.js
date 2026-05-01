@@ -18,6 +18,7 @@ const subscriptionPlanSchema = new mongoose.Schema(
       autoIncomeTracking:   { type: Boolean, default: false },
     },
     isActive: { type: Boolean, default: true },
+    mostPopular: { type: Boolean, default: false },
     order: { type: Number, default: 0 }, // display ordering (ascending)
   },
   { timestamps: true }

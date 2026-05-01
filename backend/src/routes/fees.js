@@ -8,6 +8,7 @@ const Student = require('../models/Student');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { notifyFeeGenerated, notifyPaymentReceived } = require('../services/notifications');
+const { requireFeature } = require('../middleware/planGate');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -106,7 +107,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/fees/generate-month — create/update monthly student_fee for all active students
-router.post('/generate-month', requireRole('admin', 'accountant'), async (req, res) => {
+router.post('/generate-month', requireFeature('bulkFeeGeneration'), requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month } = req.body;
@@ -175,7 +176,7 @@ router.post('/generate-month', requireRole('admin', 'accountant'), async (req, r
 });
 
 // POST /api/fees/generate-year — create/update monthly student_fee for full year
-router.post('/generate-year', requireRole('admin', 'accountant'), async (req, res) => {
+router.post('/generate-year', requireFeature('bulkFeeGeneration'), requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { year } = req.body;

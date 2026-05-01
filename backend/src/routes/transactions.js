@@ -4,6 +4,7 @@ const Income = require('../models/Income');
 const Transaction = require('../models/Transaction');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const { requireFeature } = require('../middleware/planGate');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -132,7 +133,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/transactions/expense — add a new expense
-router.post('/expense', async (req, res) => {
+router.post('/expense', requireFeature('incomeExpenseTracking'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, title, category, amount, note } = req.body;
@@ -206,7 +207,7 @@ router.delete('/expense/:id', async (req, res) => {
 });
 
 // POST /api/transactions/income — add a manual income entry
-router.post('/income', async (req, res) => {
+router.post('/income', requireFeature('incomeExpenseTracking'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, title, category, amount, note } = req.body;
