@@ -282,13 +282,14 @@ router.get('/plans', superAdminAuth, async (req, res) => {
 // POST /api/super-admin/plans — create a plan
 router.post('/plans', superAdminAuth, async (req, res) => {
   try {
-    const { name, slug, price, currency, maxStudents, maxAdmins, features, isActive, order } = req.body;
+    const { name, slug, price, currency, maxStudents, maxAdmins, features, isActive, order, mostPopular } = req.body;
     if (!name || !slug) {
       return res.status(400).json({ success: false, error: 'name and slug are required' });
     }
     const plan = await SubscriptionPlan.create({
       name, slug, price: price ?? 0, currency, maxStudents: maxStudents ?? 50,
       maxAdmins: maxAdmins ?? 1, features, isActive: isActive ?? true, order: order ?? 0,
+      mostPopular: mostPopular ?? false,
     });
     res.status(201).json({ success: true, data: plan });
   } catch (err) {
@@ -300,7 +301,7 @@ router.post('/plans', superAdminAuth, async (req, res) => {
 // PUT /api/super-admin/plans/:id — update a plan
 router.put('/plans/:id', superAdminAuth, async (req, res) => {
   try {
-    const { name, price, currency, maxStudents, maxAdmins, features, isActive, order } = req.body;
+    const { name, price, currency, maxStudents, maxAdmins, features, isActive, order, mostPopular } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (price !== undefined) update.price = price;
@@ -310,6 +311,7 @@ router.put('/plans/:id', superAdminAuth, async (req, res) => {
     if (features !== undefined) update.features = features;
     if (isActive !== undefined) update.isActive = isActive;
     if (order !== undefined) update.order = order;
+    if (mostPopular !== undefined) update.mostPopular = mostPopular;
 
     const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!plan) return res.status(404).json({ success: false, error: 'Plan not found' });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CreditCard, Loader2, Plus, Calendar, Wallet, FileText, Eye, Trash2, Link2, Copy, Check } from 'lucide-react';
+import { CreditCard, Loader2, Plus, Calendar, Wallet, FileText, Eye, Trash2, Link2, Copy, Check, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useAcademicConfig } from '@/lib/useAcademicConfig';
+import { openInvoiceWindow } from '@/lib/invoice';
 
 const FEE_TYPE_OPTIONS: { value: '' | FeeCategory; label: string }[] = [
   { value: '', label: 'All categories' },
@@ -62,7 +63,8 @@ function getMonthOptions() {
 const MONTH_OPTIONS = getMonthOptions();
 
 export default function FeesPage() {
-  const { token } = useAuth();
+  const { token, user, school } = useAuth();
+  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string } | null>(null);
   const { classes: CLASS_OPTIONS } = useAcademicConfig();
   const [fees, setFees] = useState<Fee[]>([]);
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
@@ -196,6 +198,59 @@ export default function FeesPage() {
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string } }>(
+      '/api/settings',
+      { token }
+    )
+      .then((res) => { if (res.success) setSchoolSettings(res.data); })
+      .catch(() => { /* ignore */ });
+  }, [token]);
+
+  const handlePrintReceipt = useCallback(
+    (payment: FeePayment) => {
+      if (!detailsFee) return;
+      const studentObj = (detailsFee as Fee & { student_id?: { name?: string; class?: string; section?: string; rollNo?: string; fatherName?: string; guardianName?: string; guardianPhone?: string } }).student_id;
+      const student = typeof studentObj === 'object' && studentObj !== null
+        ? studentObj
+        : { name: studentName(detailsFee), class: studentClass(detailsFee), section: studentSection(detailsFee), rollNo: studentRoll(detailsFee) };
+      openInvoiceWindow({
+        receiptNo: String(payment._id).slice(-8).toUpperCase(),
+        paymentDate: payment.payment_date,
+        amount: payment.amount,
+        discount: payment.discount,
+        note: payment.note,
+        collectedBy: user?.name,
+        fee: {
+          category: detailsFee.category || detailsFee.fee_type || 'other',
+          month: detailsFee.month,
+          description: detailsFee.description,
+          total_fee: detailsFee.total_fee,
+          paid_amount: detailsFee.paid_amount,
+          due_amount: detailsFee.due_amount,
+        },
+        student: {
+          name: student.name || '—',
+          class: student.class,
+          section: student.section,
+          rollNo: student.rollNo,
+          fatherName: 'fatherName' in student ? student.fatherName : undefined,
+          guardianName: 'guardianName' in student ? student.guardianName : undefined,
+          guardianPhone: 'guardianPhone' in student ? student.guardianPhone : undefined,
+        },
+        school: {
+          name: school?.name,
+          address: schoolSettings?.address,
+          contact: schoolSettings?.contact,
+          logoUrl: schoolSettings?.logoUrl,
+        },
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [detailsFee, school, schoolSettings, user]
+  );
 
   const handleGenerateMonth = async () => {
     if (!token) return;
@@ -419,6 +474,10 @@ export default function FeesPage() {
   const studentRoll = (fee: Fee) => {
     const s = fee.student_id;
     return typeof s === 'object' && s?.rollNo ? s.rollNo : '—';
+  };
+  const studentIdValue = (fee: Fee) => {
+    const s = fee.student_id as { studentId?: string } | string | undefined;
+    return typeof s === 'object' && s?.studentId ? s.studentId : '—';
   };
 
   return (
@@ -803,9 +862,9 @@ export default function FeesPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Student ID</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Section</TableHead>
                     <TableHead>Roll</TableHead>
                     <TableHead>Month</TableHead>
                     <TableHead className="text-right">Amount (৳)</TableHead>
@@ -825,9 +884,9 @@ export default function FeesPage() {
                       <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>
                         {fee.description || '—'}
                       </TableCell>
+                      <TableCell className="font-mono text-xs">{studentIdValue(fee)}</TableCell>
                       <TableCell className="font-medium">{studentName(fee)}</TableCell>
                       <TableCell>{studentClass(fee)}</TableCell>
-                      <TableCell>{studentSection(fee)}</TableCell>
                       <TableCell>{studentRoll(fee)}</TableCell>
                       <TableCell>{fee.month || '—'}</TableCell>
                       <TableCell className="text-right">{fee.total_fee.toLocaleString()}</TableCell>
@@ -1024,6 +1083,7 @@ export default function FeesPage() {
                           <TableHead className="text-right">Amount (৳)</TableHead>
                           <TableHead className="text-right">Discount (৳)</TableHead>
                           <TableHead>Note</TableHead>
+                          <TableHead className="text-right">Receipt</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1035,6 +1095,17 @@ export default function FeesPage() {
                             <TableCell className="text-right">{p.amount.toLocaleString()}</TableCell>
                             <TableCell className="text-right">{(p.discount ?? 0).toLocaleString()}</TableCell>
                             <TableCell className="max-w-[180px] truncate text-muted-foreground">{p.note || '—'}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2"
+                                onClick={() => handlePrintReceipt(p)}
+                                title="Print money receipt"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

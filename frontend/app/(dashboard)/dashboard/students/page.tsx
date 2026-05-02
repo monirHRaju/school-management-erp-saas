@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus, IdCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -80,6 +80,7 @@ export default function StudentsPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsPrintRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [guardianLoading, setGuardianLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -135,6 +136,28 @@ export default function StudentsPage() {
   const openDetails = (s: Student) => {
     setDetailsStudent(s);
     setDetailsOpen(true);
+  };
+
+  const handleGenerateGuardian = async () => {
+    const s = detailsStudent;
+    if (!s) return;
+    if (!s.guardianPhone || !s.guardianPhone.trim()) {
+      toast.error('Guardian phone is missing. Edit the student to add one first.');
+      return;
+    }
+    setGuardianLoading(true);
+    try {
+      const res = await apiRequest<{ success: boolean; created?: boolean; message?: string; error?: string }>(
+        `/api/students/${s._id}/guardian`,
+        { method: 'POST', body: JSON.stringify({}), token: token ?? undefined }
+      );
+      if (!res.success) throw new Error(res.error || 'Failed to generate guardian');
+      toast.success(res.message || (res.created ? 'Guardian account created.' : 'Guardian linked.'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate guardian');
+    } finally {
+      setGuardianLoading(false);
+    }
   };
 
   const handlePrintDetails = () => {
@@ -468,6 +491,12 @@ export default function StudentsPage() {
         </div>
         {canManage && (
           <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/dashboard/students/admit-card">
+              <Button variant="outline" className="gap-1.5">
+                <IdCard className="h-4 w-4" />
+                Admit Cards
+              </Button>
+            </Link>
             <Button
               variant="outline"
               className="gap-1.5"
@@ -547,7 +576,7 @@ export default function StudentsPage() {
                 id="filter-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or roll"
+                placeholder="Search by name, student ID, or roll"
               />
             </div>
           </div>
@@ -606,6 +635,7 @@ export default function StudentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>SL</TableHead>
+                      <TableHead>Student ID</TableHead>
                       <TableHead>Photo</TableHead>
                       <TableHead
                         onClick={() => {
@@ -658,9 +688,6 @@ export default function StudentsPage() {
                           <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                         </span>
                       </TableHead>
-                      <TableHead>Section</TableHead>
-                      <TableHead>Shift</TableHead>
-                      <TableHead>Group</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[140px] text-right">Actions</TableHead>
                     </TableRow>
@@ -669,6 +696,7 @@ export default function StudentsPage() {
                     {sortedStudents.map((s, index) => (
                       <TableRow key={s._id}>
                         <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-mono text-xs">{s.studentId || '—'}</TableCell>
                         <TableCell>
                           {s.photoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -686,9 +714,6 @@ export default function StudentsPage() {
                         <TableCell className="font-medium">{s.name}</TableCell>
                         <TableCell>{s.rollNo || '—'}</TableCell>
                         <TableCell>{s.class || '—'}</TableCell>
-                        <TableCell>{s.section || '—'}</TableCell>
-                        <TableCell>{s.shift || '—'}</TableCell>
-                        <TableCell>{s.group || '—'}</TableCell>
                         <TableCell>
                           <span
                             className={cn(
@@ -760,6 +785,9 @@ export default function StudentsPage() {
                             )}
                             {s.name}
                           </p>
+                          {s.studentId && (
+                            <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             {s.guardianName || 'No guardian'}
                           </p>
@@ -767,21 +795,6 @@ export default function StudentsPage() {
                             {s.class && (
                               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
                                 Class {s.class}
-                              </span>
-                            )}
-                            {s.section && (
-                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-200">
-                                Sec {s.section}
-                              </span>
-                            )}
-                            {s.shift && (
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
-                                {s.shift}
-                              </span>
-                            )}
-                            {s.group && (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/60 dark:text-amber-200">
-                                {s.group}
                               </span>
                             )}
                             {s.rollNo && <span>Roll {s.rollNo}</span>}
@@ -920,6 +933,17 @@ export default function StudentsPage() {
             </div>
           )}
           <DialogFooter className="gap-2 print:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGenerateGuardian}
+              disabled={guardianLoading || !detailsStudent?.guardianPhone}
+              className="gap-2"
+              title={!detailsStudent?.guardianPhone ? 'Add a guardian phone to this student first' : 'Create or link a guardian account'}
+            >
+              {guardianLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Generate Guardian
+            </Button>
             <Button type="button" variant="outline" onClick={handlePrintDetails} className="gap-2">
               <Printer className="h-4 w-4" />
               Print

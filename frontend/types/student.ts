@@ -1,21 +1,27 @@
 export interface Student {
   _id: string;
   school_id: string;
+  studentId?: string;
   name: string;
+  nameBn?: string;
+  bloodGroup?: string;
   fatherName?: string;
   fatherProfession?: string;
+  fatherMobile?: string;
+  fatherMonthlyIncome?: number;
   motherName?: string;
   motherProfession?: string;
+  motherMobile?: string;
+  motherMonthlyIncome?: number;
   guardianName?: string;
   guardianPhone?: string;
   guardianRelation?: string;
-  guardianProfession?: string;
   whatsappNumber?: string;
   address?: string;
   photoUrl?: string;
   shift?: string;
   group?: string;
-   dateOfBirth?: string;
+  dateOfBirth?: string;
   birthRegNo?: string;
   gender?: string;
   religion?: string;
@@ -30,15 +36,21 @@ export interface Student {
 }
 
 export interface StudentFormData {
+  studentId?: string;
   name: string;
+  nameBn?: string;
+  bloodGroup?: string;
   fatherName?: string;
   fatherProfession?: string;
+  fatherMobile?: string;
+  fatherMonthlyIncome?: string;
   motherName?: string;
   motherProfession?: string;
+  motherMobile?: string;
+  motherMonthlyIncome?: string;
   guardianName?: string;
   guardianPhone?: string;
   guardianRelation?: string;
-  guardianProfession?: string;
   whatsappNumber?: string;
   address?: string;
   photoUrl?: string;

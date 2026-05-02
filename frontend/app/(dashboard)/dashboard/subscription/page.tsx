@@ -233,8 +233,13 @@ export default function SubscriptionPage() {
               return (
                 <div key={p._id}
                   className={`relative bg-card border rounded-2xl p-5 flex flex-col gap-3 transition-all ${
-                    isCurrent ? `border-2 ${c.ring}` : 'border-border hover:border-zinc-600'
-                  }`}>
+                    isCurrent ? `border-2 ${c.ring}` : p.mostPopular ? 'border-amber-500/50 hover:border-amber-400/70' : 'border-border hover:border-zinc-600'
+                  } ${p.mostPopular ? 'ring-1 ring-amber-500/20' : ''}`}>
+                  {p.mostPopular && !isCurrent && (
+                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-amber-500 rounded-full text-[10px] font-bold text-black tracking-wide uppercase whitespace-nowrap">
+                      Most Popular
+                    </div>
+                  )}
                   {isCurrent && (
                     <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/15 px-2 py-0.5 rounded-full">Current</span>
                   )}

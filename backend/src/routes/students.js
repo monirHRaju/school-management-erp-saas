@@ -6,9 +6,25 @@ const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian, linkStudent, unlinkStudent } = require('../services/guardianService');
 
+const { checkStudentLimit, checkGuardianLimit } = require('../middleware/planGate');
+
 const router = express.Router();
 
 router.use(authMiddleware);
+
+const STUDENT_ID_REGEX = /^\d{6}$/;
+
+// Generate a unique 6-digit numeric student ID for the given school.
+// Retries on collision up to 50 attempts; throws if the school's ID space is exhausted.
+async function generateUniqueStudentId(schoolId) {
+  const schoolObjectId = typeof schoolId === 'string' ? new mongoose.Types.ObjectId(schoolId) : schoolId;
+  for (let i = 0; i < 50; i++) {
+    const candidate = String(Math.floor(100000 + Math.random() * 900000));
+    const exists = await Student.exists({ school_id: schoolObjectId, studentId: candidate });
+    if (!exists) return candidate;
+  }
+  throw new Error('Unable to allocate a unique 6-digit student ID. Please try again.');
+}
 
 // GET /api/students — list with optional filters; add page & limit for pagination
 router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
@@ -23,8 +39,10 @@ router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (r
 
     const conditions = [filter];
     if (q && typeof q === 'string' && q.trim()) {
-      const regex = new RegExp(q.trim(), 'i');
-      conditions.push({ $or: [{ name: regex }, { rollNo: regex }] });
+      const term = q.trim();
+      const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(safe, 'i');
+      conditions.push({ $or: [{ name: regex }, { rollNo: regex }, { studentId: regex }, { nameBn: regex }] });
     }
 
     const finalFilter = conditions.length > 1 ? { $and: conditions } : filter;
@@ -60,6 +78,11 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Maximum 500 students per import' });
     }
 
+    const limitCheck = await checkStudentLimit(req.schoolId, rows.length);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ success: false, error: limitCheck.error });
+    }
+
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const created = [];
     const failed = [];
@@ -86,8 +109,10 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
       const admDate = row.admissionDate || defaults.admissionDate;
 
       try {
+        const studentIdValue = await generateUniqueStudentId(schoolId);
         const student = await Student.create({
           school_id: schoolId,
+          studentId: studentIdValue,
           name,
           fatherName:    row.fatherName    ? String(row.fatherName).trim()    : undefined,
           motherName:    row.motherName    ? String(row.motherName).trim()    : undefined,
@@ -158,15 +183,21 @@ router.get('/:id', requireRole('admin', 'staff', 'accountant', 'teacher'), async
 router.post('/', requireRole('admin', 'staff'), async (req, res) => {
   try {
     const {
+      studentId,
       name,
+      nameBn,
+      bloodGroup,
       fatherName,
       motherName,
       guardianName,
       guardianPhone,
       guardianRelation,
-      guardianProfession,
       fatherProfession,
       motherProfession,
+      fatherMobile,
+      motherMobile,
+      fatherMonthlyIncome,
+      motherMonthlyIncome,
       whatsappNumber,
       address,
       photoUrl,
@@ -186,9 +217,32 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, error: 'Name is required' });
     }
+    const limitCheck = await checkStudentLimit(req.schoolId, 1);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ success: false, error: limitCheck.error });
+    }
+
+    // Resolve studentId: caller-supplied (admin only) or auto-generate
+    let resolvedStudentId = (typeof studentId === 'string' && studentId.trim()) ? studentId.trim() : null;
+    if (resolvedStudentId) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Only admin can set a custom student ID' });
+      }
+      if (!STUDENT_ID_REGEX.test(resolvedStudentId)) {
+        return res.status(400).json({ success: false, error: 'Student ID must be exactly 6 digits' });
+      }
+      const dup = await Student.exists({ school_id: new mongoose.Types.ObjectId(req.schoolId), studentId: resolvedStudentId });
+      if (dup) return res.status(400).json({ success: false, error: 'Student ID already in use' });
+    } else {
+      resolvedStudentId = await generateUniqueStudentId(req.schoolId);
+    }
+
     const student = await Student.create({
       school_id: new mongoose.Types.ObjectId(req.schoolId),
+      studentId: resolvedStudentId,
       name: name.trim(),
+      nameBn: nameBn ? String(nameBn).trim() : undefined,
+      bloodGroup: bloodGroup ? String(bloodGroup).trim() : undefined,
       fatherName: fatherName ? fatherName.trim() : undefined,
       motherName: motherName ? motherName.trim() : undefined,
       guardianName:
@@ -198,9 +252,12 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
         undefined,
       guardianPhone: guardianPhone ? String(guardianPhone).trim() : undefined,
       guardianRelation: guardianRelation ? String(guardianRelation).trim() : undefined,
-      guardianProfession: guardianProfession ? String(guardianProfession).trim() : undefined,
       fatherProfession: fatherProfession ? String(fatherProfession).trim() : undefined,
       motherProfession: motherProfession ? String(motherProfession).trim() : undefined,
+      fatherMobile: fatherMobile ? String(fatherMobile).trim() : undefined,
+      motherMobile: motherMobile ? String(motherMobile).trim() : undefined,
+      fatherMonthlyIncome: fatherMonthlyIncome !== undefined && fatherMonthlyIncome !== null && fatherMonthlyIncome !== '' ? Number(fatherMonthlyIncome) : undefined,
+      motherMonthlyIncome: motherMonthlyIncome !== undefined && motherMonthlyIncome !== null && motherMonthlyIncome !== '' ? Number(motherMonthlyIncome) : undefined,
       whatsappNumber: whatsappNumber ? String(whatsappNumber).trim() : undefined,
       address: address ? String(address).trim() : undefined,
       photoUrl: photoUrl ? String(photoUrl).trim() : undefined,
@@ -249,15 +306,21 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
     }
     const {
+      studentId,
       name,
+      nameBn,
+      bloodGroup,
       fatherName,
       motherName,
       guardianName,
       guardianPhone,
       guardianRelation,
-      guardianProfession,
       fatherProfession,
       motherProfession,
+      fatherMobile,
+      motherMobile,
+      fatherMonthlyIncome,
+      motherMonthlyIncome,
       whatsappNumber,
       address,
       photoUrl,
@@ -275,14 +338,38 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       status,
     } = req.body;
     const update = {};
+
+    // studentId change is admin-only; must be exactly 6 digits and unique within the school
+    if (studentId !== undefined) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Only admin can change student ID' });
+      }
+      const trimmed = String(studentId).trim();
+      if (!STUDENT_ID_REGEX.test(trimmed)) {
+        return res.status(400).json({ success: false, error: 'Student ID must be exactly 6 digits' });
+      }
+      const dup = await Student.exists({
+        school_id: new mongoose.Types.ObjectId(req.schoolId),
+        studentId: trimmed,
+        _id: { $ne: req.params.id },
+      });
+      if (dup) return res.status(400).json({ success: false, error: 'Student ID already in use' });
+      update.studentId = trimmed;
+    }
+
     if (name !== undefined) update.name = name.trim();
+    if (nameBn !== undefined) update.nameBn = nameBn ? String(nameBn).trim() : '';
+    if (bloodGroup !== undefined) update.bloodGroup = bloodGroup ? String(bloodGroup).trim() : '';
+    if (fatherMobile !== undefined) update.fatherMobile = fatherMobile ? String(fatherMobile).trim() : '';
+    if (motherMobile !== undefined) update.motherMobile = motherMobile ? String(motherMobile).trim() : '';
+    if (fatherMonthlyIncome !== undefined) update.fatherMonthlyIncome = fatherMonthlyIncome === '' || fatherMonthlyIncome === null ? undefined : Number(fatherMonthlyIncome);
+    if (motherMonthlyIncome !== undefined) update.motherMonthlyIncome = motherMonthlyIncome === '' || motherMonthlyIncome === null ? undefined : Number(motherMonthlyIncome);
     if (fatherName !== undefined) update.fatherName = fatherName ? fatherName.trim() : '';
     if (motherName !== undefined) update.motherName = motherName ? motherName.trim() : '';
     if (guardianName !== undefined) update.guardianName = guardianName ? guardianName.trim() : '';
     if (guardianPhone !== undefined)
       update.guardianPhone = guardianPhone ? String(guardianPhone).trim() : '';
     if (guardianRelation !== undefined) update.guardianRelation = guardianRelation ? String(guardianRelation).trim() : '';
-    if (guardianProfession !== undefined) update.guardianProfession = guardianProfession ? String(guardianProfession).trim() : '';
     if (fatherProfession !== undefined) update.fatherProfession = fatherProfession ? String(fatherProfession).trim() : '';
     if (motherProfession !== undefined) update.motherProfession = motherProfession ? String(motherProfession).trim() : '';
     if (whatsappNumber !== undefined) update.whatsappNumber = whatsappNumber ? String(whatsappNumber).trim() : '';
@@ -340,6 +427,76 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
     }
 
     res.json({ success: true, data: student });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/students/:id/guardian — create or link a guardian account for this student.
+// Uses the student's existing guardianPhone if no phone is provided. Idempotent: if a
+// guardian already exists for that phone in this school, it is just linked.
+router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid student id' });
+    }
+
+    const student = await Student.findOne({
+      _id: req.params.id,
+      school_id: new mongoose.Types.ObjectId(req.schoolId),
+    }).lean();
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    const { phone: phoneOverride, name: nameOverride } = req.body || {};
+    const phone = (phoneOverride || student.guardianPhone || '').trim();
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Guardian phone is required. Add a guardian phone to the student or pass one in the request.',
+      });
+    }
+
+    // Check if a guardian already exists for this phone before counting against limit.
+    const existing = await User.findOne({
+      school_id: new mongoose.Types.ObjectId(req.schoolId),
+      phone,
+      role: 'guardian',
+    }).lean();
+
+    if (!existing) {
+      const limitCheck = await checkGuardianLimit(req.schoolId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
+      }
+    }
+
+    const result = await findOrCreateGuardian(
+      req.schoolId,
+      phone,
+      nameOverride?.trim() || student.guardianName || student.fatherName || 'Guardian'
+    );
+    if (!result?.user) {
+      return res.status(400).json({ success: false, error: 'Invalid guardian phone number' });
+    }
+
+    await linkStudent(result.user._id, student._id);
+
+    // If student.guardianPhone was empty, sync it for future use
+    if (!student.guardianPhone && phone) {
+      await Student.updateOne({ _id: student._id }, { $set: { guardianPhone: phone } });
+    }
+
+    const userObj = result.user.toObject ? result.user.toObject() : result.user;
+    delete userObj.passwordHash;
+
+    res.status(201).json({
+      success: true,
+      created: result.created,
+      data: userObj,
+      message: result.created
+        ? 'Guardian account created and linked. Credentials sent via SMS.'
+        : 'Existing guardian linked to this student.',
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

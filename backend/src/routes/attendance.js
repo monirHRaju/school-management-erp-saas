@@ -66,7 +66,7 @@ router.get('/daily', authMiddleware, requireRole('admin', 'staff', 'teacher'), a
     if (shift) filter.shift = shift;
 
     const students = await Student.find(filter)
-      .select('name rollNo class section shift')
+      .select('name rollNo class section shift studentId')
       .sort({ rollNo: 1, name: 1 })
       .lean();
 
@@ -85,6 +85,7 @@ router.get('/daily', authMiddleware, requireRole('admin', 'staff', 'teacher'), a
 
     const result = students.map((s) => ({
       student_id: s._id.toString(),
+      studentId: s.studentId || '',
       studentName: s.name,
       rollNo: s.rollNo || '',
       status: statusMap[s._id.toString()] || 'present',
@@ -119,7 +120,7 @@ router.get('/monthly', authMiddleware, requireRole('admin', 'staff', 'teacher'),
     if (shift) filter.shift = shift;
 
     const students = await Student.find(filter)
-      .select('name rollNo')
+      .select('name rollNo studentId')
       .sort({ rollNo: 1, name: 1 })
       .lean();
 
@@ -162,6 +163,7 @@ router.get('/monthly', authMiddleware, requireRole('admin', 'staff', 'teacher'),
 
       return {
         _id: sid,
+        studentId: s.studentId || '',
         name: s.name,
         rollNo: s.rollNo || '',
         days,

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSuperAdmin } from '@/context/SuperAdminContext';
 import { apiRequest } from '@/lib/api';
 import type { SubscriptionPlan, SubscriptionPlanFeatures } from '@/types/superAdmin';
-import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight, Star } from 'lucide-react';
 
 const FEATURE_LABELS: { key: keyof SubscriptionPlanFeatures; label: string }[] = [
   { key: 'bulkFeeGeneration',     label: 'Bulk Fee Generation' },
@@ -35,6 +35,7 @@ type PlanFormState = {
   maxAdmins: string;
   features: SubscriptionPlanFeatures;
   isActive: boolean;
+  mostPopular: boolean;
   order: string;
 };
 
@@ -42,7 +43,7 @@ const DEFAULT_FORM: PlanFormState = {
   name: '', slug: '', price: '0', currency: 'BDT',
   maxStudents: '50', maxAdmins: '1',
   features: { ...EMPTY_FEATURES },
-  isActive: true, order: '0',
+  isActive: true, mostPopular: false, order: '0',
 };
 
 export default function SuperAdminPlansPage() {
@@ -90,6 +91,7 @@ export default function SuperAdminPlansPage() {
       maxAdmins: String(plan.maxAdmins),
       features: { ...plan.features },
       isActive: plan.isActive,
+      mostPopular: plan.mostPopular ?? false,
       order: String(plan.order),
     });
     setFormError('');
@@ -109,6 +111,7 @@ export default function SuperAdminPlansPage() {
       maxAdmins: Number(form.maxAdmins),
       features: form.features,
       isActive: form.isActive,
+      mostPopular: form.mostPopular,
       order: Number(form.order),
     };
     try {
@@ -155,7 +158,20 @@ export default function SuperAdminPlansPage() {
     try {
       await apiRequest(`/api/super-admin/plans/${plan._id}`, {
         method: 'PUT',
-        body: JSON.stringify({ ...plan, isActive: !plan.isActive }),
+        body: JSON.stringify({ isActive: !plan.isActive }),
+        token: token!,
+      });
+      fetchPlans();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function toggleMostPopular(plan: SubscriptionPlan) {
+    try {
+      await apiRequest(`/api/super-admin/plans/${plan._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ mostPopular: !plan.mostPopular }),
         token: token!,
       });
       fetchPlans();
@@ -199,8 +215,13 @@ export default function SuperAdminPlansPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {plans.map((plan) => (
-            <div key={plan._id} className={`bg-zinc-900 border rounded-2xl p-5 space-y-4 relative transition-all ${plan.isActive ? 'border-zinc-800/60' : 'border-zinc-800/30 opacity-60'}`}>
-              {/* Badge + toggle */}
+            <div key={plan._id} className={`bg-zinc-900 border rounded-2xl p-5 space-y-4 relative transition-all ${plan.isActive ? 'border-zinc-800/60' : 'border-zinc-800/30 opacity-60'} ${plan.mostPopular ? 'ring-1 ring-amber-500/40' : ''}`}>
+              {plan.mostPopular && (
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-amber-500 rounded-full text-[10px] font-bold text-black tracking-wide uppercase whitespace-nowrap">
+                  Most Popular
+                </div>
+              )}
+              {/* Badge + toggles */}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${planColors[plan.slug] || planColors.free}`}>
@@ -212,13 +233,22 @@ export default function SuperAdminPlansPage() {
                     <span className="text-sm font-normal text-zinc-500">/mo</span>
                   </p>
                 </div>
-                <button
-                  onClick={() => toggleActive(plan)}
-                  title={plan.isActive ? 'Deactivate' : 'Activate'}
-                  className={`mt-1 shrink-0 transition-colors ${plan.isActive ? 'text-emerald-400 hover:text-emerald-300' : 'text-zinc-600 hover:text-zinc-400'}`}
-                >
-                  {plan.isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                </button>
+                <div className="flex items-center gap-1 mt-1 shrink-0">
+                  <button
+                    onClick={() => toggleMostPopular(plan)}
+                    title={plan.mostPopular ? 'Remove Most Popular' : 'Mark as Most Popular'}
+                    className={`transition-colors ${plan.mostPopular ? 'text-amber-400 hover:text-amber-300' : 'text-zinc-600 hover:text-amber-500'}`}
+                  >
+                    <Star className={`w-5 h-5 ${plan.mostPopular ? 'fill-amber-400' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => toggleActive(plan)}
+                    title={plan.isActive ? 'Deactivate' : 'Activate'}
+                    className={`transition-colors ${plan.isActive ? 'text-emerald-400 hover:text-emerald-300' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  >
+                    {plan.isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                  </button>
+                </div>
               </div>
 
               {/* Limits */}
@@ -371,16 +401,29 @@ export default function SuperAdminPlansPage() {
                 </div>
               </div>
 
-              {/* Active toggle */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))}
-                  className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
-                />
-                <span className="text-sm text-zinc-300">Active (visible to schools)</span>
-              </label>
+              {/* Active + Most Popular toggles */}
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))}
+                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
+                  />
+                  <span className="text-sm text-zinc-300">Active (visible to schools)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.mostPopular}
+                    onChange={e => setForm(f => ({ ...f, mostPopular: e.target.checked }))}
+                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-amber-500"
+                  />
+                  <span className="text-sm text-zinc-300 flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 text-amber-400" /> Most Popular badge
+                  </span>
+                </label>
+              </div>
 
               {formError && <p className="text-sm text-red-400">{formError}</p>}
 

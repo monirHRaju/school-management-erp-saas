@@ -6,6 +6,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian } = require('../services/guardianService');
+const { checkStaffLimit, checkGuardianLimit, hasFeature } = require('../middleware/planGate');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -48,6 +49,33 @@ router.post('/', async (req, res) => {
     }
     if (!role || !['staff', 'accountant', 'guardian', 'teacher'].includes(role)) {
       return res.status(400).json({ success: false, error: 'Valid role is required (staff, accountant, guardian, teacher)' });
+    }
+
+    // Teacher/accountant roles require multipleRoles feature
+    if (['teacher', 'accountant'].includes(role)) {
+      const canUse = await hasFeature(req.schoolId, 'multipleRoles');
+      if (!canUse) {
+        return res.status(403).json({
+          success: false,
+          error: 'Teacher and accountant roles require a higher subscription plan. Please upgrade to add multiple role types.',
+          code: 'PLAN_FEATURE_REQUIRED',
+          feature: 'multipleRoles',
+        });
+      }
+    }
+
+    // Guardians are capped at the student limit (independent of staff limit)
+    if (role === 'guardian') {
+      const limitCheck = await checkGuardianLimit(req.schoolId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
+      }
+    } else {
+      // Non-guardian roles count against the staff limit
+      const limitCheck = await checkStaffLimit(req.schoolId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
+      }
     }
 
     // Guardian creation uses guardianService (auto-generates password + sends SMS)
