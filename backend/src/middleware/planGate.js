@@ -117,4 +117,25 @@ async function hasFeature(schoolId, featureKey) {
   return !!(plan?.features?.[featureKey]);
 }
 
-module.exports = { requireFeature, checkStudentLimit, checkStaffLimit, hasFeature };
+// Guardian accounts are capped at the same number as the student limit.
+async function checkGuardianLimit(schoolId) {
+  const { school, plan } = await getSchoolPlan(schoolId);
+  if (!school) return { allowed: false, error: 'School not found' };
+  if (isExpired(school)) {
+    return { allowed: false, error: 'Subscription expired. Please renew to add guardians.' };
+  }
+  const limits = effectiveLimits(school, plan);
+  if (limits.maxStudents === -1) return { allowed: true };
+  const count = await User.countDocuments({ school_id: schoolId, role: 'guardian' });
+  if (count >= limits.maxStudents) {
+    return {
+      allowed: false,
+      used: count,
+      max: limits.maxStudents,
+      error: `Guardian account limit reached (${count}/${limits.maxStudents}). Upgrade your plan to add more.`,
+    };
+  }
+  return { allowed: true, used: count, max: limits.maxStudents };
+}
+
+module.exports = { requireFeature, checkStudentLimit, checkStaffLimit, checkGuardianLimit, hasFeature };

@@ -6,7 +6,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian } = require('../services/guardianService');
-const { checkStaffLimit, hasFeature } = require('../middleware/planGate');
+const { checkStaffLimit, checkGuardianLimit, hasFeature } = require('../middleware/planGate');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -64,21 +64,14 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Guardian creation requires guardianAccess feature
+    // Guardians are capped at the student limit (independent of staff limit)
     if (role === 'guardian') {
-      const canUse = await hasFeature(req.schoolId, 'guardianAccess');
-      if (!canUse) {
-        return res.status(403).json({
-          success: false,
-          error: 'Guardian portal access requires a higher subscription plan. Please upgrade to create guardian accounts.',
-          code: 'PLAN_FEATURE_REQUIRED',
-          feature: 'guardianAccess',
-        });
+      const limitCheck = await checkGuardianLimit(req.schoolId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
       }
-    }
-
-    // Non-guardian roles count against the staff limit
-    if (role !== 'guardian') {
+    } else {
+      // Non-guardian roles count against the staff limit
       const limitCheck = await checkStaffLimit(req.schoolId);
       if (!limitCheck.allowed) {
         return res.status(403).json({ success: false, error: limitCheck.error });

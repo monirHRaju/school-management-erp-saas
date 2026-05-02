@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -80,6 +80,7 @@ export default function StudentsPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsPrintRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [guardianLoading, setGuardianLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -135,6 +136,28 @@ export default function StudentsPage() {
   const openDetails = (s: Student) => {
     setDetailsStudent(s);
     setDetailsOpen(true);
+  };
+
+  const handleGenerateGuardian = async () => {
+    const s = detailsStudent;
+    if (!s) return;
+    if (!s.guardianPhone || !s.guardianPhone.trim()) {
+      toast.error('Guardian phone is missing. Edit the student to add one first.');
+      return;
+    }
+    setGuardianLoading(true);
+    try {
+      const res = await apiRequest<{ success: boolean; created?: boolean; message?: string; error?: string }>(
+        `/api/students/${s._id}/guardian`,
+        { method: 'POST', body: JSON.stringify({}), token: token ?? undefined }
+      );
+      if (!res.success) throw new Error(res.error || 'Failed to generate guardian');
+      toast.success(res.message || (res.created ? 'Guardian account created.' : 'Guardian linked.'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate guardian');
+    } finally {
+      setGuardianLoading(false);
+    }
   };
 
   const handlePrintDetails = () => {
@@ -920,6 +943,17 @@ export default function StudentsPage() {
             </div>
           )}
           <DialogFooter className="gap-2 print:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGenerateGuardian}
+              disabled={guardianLoading || !detailsStudent?.guardianPhone}
+              className="gap-2"
+              title={!detailsStudent?.guardianPhone ? 'Add a guardian phone to this student first' : 'Create or link a guardian account'}
+            >
+              {guardianLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Generate Guardian
+            </Button>
             <Button type="button" variant="outline" onClick={handlePrintDetails} className="gap-2">
               <Printer className="h-4 w-4" />
               Print

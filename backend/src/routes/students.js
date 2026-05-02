@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian, linkStudent, unlinkStudent } = require('../services/guardianService');
 
-const { checkStudentLimit } = require('../middleware/planGate');
+const { checkStudentLimit, checkGuardianLimit } = require('../middleware/planGate');
 
 const router = express.Router();
 
@@ -351,6 +351,76 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
     }
 
     res.json({ success: true, data: student });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/students/:id/guardian — create or link a guardian account for this student.
+// Uses the student's existing guardianPhone if no phone is provided. Idempotent: if a
+// guardian already exists for that phone in this school, it is just linked.
+router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid student id' });
+    }
+
+    const student = await Student.findOne({
+      _id: req.params.id,
+      school_id: new mongoose.Types.ObjectId(req.schoolId),
+    }).lean();
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    const { phone: phoneOverride, name: nameOverride } = req.body || {};
+    const phone = (phoneOverride || student.guardianPhone || '').trim();
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Guardian phone is required. Add a guardian phone to the student or pass one in the request.',
+      });
+    }
+
+    // Check if a guardian already exists for this phone before counting against limit.
+    const existing = await User.findOne({
+      school_id: new mongoose.Types.ObjectId(req.schoolId),
+      phone,
+      role: 'guardian',
+    }).lean();
+
+    if (!existing) {
+      const limitCheck = await checkGuardianLimit(req.schoolId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
+      }
+    }
+
+    const result = await findOrCreateGuardian(
+      req.schoolId,
+      phone,
+      nameOverride?.trim() || student.guardianName || student.fatherName || 'Guardian'
+    );
+    if (!result?.user) {
+      return res.status(400).json({ success: false, error: 'Invalid guardian phone number' });
+    }
+
+    await linkStudent(result.user._id, student._id);
+
+    // If student.guardianPhone was empty, sync it for future use
+    if (!student.guardianPhone && phone) {
+      await Student.updateOne({ _id: student._id }, { $set: { guardianPhone: phone } });
+    }
+
+    const userObj = result.user.toObject ? result.user.toObject() : result.user;
+    delete userObj.passwordHash;
+
+    res.status(201).json({
+      success: true,
+      created: result.created,
+      data: userObj,
+      message: result.created
+        ? 'Guardian account created and linked. Credentials sent via SMS.'
+        : 'Existing guardian linked to this student.',
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
