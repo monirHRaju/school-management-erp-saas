@@ -12,7 +12,6 @@ const studentSchema = new mongoose.Schema(
     guardianName: { type: String, trim: true },
     guardianPhone: { type: String, trim: true },
     guardianRelation: { type: String, trim: true },
-    guardianProfession: { type: String, trim: true },
     fatherProfession: { type: String, trim: true },
     motherProfession: { type: String, trim: true },
     fatherMobile: { type: String, trim: true },

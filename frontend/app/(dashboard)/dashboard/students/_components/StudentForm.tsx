@@ -22,6 +22,9 @@ const STATUS_OPTIONS: { value: Student['status']; label: string }[] = [
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const RELIGION_OPTIONS = ['Islam', 'Hinduism', 'Christian', 'Other'];
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm: StudentFormData = {
   studentId: '',
@@ -39,7 +42,6 @@ const emptyForm: StudentFormData = {
   guardianName: '',
   guardianPhone: '',
   guardianRelation: '',
-  guardianProfession: '',
   whatsappNumber: '',
   address: '',
   photoUrl: '',
@@ -53,7 +55,7 @@ const emptyForm: StudentFormData = {
   section: '',
   rollNo: '',
   monthlyFee: '',
-  admissionDate: '',
+  admissionDate: todayISO(),
   status: 'active',
 };
 
@@ -89,7 +91,6 @@ export default function StudentForm({ student }: StudentFormProps) {
       guardianName: student.guardianName ?? '',
       guardianPhone: student.guardianPhone ?? '',
       guardianRelation: student.guardianRelation ?? '',
-      guardianProfession: student.guardianProfession ?? '',
       whatsappNumber: student.whatsappNumber ?? '',
       address: student.address ?? '',
       photoUrl: student.photoUrl ?? '',
@@ -103,7 +104,7 @@ export default function StudentForm({ student }: StudentFormProps) {
       section: student.section ?? '',
       rollNo: student.rollNo ?? '',
       monthlyFee: student.monthlyFee != null ? String(student.monthlyFee) : '',
-      admissionDate: student.admissionDate ? student.admissionDate.slice(0, 10) : '',
+      admissionDate: student.admissionDate ? student.admissionDate.slice(0, 10) : todayISO(),
       status: student.status,
     };
   });
@@ -117,6 +118,10 @@ export default function StudentForm({ student }: StudentFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (isAdmin && form.studentId?.trim() && !/^\d{6}$/.test(form.studentId.trim())) {
+      toast.error('Student ID must be exactly 6 digits.');
+      return;
+    }
     setSaving(true);
     try {
       let photoUrl = form.photoUrl?.trim() || undefined;
@@ -161,7 +166,6 @@ export default function StudentForm({ student }: StudentFormProps) {
         guardianName: form.guardianName?.trim() || undefined,
         guardianPhone: form.guardianPhone?.trim() || undefined,
         guardianRelation: form.guardianRelation?.trim() || undefined,
-        guardianProfession: form.guardianProfession?.trim() || undefined,
         whatsappNumber: form.whatsappNumber?.trim() || undefined,
         address: form.address?.trim() || undefined,
         photoUrl,
@@ -229,18 +233,21 @@ export default function StudentForm({ student }: StudentFormProps) {
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="studentId">Student ID {!student && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                <Label htmlFor="studentId">Student ID {!student && <span className="text-xs text-muted-foreground">(auto-generated, 6 digits)</span>}</Label>
                 <Input
                   id="studentId"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
                   value={form.studentId ?? ''}
-                  onChange={(e) => set('studentId', e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+                  onChange={(e) => set('studentId', e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder={student ? '' : 'Will be generated automatically'}
                   disabled={!isAdmin && !!student}
                   readOnly={!isAdmin}
                 />
-                {!isAdmin && (
-                  <p className="text-xs text-muted-foreground">Only admin can change the student ID.</p>
-                )}
+                {isAdmin
+                  ? <p className="text-xs text-muted-foreground">Must be exactly 6 digits.</p>
+                  : <p className="text-xs text-muted-foreground">Only admin can change the student ID.</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
@@ -339,12 +346,17 @@ export default function StudentForm({ student }: StudentFormProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="religion">Religion</Label>
-                <Input
+                <select
                   id="religion"
                   value={form.religion ?? ''}
                   onChange={(e) => set('religion', e.target.value)}
-                  placeholder="e.g. Islam, Hindu"
-                />
+                  className={selectClass}
+                >
+                  <option value="">Select religion</option>
+                  {RELIGION_OPTIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bloodGroup">Blood Group</Label>
@@ -505,23 +517,14 @@ export default function StudentForm({ student }: StudentFormProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guardianProfession">Guardian Profession</Label>
+                <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
                 <Input
-                  id="guardianProfession"
-                  value={form.guardianProfession ?? ''}
-                  onChange={(e) => set('guardianProfession', e.target.value)}
-                  placeholder="e.g. Business, Service"
+                  id="whatsappNumber"
+                  value={form.whatsappNumber ?? ''}
+                  onChange={(e) => set('whatsappNumber', e.target.value)}
+                  placeholder="01XXXXXXXXX"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
-              <Input
-                id="whatsappNumber"
-                value={form.whatsappNumber ?? ''}
-                onChange={(e) => set('whatsappNumber', e.target.value)}
-                placeholder="01XXXXXXXXX"
-              />
             </div>
           </CardContent>
         </Card>

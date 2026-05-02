@@ -570,7 +570,7 @@ export default function StudentsPage() {
                 id="filter-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or roll"
+                placeholder="Search by name, student ID, or roll"
               />
             </div>
           </div>

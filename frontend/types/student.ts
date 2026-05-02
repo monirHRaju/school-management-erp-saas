@@ -16,7 +16,6 @@ export interface Student {
   guardianName?: string;
   guardianPhone?: string;
   guardianRelation?: string;
-  guardianProfession?: string;
   whatsappNumber?: string;
   address?: string;
   photoUrl?: string;
@@ -52,7 +51,6 @@ export interface StudentFormData {
   guardianName?: string;
   guardianPhone?: string;
   guardianRelation?: string;
-  guardianProfession?: string;
   whatsappNumber?: string;
   address?: string;
   photoUrl?: string;
