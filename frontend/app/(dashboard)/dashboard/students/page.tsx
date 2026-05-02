@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus, IdCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -491,6 +491,12 @@ export default function StudentsPage() {
         </div>
         {canManage && (
           <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/dashboard/students/admit-card">
+              <Button variant="outline" className="gap-1.5">
+                <IdCard className="h-4 w-4" />
+                Admit Cards
+              </Button>
+            </Link>
             <Button
               variant="outline"
               className="gap-1.5"
