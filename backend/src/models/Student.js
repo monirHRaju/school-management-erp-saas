@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const studentSchema = new mongoose.Schema(
   {
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
+    studentId: { type: String, trim: true },
     name: { type: String, required: true, trim: true },
+    nameBn: { type: String, trim: true },
+    bloodGroup: { type: String, trim: true },
     fatherName: { type: String, trim: true },
     motherName: { type: String, trim: true },
     guardianName: { type: String, trim: true },
@@ -12,6 +15,10 @@ const studentSchema = new mongoose.Schema(
     guardianProfession: { type: String, trim: true },
     fatherProfession: { type: String, trim: true },
     motherProfession: { type: String, trim: true },
+    fatherMobile: { type: String, trim: true },
+    motherMobile: { type: String, trim: true },
+    fatherMonthlyIncome: { type: Number, min: 0 },
+    motherMonthlyIncome: { type: Number, min: 0 },
     whatsappNumber: { type: String, trim: true },
     address: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
@@ -34,5 +41,9 @@ const studentSchema = new mongoose.Schema(
 studentSchema.index({ school_id: 1 });
 studentSchema.index({ school_id: 1, class: 1, section: 1 });
 studentSchema.index({ school_id: 1, status: 1 });
+studentSchema.index(
+  { school_id: 1, studentId: 1 },
+  { unique: true, partialFilterExpression: { studentId: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Student', studentSchema);

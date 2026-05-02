@@ -212,6 +212,7 @@ function MarkAttendanceTab() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-10">#</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-24">Student ID</th>
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Name</th>
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-20">Roll</th>
                   <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-32">Status</th>
@@ -221,6 +222,7 @@ function MarkAttendanceTab() {
                 {students.map((s, i) => (
                   <tr key={s.student_id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-2.5 text-muted-foreground">{i + 1}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{s.studentId || '—'}</td>
                     <td className="px-4 py-2.5 font-medium text-foreground">{s.studentName}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{s.rollNo}</td>
                     <td className="px-4 py-2.5 text-center">
@@ -333,9 +335,10 @@ function MonthlyViewTab() {
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => {
-                const header = ['Student', 'Roll', ...dayNumbers.map(String), 'Total', '%'];
+                const header = ['Student', 'Student ID', 'Roll', ...dayNumbers.map(String), 'Total', '%'];
                 const rows = students.map((s) => [
                   s.name,
+                  s.studentId || '',
                   s.rollNo,
                   ...dayNumbers.map((d) => s.days[String(d)] || '-'),
                   `${s.totalPresent}/${totalDays}`,
@@ -362,6 +365,7 @@ function MonthlyViewTab() {
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground sticky left-0 bg-muted/30 z-10 min-w-35">Student</th>
+                    <th className="text-left px-2 py-2 font-medium text-muted-foreground w-20">Student ID</th>
                     <th className="text-left px-2 py-2 font-medium text-muted-foreground w-14">Roll</th>
                     {dayNumbers.map((d) => (
                       <th key={d} className="text-center px-1 py-2 font-medium text-muted-foreground w-8">{d}</th>
@@ -374,6 +378,7 @@ function MonthlyViewTab() {
                   {students.map((s) => (
                     <tr key={s._id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
                       <td className="px-3 py-2 font-medium text-foreground sticky left-0 bg-card z-10">{s.name}</td>
+                      <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{s.studentId || '—'}</td>
                       <td className="px-2 py-2 text-muted-foreground">{s.rollNo}</td>
                       {dayNumbers.map((d) => {
                         const val = s.days[String(d)];

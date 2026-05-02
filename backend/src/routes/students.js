@@ -12,6 +12,19 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Generate a unique 6-digit numeric student ID for the given school.
+// Retries on collision; falls back to a longer suffix only if 10 attempts fail.
+async function generateUniqueStudentId(schoolId) {
+  const schoolObjectId = typeof schoolId === 'string' ? new mongoose.Types.ObjectId(schoolId) : schoolId;
+  for (let i = 0; i < 10; i++) {
+    const candidate = String(Math.floor(100000 + Math.random() * 900000));
+    const exists = await Student.exists({ school_id: schoolObjectId, studentId: candidate });
+    if (!exists) return candidate;
+  }
+  // Fallback: 6 digits + 2-char suffix to guarantee uniqueness on extreme collision
+  return `${Math.floor(100000 + Math.random() * 900000)}${Math.random().toString(36).slice(2, 4)}`;
+}
+
 // GET /api/students — list with optional filters; add page & limit for pagination
 router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
@@ -93,8 +106,10 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
       const admDate = row.admissionDate || defaults.admissionDate;
 
       try {
+        const studentIdValue = await generateUniqueStudentId(schoolId);
         const student = await Student.create({
           school_id: schoolId,
+          studentId: studentIdValue,
           name,
           fatherName:    row.fatherName    ? String(row.fatherName).trim()    : undefined,
           motherName:    row.motherName    ? String(row.motherName).trim()    : undefined,
@@ -165,7 +180,10 @@ router.get('/:id', requireRole('admin', 'staff', 'accountant', 'teacher'), async
 router.post('/', requireRole('admin', 'staff'), async (req, res) => {
   try {
     const {
+      studentId,
       name,
+      nameBn,
+      bloodGroup,
       fatherName,
       motherName,
       guardianName,
@@ -174,6 +192,10 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       guardianProfession,
       fatherProfession,
       motherProfession,
+      fatherMobile,
+      motherMobile,
+      fatherMonthlyIncome,
+      motherMonthlyIncome,
       whatsappNumber,
       address,
       photoUrl,
@@ -197,9 +219,25 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
     if (!limitCheck.allowed) {
       return res.status(403).json({ success: false, error: limitCheck.error });
     }
+
+    // Resolve studentId: caller-supplied (admin only) or auto-generate
+    let resolvedStudentId = (typeof studentId === 'string' && studentId.trim()) ? studentId.trim() : null;
+    if (resolvedStudentId) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Only admin can set a custom student ID' });
+      }
+      const dup = await Student.exists({ school_id: new mongoose.Types.ObjectId(req.schoolId), studentId: resolvedStudentId });
+      if (dup) return res.status(400).json({ success: false, error: 'Student ID already in use' });
+    } else {
+      resolvedStudentId = await generateUniqueStudentId(req.schoolId);
+    }
+
     const student = await Student.create({
       school_id: new mongoose.Types.ObjectId(req.schoolId),
+      studentId: resolvedStudentId,
       name: name.trim(),
+      nameBn: nameBn ? String(nameBn).trim() : undefined,
+      bloodGroup: bloodGroup ? String(bloodGroup).trim() : undefined,
       fatherName: fatherName ? fatherName.trim() : undefined,
       motherName: motherName ? motherName.trim() : undefined,
       guardianName:
@@ -212,6 +250,10 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       guardianProfession: guardianProfession ? String(guardianProfession).trim() : undefined,
       fatherProfession: fatherProfession ? String(fatherProfession).trim() : undefined,
       motherProfession: motherProfession ? String(motherProfession).trim() : undefined,
+      fatherMobile: fatherMobile ? String(fatherMobile).trim() : undefined,
+      motherMobile: motherMobile ? String(motherMobile).trim() : undefined,
+      fatherMonthlyIncome: fatherMonthlyIncome !== undefined && fatherMonthlyIncome !== null && fatherMonthlyIncome !== '' ? Number(fatherMonthlyIncome) : undefined,
+      motherMonthlyIncome: motherMonthlyIncome !== undefined && motherMonthlyIncome !== null && motherMonthlyIncome !== '' ? Number(motherMonthlyIncome) : undefined,
       whatsappNumber: whatsappNumber ? String(whatsappNumber).trim() : undefined,
       address: address ? String(address).trim() : undefined,
       photoUrl: photoUrl ? String(photoUrl).trim() : undefined,
@@ -260,7 +302,10 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
     }
     const {
+      studentId,
       name,
+      nameBn,
+      bloodGroup,
       fatherName,
       motherName,
       guardianName,
@@ -269,6 +314,10 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       guardianProfession,
       fatherProfession,
       motherProfession,
+      fatherMobile,
+      motherMobile,
+      fatherMonthlyIncome,
+      motherMonthlyIncome,
       whatsappNumber,
       address,
       photoUrl,
@@ -286,7 +335,32 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       status,
     } = req.body;
     const update = {};
+
+    // studentId change is admin-only; must be unique within the school
+    if (studentId !== undefined) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Only admin can change student ID' });
+      }
+      const trimmed = String(studentId).trim();
+      if (!trimmed) {
+        return res.status(400).json({ success: false, error: 'Student ID cannot be empty' });
+      }
+      const dup = await Student.exists({
+        school_id: new mongoose.Types.ObjectId(req.schoolId),
+        studentId: trimmed,
+        _id: { $ne: req.params.id },
+      });
+      if (dup) return res.status(400).json({ success: false, error: 'Student ID already in use' });
+      update.studentId = trimmed;
+    }
+
     if (name !== undefined) update.name = name.trim();
+    if (nameBn !== undefined) update.nameBn = nameBn ? String(nameBn).trim() : '';
+    if (bloodGroup !== undefined) update.bloodGroup = bloodGroup ? String(bloodGroup).trim() : '';
+    if (fatherMobile !== undefined) update.fatherMobile = fatherMobile ? String(fatherMobile).trim() : '';
+    if (motherMobile !== undefined) update.motherMobile = motherMobile ? String(motherMobile).trim() : '';
+    if (fatherMonthlyIncome !== undefined) update.fatherMonthlyIncome = fatherMonthlyIncome === '' || fatherMonthlyIncome === null ? undefined : Number(fatherMonthlyIncome);
+    if (motherMonthlyIncome !== undefined) update.motherMonthlyIncome = motherMonthlyIncome === '' || motherMonthlyIncome === null ? undefined : Number(motherMonthlyIncome);
     if (fatherName !== undefined) update.fatherName = fatherName ? fatherName.trim() : '';
     if (motherName !== undefined) update.motherName = motherName ? motherName.trim() : '';
     if (guardianName !== undefined) update.guardianName = guardianName ? guardianName.trim() : '';

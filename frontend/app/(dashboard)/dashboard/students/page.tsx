@@ -629,6 +629,7 @@ export default function StudentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>SL</TableHead>
+                      <TableHead>Student ID</TableHead>
                       <TableHead>Photo</TableHead>
                       <TableHead
                         onClick={() => {
@@ -681,9 +682,6 @@ export default function StudentsPage() {
                           <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                         </span>
                       </TableHead>
-                      <TableHead>Section</TableHead>
-                      <TableHead>Shift</TableHead>
-                      <TableHead>Group</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[140px] text-right">Actions</TableHead>
                     </TableRow>
@@ -692,6 +690,7 @@ export default function StudentsPage() {
                     {sortedStudents.map((s, index) => (
                       <TableRow key={s._id}>
                         <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-mono text-xs">{s.studentId || '—'}</TableCell>
                         <TableCell>
                           {s.photoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -709,9 +708,6 @@ export default function StudentsPage() {
                         <TableCell className="font-medium">{s.name}</TableCell>
                         <TableCell>{s.rollNo || '—'}</TableCell>
                         <TableCell>{s.class || '—'}</TableCell>
-                        <TableCell>{s.section || '—'}</TableCell>
-                        <TableCell>{s.shift || '—'}</TableCell>
-                        <TableCell>{s.group || '—'}</TableCell>
                         <TableCell>
                           <span
                             className={cn(
@@ -783,6 +779,9 @@ export default function StudentsPage() {
                             )}
                             {s.name}
                           </p>
+                          {s.studentId && (
+                            <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             {s.guardianName || 'No guardian'}
                           </p>
@@ -790,21 +789,6 @@ export default function StudentsPage() {
                             {s.class && (
                               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
                                 Class {s.class}
-                              </span>
-                            )}
-                            {s.section && (
-                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-200">
-                                Sec {s.section}
-                              </span>
-                            )}
-                            {s.shift && (
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
-                                {s.shift}
-                              </span>
-                            )}
-                            {s.group && (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/60 dark:text-amber-200">
-                                {s.group}
                               </span>
                             )}
                             {s.rollNo && <span>Roll {s.rollNo}</span>}

@@ -1,6 +1,7 @@
 export interface FeeStudent {
   _id: string;
   name: string;
+  studentId?: string;
   class?: string;
   section?: string;
   rollNo?: string;

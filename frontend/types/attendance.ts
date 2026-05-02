@@ -1,5 +1,6 @@
 export interface AttendanceRecord {
   student_id: string;
+  studentId?: string;
   studentName: string;
   rollNo: string;
   status: 'present' | 'absent';
@@ -12,6 +13,7 @@ export interface DailyAttendanceResponse {
 
 export interface MonthlyStudentRow {
   _id: string;
+  studentId?: string;
   name: string;
   rollNo: string;
   days: Record<string, 'P' | 'A'>;

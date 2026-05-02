@@ -475,6 +475,10 @@ export default function FeesPage() {
     const s = fee.student_id;
     return typeof s === 'object' && s?.rollNo ? s.rollNo : '—';
   };
+  const studentIdValue = (fee: Fee) => {
+    const s = fee.student_id as { studentId?: string } | string | undefined;
+    return typeof s === 'object' && s?.studentId ? s.studentId : '—';
+  };
 
   return (
     <div className="space-y-6">
@@ -858,9 +862,9 @@ export default function FeesPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Student ID</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Section</TableHead>
                     <TableHead>Roll</TableHead>
                     <TableHead>Month</TableHead>
                     <TableHead className="text-right">Amount (৳)</TableHead>
@@ -880,9 +884,9 @@ export default function FeesPage() {
                       <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>
                         {fee.description || '—'}
                       </TableCell>
+                      <TableCell className="font-mono text-xs">{studentIdValue(fee)}</TableCell>
                       <TableCell className="font-medium">{studentName(fee)}</TableCell>
                       <TableCell>{studentClass(fee)}</TableCell>
-                      <TableCell>{studentSection(fee)}</TableCell>
                       <TableCell>{studentRoll(fee)}</TableCell>
                       <TableCell>{fee.month || '—'}</TableCell>
                       <TableCell className="text-right">{fee.total_fee.toLocaleString()}</TableCell>

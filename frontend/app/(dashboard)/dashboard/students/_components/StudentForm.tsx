@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, User, BookOpen, MapPin, Phone, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -21,13 +21,21 @@ const STATUS_OPTIONS: { value: Student['status']; label: string }[] = [
 ];
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 const emptyForm: StudentFormData = {
+  studentId: '',
   name: '',
+  nameBn: '',
+  bloodGroup: '',
   fatherName: '',
   fatherProfession: '',
+  fatherMobile: '',
+  fatherMonthlyIncome: '',
   motherName: '',
   motherProfession: '',
+  motherMobile: '',
+  motherMonthlyIncome: '',
   guardianName: '',
   guardianPhone: '',
   guardianRelation: '',
@@ -54,22 +62,30 @@ const selectClass = cn(
 );
 
 interface StudentFormProps {
-  student?: Student; // if provided, we're editing
+  student?: Student;
 }
 
 export default function StudentForm({ student }: StudentFormProps) {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { classes, sections, shifts, groups, loading: configLoading } = useAcademicConfig();
+  const isAdmin = user?.role === 'admin';
 
   const [form, setForm] = useState<StudentFormData>(() => {
     if (!student) return emptyForm;
     return {
+      studentId: student.studentId ?? '',
       name: student.name,
+      nameBn: student.nameBn ?? '',
+      bloodGroup: student.bloodGroup ?? '',
       fatherName: student.fatherName ?? '',
       fatherProfession: student.fatherProfession ?? '',
+      fatherMobile: student.fatherMobile ?? '',
+      fatherMonthlyIncome: student.fatherMonthlyIncome != null ? String(student.fatherMonthlyIncome) : '',
       motherName: student.motherName ?? '',
       motherProfession: student.motherProfession ?? '',
+      motherMobile: student.motherMobile ?? '',
+      motherMonthlyIncome: student.motherMonthlyIncome != null ? String(student.motherMonthlyIncome) : '',
       guardianName: student.guardianName ?? '',
       guardianPhone: student.guardianPhone ?? '',
       guardianRelation: student.guardianRelation ?? '',
@@ -94,6 +110,9 @@ export default function StudentForm({ student }: StudentFormProps) {
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const set = <K extends keyof StudentFormData>(key: K, value: StudentFormData[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,12 +146,18 @@ export default function StudentForm({ student }: StudentFormProps) {
         photoUrl = uploadRes.data.url;
       }
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: form.name.trim(),
+        nameBn: form.nameBn?.trim() || undefined,
+        bloodGroup: form.bloodGroup?.trim() || undefined,
         fatherName: form.fatherName?.trim() || undefined,
         fatherProfession: form.fatherProfession?.trim() || undefined,
+        fatherMobile: form.fatherMobile?.trim() || undefined,
+        fatherMonthlyIncome: form.fatherMonthlyIncome?.trim() || undefined,
         motherName: form.motherName?.trim() || undefined,
         motherProfession: form.motherProfession?.trim() || undefined,
+        motherMobile: form.motherMobile?.trim() || undefined,
+        motherMonthlyIncome: form.motherMonthlyIncome?.trim() || undefined,
         guardianName: form.guardianName?.trim() || undefined,
         guardianPhone: form.guardianPhone?.trim() || undefined,
         guardianRelation: form.guardianRelation?.trim() || undefined,
@@ -153,6 +178,11 @@ export default function StudentForm({ student }: StudentFormProps) {
         admissionDate: form.admissionDate?.trim() || undefined,
         status: form.status,
       };
+
+      // Only send studentId if admin and value differs / exists
+      if (isAdmin && form.studentId?.trim()) {
+        payload.studentId = form.studentId.trim();
+      }
 
       if (student) {
         await apiRequest(`/api/students/${student._id}`, {
@@ -188,25 +218,90 @@ export default function StudentForm({ student }: StudentFormProps) {
         </h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Student Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                required
-                placeholder="Student name"
-              />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Identification */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="h-4 w-4" /> Identification
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="studentId">Student ID {!student && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                <Input
+                  id="studentId"
+                  value={form.studentId ?? ''}
+                  onChange={(e) => set('studentId', e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+                  placeholder={student ? '' : 'Will be generated automatically'}
+                  disabled={!isAdmin && !!student}
+                  readOnly={!isAdmin}
+                />
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground">Only admin can change the student ID.</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={form.status}
+                  onChange={(e) => set('status', e.target.value as Student['status'])}
+                  className={selectClass}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="photo">Photo</Label>
+              <Input
+                id="photo"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+              />
+              {form.photoUrl && !photoFile && (
+                <p className="text-xs text-muted-foreground">
+                  Existing photo will be kept if you do not upload a new one.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-            {/* Date of Birth & Birth Reg No */}
+        {/* Personal Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="h-4 w-4" /> Personal Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name (English) *</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  required
+                  placeholder="Student name in English"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nameBn">Name (বাংলা)</Label>
+                <Input
+                  id="nameBn"
+                  value={form.nameBn ?? ''}
+                  onChange={(e) => set('nameBn', e.target.value)}
+                  placeholder="শিক্ষার্থীর নাম"
+                />
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
@@ -214,7 +309,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                   id="dateOfBirth"
                   type="date"
                   value={form.dateOfBirth ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                  onChange={(e) => set('dateOfBirth', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -222,20 +317,18 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <Input
                   id="birthRegNo"
                   value={form.birthRegNo ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, birthRegNo: e.target.value }))}
+                  onChange={(e) => set('birthRegNo', e.target.value)}
                   placeholder="Birth registration number"
                 />
               </div>
             </div>
-
-            {/* Gender & Religion */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
                 <select
                   id="gender"
                   value={form.gender ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+                  onChange={(e) => set('gender', e.target.value)}
                   className={selectClass}
                 >
                   <option value="">Select gender</option>
@@ -249,74 +342,155 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <Input
                   id="religion"
                   value={form.religion ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, religion: e.target.value }))}
-                  placeholder="e.g. Islam, Hindu, Christian"
+                  onChange={(e) => set('religion', e.target.value)}
+                  placeholder="e.g. Islam, Hindu"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="bloodGroup">Blood Group</Label>
+                <select
+                  id="bloodGroup"
+                  value={form.bloodGroup ?? ''}
+                  onChange={(e) => set('bloodGroup', e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">Select</option>
+                  {BLOOD_GROUP_OPTIONS.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Father */}
+        {/* Father Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Father Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fatherName">Father Name</Label>
                 <Input
                   id="fatherName"
                   value={form.fatherName ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, fatherName: e.target.value }))}
+                  onChange={(e) => set('fatherName', e.target.value)}
                   placeholder="Father name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fatherProfession">Father Profession</Label>
+                <Label htmlFor="fatherProfession">Profession</Label>
                 <Input
                   id="fatherProfession"
                   value={form.fatherProfession ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, fatherProfession: e.target.value }))}
-                  placeholder="e.g. Farmer, Teacher, Business"
+                  onChange={(e) => set('fatherProfession', e.target.value)}
+                  placeholder="e.g. Farmer, Teacher"
                 />
               </div>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="fatherMobile">Mobile</Label>
+                <Input
+                  id="fatherMobile"
+                  value={form.fatherMobile ?? ''}
+                  onChange={(e) => set('fatherMobile', e.target.value)}
+                  placeholder="01XXXXXXXXX"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fatherMonthlyIncome">Monthly Income (৳)</Label>
+                <Input
+                  id="fatherMonthlyIncome"
+                  type="number"
+                  min="0"
+                  value={form.fatherMonthlyIncome ?? ''}
+                  onChange={(e) => set('fatherMonthlyIncome', e.target.value)}
+                  placeholder="e.g. 25000"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-            {/* Mother */}
+        {/* Mother Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Mother Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="motherName">Mother Name</Label>
                 <Input
                   id="motherName"
                   value={form.motherName ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, motherName: e.target.value }))}
+                  onChange={(e) => set('motherName', e.target.value)}
                   placeholder="Mother name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="motherProfession">Mother Profession</Label>
+                <Label htmlFor="motherProfession">Profession</Label>
                 <Input
                   id="motherProfession"
                   value={form.motherProfession ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, motherProfession: e.target.value }))}
+                  onChange={(e) => set('motherProfession', e.target.value)}
                   placeholder="e.g. Homemaker, Doctor"
                 />
               </div>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="motherMobile">Mobile</Label>
+                <Input
+                  id="motherMobile"
+                  value={form.motherMobile ?? ''}
+                  onChange={(e) => set('motherMobile', e.target.value)}
+                  placeholder="01XXXXXXXXX"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="motherMonthlyIncome">Monthly Income (৳)</Label>
+                <Input
+                  id="motherMonthlyIncome"
+                  type="number"
+                  min="0"
+                  value={form.motherMonthlyIncome ?? ''}
+                  onChange={(e) => set('motherMonthlyIncome', e.target.value)}
+                  placeholder="e.g. 0"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-            {/* Guardian */}
+        {/* Guardian / Contact */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Phone className="h-4 w-4" /> Guardian & Contact
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="guardianName">Guardian Name</Label>
                 <Input
                   id="guardianName"
                   value={form.guardianName ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value }))}
+                  onChange={(e) => set('guardianName', e.target.value)}
                   placeholder="Guardian / emergency contact"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guardianRelation">Relation with Student</Label>
+                <Label htmlFor="guardianRelation">Relation</Label>
                 <Input
                   id="guardianRelation"
                   value={form.guardianRelation ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, guardianRelation: e.target.value }))}
-                  placeholder="e.g. Father, Mother, Uncle"
+                  onChange={(e) => set('guardianRelation', e.target.value)}
+                  placeholder="e.g. Father, Uncle"
                 />
               </div>
             </div>
@@ -326,8 +500,8 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <Input
                   id="guardianPhone"
                   value={form.guardianPhone ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, guardianPhone: e.target.value }))}
-                  placeholder="e.g. 01XXXXXXXXX"
+                  onChange={(e) => set('guardianPhone', e.target.value)}
+                  placeholder="01XXXXXXXXX"
                 />
               </div>
               <div className="space-y-2">
@@ -335,63 +509,59 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <Input
                   id="guardianProfession"
                   value={form.guardianProfession ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, guardianProfession: e.target.value }))}
+                  onChange={(e) => set('guardianProfession', e.target.value)}
                   placeholder="e.g. Business, Service"
                 />
               </div>
             </div>
-
-            {/* WhatsApp & Address */}
             <div className="space-y-2">
               <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
               <Input
                 id="whatsappNumber"
                 value={form.whatsappNumber ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, whatsappNumber: e.target.value }))}
-                placeholder="e.g. 01XXXXXXXXX"
+                onChange={(e) => set('whatsappNumber', e.target.value)}
+                placeholder="01XXXXXXXXX"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <textarea
-                id="address"
-                value={form.address ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                placeholder="Village, Upazila, District"
-                rows={2}
-                className={cn(
-                  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none'
-                )}
-              />
-            </div>
+          </CardContent>
+        </Card>
 
-            {/* Photo */}
-            <div className="space-y-2">
-              <Label htmlFor="photo">Photo</Label>
-              <Input
-                id="photo"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setPhotoFile(file);
-                }}
-              />
-              {form.photoUrl && !photoFile && (
-                <p className="text-xs text-muted-foreground">
-                  Existing photo will be kept if you do not upload a new one.
-                </p>
+        {/* Address */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="h-4 w-4" /> Address
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              id="address"
+              value={form.address ?? ''}
+              onChange={(e) => set('address', e.target.value)}
+              placeholder="Village, Upazila, District"
+              rows={2}
+              className={cn(
+                'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none'
               )}
-            </div>
+            />
+          </CardContent>
+        </Card>
 
-            {/* Class & Section */}
+        {/* Academic */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Academic Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="class">Class</Label>
                 <select
                   id="class"
                   value={form.class ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, class: e.target.value }))}
+                  onChange={(e) => set('class', e.target.value)}
                   className={selectClass}
                   disabled={configLoading}
                 >
@@ -406,7 +576,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <select
                   id="section"
                   value={form.section ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))}
+                  onChange={(e) => set('section', e.target.value)}
                   className={selectClass}
                   disabled={configLoading}
                 >
@@ -417,15 +587,13 @@ export default function StudentForm({ student }: StudentFormProps) {
                 </select>
               </div>
             </div>
-
-            {/* Shift & Group */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="shift">Shift</Label>
                 <select
                   id="shift"
                   value={form.shift ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, shift: e.target.value }))}
+                  onChange={(e) => set('shift', e.target.value)}
                   className={selectClass}
                   disabled={configLoading}
                 >
@@ -440,7 +608,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <select
                   id="group"
                   value={form.group ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
+                  onChange={(e) => set('group', e.target.value)}
                   className={selectClass}
                   disabled={configLoading}
                 >
@@ -451,28 +619,24 @@ export default function StudentForm({ student }: StudentFormProps) {
                 </select>
               </div>
             </div>
-
-            {/* Roll No */}
-            <div className="space-y-2">
-              <Label htmlFor="rollNo">Roll No</Label>
-              <Input
-                id="rollNo"
-                value={form.rollNo ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, rollNo: e.target.value }))}
-                placeholder="Roll number"
-              />
-            </div>
-
-            {/* Monthly Fee & Admission Date */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="monthlyFee">Monthly Fee</Label>
+                <Label htmlFor="rollNo">Roll No</Label>
+                <Input
+                  id="rollNo"
+                  value={form.rollNo ?? ''}
+                  onChange={(e) => set('rollNo', e.target.value)}
+                  placeholder="Roll number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="monthlyFee">Monthly Fee (৳)</Label>
                 <Input
                   id="monthlyFee"
                   type="number"
                   min="0"
                   value={form.monthlyFee ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, monthlyFee: e.target.value }))}
+                  onChange={(e) => set('monthlyFee', e.target.value)}
                   placeholder="e.g. 1500"
                 />
               </div>
@@ -482,44 +646,29 @@ export default function StudentForm({ student }: StudentFormProps) {
                   id="admissionDate"
                   type="date"
                   value={form.admissionDate ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, admissionDate: e.target.value }))}
+                  onChange={(e) => set('admissionDate', e.target.value)}
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Status */}
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Student['status'] }))}
-                className={selectClass}
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/dashboard/students')}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {student ? 'Save Changes' : 'Add Student'}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/dashboard/students')}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {student ? 'Save Changes' : 'Add Student'}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

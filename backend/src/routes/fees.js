@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
     const total = await Fee.countDocuments(match);
 
     const fees = await Fee.find(match)
-      .populate('student_id', 'name class section rollNo')
+      .populate('student_id', 'name class section rollNo studentId')
       .sort({ month: -1, category: 1, createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum)
@@ -288,7 +288,7 @@ router.post('/additional', requireRole('admin', 'accountant'), async (req, res) 
     }
 
     const populated = await Fee.find({ _id: { $in: created } })
-      .populate('student_id', 'name class section rollNo')
+      .populate('student_id', 'name class section rollNo studentId')
       .lean();
 
     // Send SMS for individual fees (skip bulk to avoid SMS flood)
@@ -340,7 +340,7 @@ router.post('/one-time', requireRole('admin', 'accountant'), async (req, res) =>
     });
 
     const populated = await Fee.findById(fee._id)
-      .populate('student_id', 'name class section rollNo')
+      .populate('student_id', 'name class section rollNo studentId')
       .lean();
 
     res.status(201).json({ success: true, data: normalizeFee(populated) });
@@ -456,7 +456,7 @@ router.post('/:id/collect', requireRole('admin', 'accountant'), async (req, res)
     });
 
     const updatedFee = await Fee.findById(fee._id)
-      .populate('student_id', 'name class section rollNo')
+      .populate('student_id', 'name class section rollNo studentId')
       .lean();
 
     // SMS payment confirmation
