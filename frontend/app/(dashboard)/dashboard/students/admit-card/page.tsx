@@ -44,11 +44,11 @@ export default function AdmitCardPage() {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string } | null>(null);
+  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string; nameBn?: string } | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string } }>(
+    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string; nameBn?: string } }>(
       '/api/settings',
       { token }
     )
@@ -121,6 +121,7 @@ export default function AdmitCardPage() {
         })),
         {
           name: school?.name,
+          nameBn: schoolSettings?.nameBn,
           address: schoolSettings?.address,
           contact: schoolSettings?.contact,
           logoUrl: schoolSettings?.logoUrl,

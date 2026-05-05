@@ -16,6 +16,7 @@ export interface AdmitCardStudent {
 
 export interface AdmitCardSchool {
   name?: string;
+  nameBn?: string;
   address?: string;
   contact?: string;
   logoUrl?: string;
@@ -64,6 +65,7 @@ function cardHtml(s: AdmitCardStudent, school: AdmitCardSchool, opts: AdmitCardO
       ${logoHtml}
       <div class="school">
         <h1>${escapeHtml(fmt(school.name))}</h1>
+        ${school.nameBn ? `<h2 class="bn">${escapeHtml(school.nameBn)}</h2>` : ''}
         <p>${escapeHtml(fmt(school.address))}</p>
         ${school.contact ? `<p>Contact: ${escapeHtml(school.contact)}</p>` : ''}
       </div>
@@ -137,6 +139,7 @@ export function buildAdmitCardHTML(
   .head .logo { width: 42px; height: 42px; border-radius: 4px; object-fit: cover; }
   .head .logo.placeholder { display: flex; align-items: center; justify-content: center; background: #eef; color: #335; font-weight: 800; font-size: 18px; }
   .school h1 { margin: 0; font-size: 15px; letter-spacing: 0.3px; }
+  .school h2.bn { margin: 1px 0 0 0; font-size: 13px; font-weight: 700; color: #222; font-family: 'SolaimanLipi','Kalpurush','Noto Sans Bengali','Segoe UI',sans-serif; }
   .school p { margin: 0; font-size: 10px; color: #444; }
 
   .title-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #999; margin-bottom: 5px; }

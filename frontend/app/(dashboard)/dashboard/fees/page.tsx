@@ -64,7 +64,7 @@ const MONTH_OPTIONS = getMonthOptions();
 
 export default function FeesPage() {
   const { token, user, school } = useAuth();
-  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string } | null>(null);
+  const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string; nameBn?: string } | null>(null);
   const { classes: CLASS_OPTIONS } = useAcademicConfig();
   const [fees, setFees] = useState<Fee[]>([]);
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
@@ -201,7 +201,7 @@ export default function FeesPage() {
 
   useEffect(() => {
     if (!token) return;
-    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string } }>(
+    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string; nameBn?: string } }>(
       '/api/settings',
       { token }
     )
@@ -242,6 +242,7 @@ export default function FeesPage() {
         },
         school: {
           name: school?.name,
+          nameBn: schoolSettings?.nameBn,
           address: schoolSettings?.address,
           contact: schoolSettings?.contact,
           logoUrl: schoolSettings?.logoUrl,

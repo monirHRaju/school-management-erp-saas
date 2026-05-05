@@ -13,7 +13,7 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
   try {
     const school = await School.findById(req.schoolId)
-      .select('name slug contact address logoUrl')
+      .select('name nameBn slug contact address logoUrl')
       .lean();
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
     res.json({ success: true, data: school });
@@ -25,9 +25,10 @@ router.get('/', async (req, res) => {
 // PATCH /api/settings — update school profile (admin only)
 router.patch('/', requireRole('admin'), async (req, res) => {
   try {
-    const { name, contact, address, logoUrl } = req.body;
+    const { name, nameBn, contact, address, logoUrl } = req.body;
     const update = {};
     if (name !== undefined && name.trim()) update.name = name.trim();
+    if (nameBn !== undefined) update.nameBn = nameBn ? nameBn.trim() : '';
     if (contact !== undefined) update.contact = contact ? contact.trim() : '';
     if (address !== undefined) update.address = address ? address.trim() : '';
     if (logoUrl !== undefined) update.logoUrl = logoUrl ? logoUrl.trim() : '';
@@ -36,7 +37,7 @@ router.patch('/', requireRole('admin'), async (req, res) => {
       req.schoolId,
       { $set: update },
       { new: true, runValidators: true }
-    ).select('name slug contact address logoUrl').lean();
+    ).select('name nameBn slug contact address logoUrl').lean();
 
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
     res.json({ success: true, data: school });

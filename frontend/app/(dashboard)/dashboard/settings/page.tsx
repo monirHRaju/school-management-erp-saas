@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface SchoolProfile {
   _id: string;
   name: string;
+  nameBn?: string;
   slug: string;
   contact?: string;
   address?: string;
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const { token } = useAuth();
   const [profile, setProfile] = useState<SchoolProfile | null>(null);
   const [name, setName] = useState('');
+  const [nameBn, setNameBn] = useState('');
   const [contact, setContact] = useState('');
   const [address, setAddress] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -41,6 +43,7 @@ export default function SettingsPage() {
         if (res.success && res.data) {
           setProfile(res.data);
           setName(res.data.name);
+          setNameBn(res.data.nameBn ?? '');
           setContact(res.data.contact ?? '');
           setAddress(res.data.address ?? '');
           setLogoUrl(res.data.logoUrl ?? '');
@@ -95,7 +98,7 @@ export default function SettingsPage() {
 
       await apiRequest('/api/settings', {
         method: 'PATCH',
-        body: JSON.stringify({ name: name.trim(), contact: contact.trim(), address: address.trim(), logoUrl: finalLogoUrl }),
+        body: JSON.stringify({ name: name.trim(), nameBn: nameBn.trim(), contact: contact.trim(), address: address.trim(), logoUrl: finalLogoUrl }),
         token,
       });
       setLogoUrl(finalLogoUrl);
@@ -170,16 +173,28 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* School Name */}
+            {/* School Name (English) */}
             <div className="space-y-1.5">
-              <Label htmlFor="schoolName">School Name *</Label>
+              <Label htmlFor="schoolName">School Name (English) *</Label>
               <Input
                 id="schoolName"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter school name"
+                placeholder="Enter school name in English"
                 required
               />
+            </div>
+
+            {/* School Name (Bangla) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="schoolNameBn">School Name (বাংলা)</Label>
+              <Input
+                id="schoolNameBn"
+                value={nameBn}
+                onChange={(e) => setNameBn(e.target.value)}
+                placeholder="বিদ্যালয়ের নাম বাংলায়"
+              />
+              <p className="text-xs text-muted-foreground">Used in print headers (admit card, money receipt, student information).</p>
             </div>
 
             {/* School Slug (read-only) */}

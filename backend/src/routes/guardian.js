@@ -284,7 +284,7 @@ router.get('/payments/:id', async (req, res) => {
     }
 
     const student = await Student.findOne({ _id: fee.student_id, school_id: schoolObjectId }).lean();
-    const school = await School.findById(schoolObjectId).select('name address contact logoUrl').lean();
+    const school = await School.findById(schoolObjectId).select('name nameBn address contact logoUrl').lean();
 
     res.json({ success: true, data: { payment, fee, student, school } });
   } catch (err) {

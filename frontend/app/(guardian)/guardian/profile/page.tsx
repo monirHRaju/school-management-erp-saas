@@ -42,7 +42,7 @@ interface InvoicePayload {
   payment: { _id: string; amount: number; discount?: number; note?: string; payment_date: string; created_by?: { name?: string } };
   fee: { category: string; month?: string; total_fee: number; paid_amount?: number; due_amount?: number; description?: string; fee_type?: string };
   student: { name: string; class?: string; section?: string; rollNo?: string; fatherName?: string; guardianName?: string; guardianPhone?: string };
-  school: { name?: string; address?: string; contact?: string; logoUrl?: string };
+  school: { name?: string; nameBn?: string; address?: string; contact?: string; logoUrl?: string };
 }
 
 export default function GuardianProfilePage() {
@@ -106,6 +106,7 @@ export default function GuardianProfilePage() {
         },
         school: {
           name: school.name,
+          nameBn: school.nameBn,
           address: school.address,
           contact: school.contact,
           logoUrl: school.logoUrl,

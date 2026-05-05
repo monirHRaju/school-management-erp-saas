@@ -30,6 +30,7 @@ export interface InvoiceData {
   };
   school: {
     name?: string;
+    nameBn?: string;
     address?: string;
     contact?: string;
     logoUrl?: string;
@@ -70,6 +71,7 @@ function copyHtml(label: string, d: InvoiceData): string {
         ${logoHtml}
         <div class="head-text">
           <h1>${fmt(d.school.name)}</h1>
+          ${d.school.nameBn ? `<h2 class="bn">${d.school.nameBn}</h2>` : ''}
           <p>${fmt(d.school.address)}</p>
           <p>${d.school.contact ? 'Contact: ' + d.school.contact : ''}</p>
         </div>
@@ -163,6 +165,7 @@ export function buildInvoiceHTML(data: InvoiceData): string {
   .head .logo, .head .logo-placeholder { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; }
   .head .logo-placeholder { display: flex; align-items: center; justify-content: center; background: #eef; color: #335; font-weight: 800; font-size: 22px; }
   .head h1 { margin: 0 0 2px 0; font-size: 17px; letter-spacing: 0.3px; }
+  .head h2.bn { margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #222; font-family: 'SolaimanLipi','Kalpurush','Noto Sans Bengali','Segoe UI',sans-serif; }
   .head p  { margin: 0; font-size: 10.5px; color: #444; }
   .title-row { display: flex; align-items: flex-end; justify-content: space-between; margin: 4px 0 8px; }
   .title { font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid #111; padding-bottom: 2px; }
