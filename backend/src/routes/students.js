@@ -110,17 +110,29 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
 
       try {
         const studentIdValue = await generateUniqueStudentId(schoolId);
+        const numOrUndef = (v) =>
+          v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) ? Number(v) : undefined;
         const student = await Student.create({
           school_id: schoolId,
           studentId: studentIdValue,
           name,
+          nameBn:        row.nameBn        ? String(row.nameBn).trim()        : undefined,
+          bloodGroup:    row.bloodGroup    ? String(row.bloodGroup).trim()    : undefined,
           fatherName:    row.fatherName    ? String(row.fatherName).trim()    : undefined,
+          fatherProfession: row.fatherProfession ? String(row.fatherProfession).trim() : undefined,
+          fatherMobile:  row.fatherMobile  ? String(row.fatherMobile).trim()  : undefined,
+          fatherMonthlyIncome: numOrUndef(row.fatherMonthlyIncome),
           motherName:    row.motherName    ? String(row.motherName).trim()    : undefined,
+          motherProfession: row.motherProfession ? String(row.motherProfession).trim() : undefined,
+          motherMobile:  row.motherMobile  ? String(row.motherMobile).trim()  : undefined,
+          motherMonthlyIncome: numOrUndef(row.motherMonthlyIncome),
           guardianName:  row.guardianName  ? String(row.guardianName).trim()  : (row.fatherName ? String(row.fatherName).trim() : undefined),
           guardianPhone: phone || undefined,
+          guardianRelation: row.guardianRelation ? String(row.guardianRelation).trim() : undefined,
           gender:        row.gender        ? String(row.gender).trim()        : undefined,
           religion:      row.religion      ? String(row.religion).trim()      : undefined,
           dateOfBirth:   row.dateOfBirth   ? new Date(row.dateOfBirth)        : undefined,
+          birthRegNo:    row.birthRegNo    ? String(row.birthRegNo).trim()    : undefined,
           rollNo:        row.rollNo != null ? String(row.rollNo).trim()       : undefined,
           address:       row.address       ? String(row.address).trim()       : undefined,
           whatsappNumber: row.whatsappNumber ? String(row.whatsappNumber).trim() : undefined,

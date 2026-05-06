@@ -13,36 +13,59 @@ import toast from 'react-hot-toast';
 
 // ── Column alias map (lowercase header → field key) ──────────────────────────
 const COL: Record<string, string> = {
-  'name': 'name', 'student name': 'name', 'student_name': 'name', 'full name': 'name',
+  'name': 'name', 'student name': 'name', 'student_name': 'name', 'full name': 'name', 'name (english)': 'name',
+  'name bangla': 'nameBn', 'name (bangla)': 'nameBn', 'student name bangla': 'nameBn', 'name_bn': 'nameBn', 'namebn': 'nameBn', 'নাম': 'nameBn', 'বাংলা নাম': 'nameBn',
   'roll': 'rollNo', 'roll no': 'rollNo', 'roll_no': 'rollNo', 'roll number': 'rollNo', 'rollno': 'rollNo',
+  'blood': 'bloodGroup', 'blood group': 'bloodGroup', 'bloodgroup': 'bloodGroup', 'blood_group': 'bloodGroup',
   'father': 'fatherName', 'father name': 'fatherName', 'father_name': 'fatherName',
+  'father profession': 'fatherProfession', 'father_profession': 'fatherProfession', 'father occupation': 'fatherProfession',
+  'father mobile': 'fatherMobile', 'father_mobile': 'fatherMobile', 'father phone': 'fatherMobile',
+  'father income': 'fatherMonthlyIncome', 'father monthly income': 'fatherMonthlyIncome', 'father_monthly_income': 'fatherMonthlyIncome',
   'mother': 'motherName', 'mother name': 'motherName', 'mother_name': 'motherName',
+  'mother profession': 'motherProfession', 'mother_profession': 'motherProfession', 'mother occupation': 'motherProfession',
+  'mother mobile': 'motherMobile', 'mother_mobile': 'motherMobile', 'mother phone': 'motherMobile',
+  'mother income': 'motherMonthlyIncome', 'mother monthly income': 'motherMonthlyIncome', 'mother_monthly_income': 'motherMonthlyIncome',
   'guardian': 'guardianName', 'guardian name': 'guardianName', 'guardian_name': 'guardianName',
   'phone': 'guardianPhone', 'guardian phone': 'guardianPhone', 'guardian_phone': 'guardianPhone',
   'contact': 'guardianPhone', 'mobile': 'guardianPhone', 'mobile no': 'guardianPhone',
+  'guardian relation': 'guardianRelation', 'guardian_relation': 'guardianRelation', 'relation': 'guardianRelation',
   'gender': 'gender', 'sex': 'gender',
   'religion': 'religion',
   'dob': 'dateOfBirth', 'date of birth': 'dateOfBirth', 'dateofbirth': 'dateOfBirth',
   'birth date': 'dateOfBirth', 'birthdate': 'dateOfBirth',
+  'birth reg': 'birthRegNo', 'birth registration': 'birthRegNo', 'birth reg no': 'birthRegNo', 'birth_reg_no': 'birthRegNo', 'birthregno': 'birthRegNo',
   'fee': 'monthlyFee', 'monthly fee': 'monthlyFee', 'monthlyfee': 'monthlyFee', 'monthly_fee': 'monthlyFee',
+  'admission date': 'admissionDate', 'admission_date': 'admissionDate', 'admissiondate': 'admissionDate',
   'address': 'address', 'addr': 'address',
   'whatsapp': 'whatsappNumber', 'whatsapp number': 'whatsappNumber', 'whatsapp_number': 'whatsappNumber',
   'class': 'class', 'grade': 'class', 'std': 'class', 'standard': 'class',
   'section': 'section', 'sec': 'section',
   'shift': 'shift',
   'group': 'group', 'stream': 'group',
+  'status': 'status',
 };
 
 interface ParsedRow {
   name: string;
+  nameBn?: string;
+  bloodGroup?: string;
   rollNo?: string;
   fatherName?: string;
+  fatherProfession?: string;
+  fatherMobile?: string;
+  fatherMonthlyIncome?: string | number;
   motherName?: string;
+  motherProfession?: string;
+  motherMobile?: string;
+  motherMonthlyIncome?: string | number;
   guardianName?: string;
   guardianPhone?: string;
+  guardianRelation?: string;
   gender?: string;
   religion?: string;
   dateOfBirth?: string;
+  birthRegNo?: string;
+  admissionDate?: string;
   monthlyFee?: string | number;
   address?: string;
   whatsappNumber?: string;
@@ -50,6 +73,7 @@ interface ParsedRow {
   section?: string;
   shift?: string;
   group?: string;
+  status?: string;
 }
 
 interface ImportDefaults {
@@ -65,15 +89,74 @@ interface FailedRow { row: number; name: string; error: string }
 
 type Step = 'setup' | 'preview' | 'result';
 
-const TEMPLATE_HEADERS = 'Name*,Roll No,Father Name,Mother Name,Guardian Name,Guardian Phone,Gender,Religion,Date of Birth,Monthly Fee,Address';
+const TEMPLATE_HEADERS = [
+  'Name*',
+  'Name Bangla',
+  'Blood Group',
+  'Date of Birth',
+  'Birth Reg No',
+  'Gender',
+  'Religion',
+  'Father Name',
+  'Father Profession',
+  'Father Mobile',
+  'Father Monthly Income',
+  'Mother Name',
+  'Mother Profession',
+  'Mother Mobile',
+  'Mother Monthly Income',
+  'Guardian Name',
+  'Guardian Relation',
+  'Guardian Phone',
+  'WhatsApp Number',
+  'Address',
+  'Class',
+  'Section',
+  'Shift',
+  'Group',
+  'Roll No',
+  'Monthly Fee',
+  'Admission Date',
+  'Status',
+].join(',');
+
+// CSV cell escape: wrap in quotes if value contains comma/quote/newline; double internal quotes.
+function csvCell(v: string): string {
+  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
 const TEMPLATE_SAMPLE = [
-  'Ahmad Ali,1,Mr. Ali,Mrs. Ali,Mr. Ali,01712345678,Male,Islam,2015-01-15,500,123 Main Street',
-  'Fatima Begum,2,Mr. Karim,Mrs. Karim,Mr. Karim,01812345678,Female,Islam,2016-03-20,500,456 Oak Avenue',
+  // Row 1 — fully populated
+  [
+    'Ahmad Ali', 'আহমদ আলী', 'A+',
+    '2015-01-15', '20151234567890123', 'Male', 'Islam',
+    'Mr. Karim Ali', 'Farmer', '01712345678', '20000',
+    'Mrs. Salma Begum', 'Homemaker', '01712345679', '0',
+    'Mr. Karim Ali', 'Father', '01712345678',
+    '01712345678',
+    'Village Road, Tongi, Gazipur',
+    'Class 5', 'A', 'Morning', 'Science',
+    '1', '500', '2025-01-05', 'active',
+  ].map(csvCell).join(','),
+  // Row 2 — minimal (only required + a few)
+  [
+    'Fatima Begum', '', 'B+',
+    '2016-03-20', '', 'Female', 'Islam',
+    'Mr. Rahim', 'Service', '01812345678', '35000',
+    'Mrs. Roksana', 'Teacher', '01812345679', '20000',
+    '', '', '',
+    '',
+    '',
+    'Class 4', 'B', 'Morning', '',
+    '2', '500', '', 'active',
+  ].map(csvCell).join(','),
 ].join('\n');
 
 function downloadTemplate() {
-  const csv = `${TEMPLATE_HEADERS}\n${TEMPLATE_SAMPLE}`;
-  const blob = new Blob([csv], { type: 'text/csv' });
+  // Prefix BOM so Excel/spreadsheet apps detect UTF-8 (preserves Bangla chars).
+  const csv = `﻿${TEMPLATE_HEADERS}\n${TEMPLATE_SAMPLE}`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -340,9 +423,14 @@ export default function ImportStudentsDialog({
               </div>
 
               <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">Recognised column headers:</p>
-                <p>Name, Roll No, Father Name, Mother Name, Guardian Name, Guardian Phone, Gender, Religion, Date of Birth, Monthly Fee, Address, WhatsApp Number, Class, Section, Shift, Group</p>
-                <p className="mt-1">Headers are case-insensitive. Up to 500 rows per import.</p>
+                <p className="font-medium text-foreground">Recognised column headers (case-insensitive):</p>
+                <p><strong>Required:</strong> Name</p>
+                <p><strong>Personal:</strong> Name Bangla, Blood Group, Date of Birth, Birth Reg No, Gender, Religion</p>
+                <p><strong>Father:</strong> Father Name, Father Profession, Father Mobile, Father Monthly Income</p>
+                <p><strong>Mother:</strong> Mother Name, Mother Profession, Mother Mobile, Mother Monthly Income</p>
+                <p><strong>Guardian / Contact:</strong> Guardian Name, Guardian Relation, Guardian Phone, WhatsApp Number, Address</p>
+                <p><strong>Academic:</strong> Class, Section, Shift, Group, Roll No, Monthly Fee, Admission Date, Status</p>
+                <p className="mt-1">Student ID auto-generated (6 digits). Up to 500 rows per import.</p>
               </div>
             </div>
           </div>

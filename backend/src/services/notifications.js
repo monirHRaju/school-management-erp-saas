@@ -72,7 +72,7 @@ async function notifyAbsentStudents(schoolId, absentStudentIds, date, className)
 
   // Send individual messages (personalized per student) — Bangla
   for (const s of students) {
-    const msg = `আপনার সন্তান ${s.name} আজকে (${dateStr}) স্কুলে অনুপস্থিত। - ${schoolName}`;
+    const msg = `আপনার সন্তান ${s.name} আজকে (${dateStr}) স্কুলে অনুপস্থিত।`;
     const result = await sendSMS(s.guardianPhone, msg);
     if (result.success) totalSent++;
     else totalFailed++;
@@ -101,7 +101,7 @@ async function notifyFeeGenerated(schoolId, studentId, amount, month, descriptio
 
   if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
 
-  const msg = `আপনার সন্তান ${student.name} (${student.class}) এর${month ? ` ${month}` : ''} ফি ${amount} টাকা নির্ধারণ করা হয়েছে। দ্রুত পরিশোধ করুন। - ${schoolName}`;
+  const msg = `আপনার সন্তান ${student.name} এর ${month ? ` ${month}` : ''} ফি ${amount} টাকা নির্ধারণ করা হয়েছে। ${description ? `বিবরণ: ${description}.` : ''} `;
   const result = await sendSMS(student.guardianPhone, msg);
 
   // Restore if failed
@@ -133,7 +133,7 @@ async function notifyFeeDue(schoolId, studentId, amount, dueAmount, month, descr
 
   if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
 
-  const msg = `আপনার সন্তান ${student.name} (${student.class}) এর${month ? ` ${month}` : ''} ফি ${dueAmount} টাকা বাকী। দ্রুত পরিশোধ করুন। - ${schoolName}`;
+  const msg = `আপনার সন্তান ${student.name} (${student.class}) এর${month ? ` ${month}` : ''} ফি ${dueAmount} টাকা বাকী।`;
   const result = await sendSMS(student.guardianPhone, msg);
 
   if (!result.success) await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
