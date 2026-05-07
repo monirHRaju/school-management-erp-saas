@@ -406,6 +406,90 @@ router.post('/one-time', requireRole('admin', 'accountant'), async (req, res) =>
   }
 });
 
+// POST /api/fees/collect-multi — collect payments for multiple fees at once; returns all payments + fees
+router.post('/collect-multi', requireRole('admin', 'accountant'), async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const userId = req.user._id;
+    const { items, payment_date } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'items array is required' });
+    }
+
+    const paymentDate = payment_date ? new Date(payment_date) : new Date();
+    const results = [];
+
+    for (const item of items) {
+      const { fee_id, amount, discount = 0, note = '' } = item;
+      if (!mongoose.isValidObjectId(fee_id)) continue;
+      const numAmount = Number(amount);
+      if (isNaN(numAmount) || numAmount <= 0) continue;
+      const numDiscount = Number(discount) || 0;
+
+      const fee = await Fee.findOne({ _id: fee_id, school_id: schoolId });
+      if (!fee) continue;
+
+      const totalFee = fee.total_fee || 0;
+      const newPaid = (fee.paid_amount || 0) + numAmount;
+      const newDue = Math.max(0, totalFee - newPaid);
+      const newStatus = newDue <= 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+      fee.paid_amount = newPaid;
+      fee.due_amount = newDue;
+      fee.status = newStatus;
+      await fee.save();
+
+      const feePayment = await FeePayment.create({
+        school_id: schoolId,
+        fee_id: fee._id,
+        amount: numAmount,
+        discount: numDiscount,
+        note: typeof note === 'string' ? note.trim() : '',
+        payment_date: paymentDate,
+        created_by: userId,
+      });
+
+      const category = fee.category || FEE_TYPE_TO_CATEGORY[fee.fee_type] || 'other';
+      await Income.create({
+        school_id: schoolId,
+        category,
+        amount: numAmount,
+        student_id: fee.student_id,
+        fee_id: fee._id,
+        date: paymentDate,
+        created_by: userId,
+      });
+
+      const updatedFee = await Fee.findById(fee._id)
+        .populate('student_id', 'name class section rollNo studentId fatherName guardianName guardianPhone')
+        .lean();
+
+      results.push({
+        fee: normalizeFee(updatedFee),
+        payment: {
+          _id: feePayment._id,
+          amount: feePayment.amount,
+          discount: feePayment.discount,
+          note: feePayment.note,
+          payment_date: feePayment.payment_date,
+        },
+      });
+
+      notifyPaymentReceived(schoolId, fee.student_id, numAmount, null, category).catch(() => {});
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid fee items to collect' });
+    }
+
+    const totalAmount = results.reduce((s, r) => s + r.payment.amount, 0);
+    res.status(201).json({ success: true, data: { results, totalAmount, count: results.length } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/fees/:id/history — payment history for a fee
 router.get('/:id/history', async (req, res) => {
   try {

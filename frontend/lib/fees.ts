@@ -108,6 +108,24 @@ export async function collectPayment(feeId: string, payload: CollectPayload, tok
   );
 }
 
+export async function collectMultiFees(
+  items: { fee_id: string; amount: number; discount?: number; note?: string }[],
+  token: string,
+  payment_date?: string
+) {
+  return apiRequest<{
+    success: boolean;
+    data: {
+      results: Array<{
+        fee: import('@/types/fee').Fee;
+        payment: { _id: string; amount: number; discount?: number; note?: string; payment_date: string };
+      }>;
+      totalAmount: number;
+      count: number;
+    };
+  }>('/api/fees/collect-multi', { method: 'POST', body: JSON.stringify({ items, payment_date }), token });
+}
+
 export async function getFeeHistory(feeId: string, token: string) {
   return apiRequest<FeeHistoryResponse>(`/api/fees/${feeId}/history`, { token });
 }
