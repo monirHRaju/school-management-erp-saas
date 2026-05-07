@@ -41,65 +41,25 @@ export default function SettingsPage() {
   const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
   const [newFeeCategory, setNewFeeCategory] = useState('');
   const [newExpenseCategory, setNewExpenseCategory] = useState('');
-  const [savingCategories, setSavingCategories] = useState(false);
+  const [categoriesSaving, setCategoriesSaving] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    Promise.all([
-      apiRequest<{ success: boolean; data: SchoolProfile }>('/api/settings', { token }),
-      apiRequest<{ success: boolean; data: { feeCategories: string[]; expenseCategories: string[] } }>(
-        '/api/settings/categories', { token }
-      ),
-    ])
-      .then(([settingsRes, catRes]) => {
-        if (settingsRes.success && settingsRes.data) {
-          setProfile(settingsRes.data);
-          setName(settingsRes.data.name);
-          setNameBn(settingsRes.data.nameBn ?? '');
-          setContact(settingsRes.data.contact ?? '');
-          setAddress(settingsRes.data.address ?? '');
-          setLogoUrl(settingsRes.data.logoUrl ?? '');
-          setLogoPreview(settingsRes.data.logoUrl ?? '');
-        }
-        if (catRes.success && catRes.data) {
-          setFeeCategories(catRes.data.feeCategories || []);
-          setExpenseCategories(catRes.data.expenseCategories || []);
+    apiRequest<{ success: boolean; data: SchoolProfile }>('/api/settings', { token })
+      .then((res) => {
+        if (res.success && res.data) {
+          setProfile(res.data);
+          setName(res.data.name);
+          setNameBn(res.data.nameBn ?? '');
+          setContact(res.data.contact ?? '');
+          setAddress(res.data.address ?? '');
+          setLogoUrl(res.data.logoUrl ?? '');
+          setLogoPreview(res.data.logoUrl ?? '');
         }
       })
       .catch(() => toast.error('Failed to load settings'))
       .finally(() => setLoading(false));
   }, [token]);
-
-  const handleSaveCategories = async () => {
-    if (!token) return;
-    setSavingCategories(true);
-    try {
-      await apiRequest('/api/settings/categories', {
-        method: 'PUT',
-        body: JSON.stringify({ feeCategories, expenseCategories }),
-        token,
-      });
-      toast.success('Categories saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSavingCategories(false);
-    }
-  };
-
-  const addFeeCategory = () => {
-    const v = newFeeCategory.trim();
-    if (!v || feeCategories.includes(v)) return;
-    setFeeCategories([...feeCategories, v]);
-    setNewFeeCategory('');
-  };
-
-  const addExpenseCategory = () => {
-    const v = newExpenseCategory.trim();
-    if (!v || expenseCategories.includes(v)) return;
-    setExpenseCategories([...expenseCategories, v]);
-    setNewExpenseCategory('');
-  };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -283,84 +243,6 @@ export default function SettingsPage() {
               Save Changes
             </Button>
           </form>
-        </CardContent>
-      </Card>
-
-      {/* Fee & Expense Categories */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Tags className="h-4 w-4" />
-            Fee &amp; Expense Categories
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Fee Categories */}
-          <div>
-            <Label className="mb-2 block text-sm font-medium">Fee Categories</Label>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {feeCategories.map((cat) => (
-                <span key={cat} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">
-                  {cat}
-                  <button
-                    type="button"
-                    onClick={() => setFeeCategories(feeCategories.filter((c) => c !== cat))}
-                    className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newFeeCategory}
-                onChange={(e) => setNewFeeCategory(e.target.value)}
-                placeholder="New fee category..."
-                className="max-w-xs"
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeeCategory())}
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addFeeCategory}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Expense Categories */}
-          <div>
-            <Label className="mb-2 block text-sm font-medium">Expense Categories</Label>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {expenseCategories.map((cat) => (
-                <span key={cat} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">
-                  {cat}
-                  <button
-                    type="button"
-                    onClick={() => setExpenseCategories(expenseCategories.filter((c) => c !== cat))}
-                    className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newExpenseCategory}
-                onChange={(e) => setNewExpenseCategory(e.target.value)}
-                placeholder="New expense category..."
-                className="max-w-xs"
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpenseCategory())}
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addExpenseCategory}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <Button onClick={handleSaveCategories} disabled={savingCategories} className="w-full sm:w-auto">
-            {savingCategories && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Categories
-          </Button>
         </CardContent>
       </Card>
 

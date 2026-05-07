@@ -62,6 +62,24 @@ export async function createOneTimeFee(payload: CreateOneTimePayload, token: str
   );
 }
 
+export async function batchGenerateFee(
+  payload: {
+    category: string;
+    description?: string;
+    month?: string;
+    amount: number;
+    class: string;
+    section?: string;
+    shift?: string;
+  },
+  token: string
+) {
+  return apiRequest<{ success: boolean; data: { created: number; class: string; section: string | null; shift: string | null } }>(
+    '/api/fees/batch',
+    { method: 'POST', body: JSON.stringify(payload), token }
+  );
+}
+
 export async function createAdditionalFee(payload: CreateAdditionalPayload, token: string) {
   return apiRequest<{ success: boolean; data: import('@/types/fee').Fee[]; count: number }>(
     '/api/fees/additional',

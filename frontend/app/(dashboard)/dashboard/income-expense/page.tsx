@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/lib/api';
 import {
   getLedger,
   createExpense,
@@ -93,6 +94,20 @@ export default function IncomeExpensePage() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
+
+  // Dynamic expense categories (loaded from school settings)
+  const [dynamicExpenseCategories, setDynamicExpenseCategories] = useState<string[]>(EXPENSE_CATEGORIES as unknown as string[]);
+
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ success: boolean; data: { feeCategories: string[]; expenseCategories: string[] } }>(
+      '/api/settings/categories', { token }
+    ).then((res) => {
+      if (res.success && res.data) {
+        if (res.data.expenseCategories?.length) setDynamicExpenseCategories(res.data.expenseCategories);
+      }
+    }).catch(() => {});
+  }, [token]);
 
   // Expense modal
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -703,7 +718,7 @@ export default function IncomeExpensePage() {
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
-                {EXPENSE_CATEGORIES.map((c) => (
+                {dynamicExpenseCategories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>

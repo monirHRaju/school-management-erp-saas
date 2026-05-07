@@ -1,14 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CreditCard, Loader2, Plus, Calendar, Wallet, FileText, Eye, Trash2, Link2, Copy, Check, Printer } from 'lucide-react';
+import { CreditCard, Loader2, Calendar, Users, UserPlus, FileText, Eye, Trash2, Link2, Copy, Check, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
-import { getFees, generateMonth, payFee, collectPayment, createOneTimeFee, createAdditionalFee, getFeeHistory, deleteFee } from '@/lib/fees';
-import type { Fee, FeeSummary, FeeCategory, FeePayment } from '@/types/fee';
+import { getFees, generateMonth, collectPayment, createAdditionalFee, batchGenerateFee, getFeeHistory, deleteFee } from '@/lib/fees';
+import type { Fee, FeeSummary, FeePayment } from '@/types/fee';
 import { Pagination } from '@/components/ui/pagination';
-import { FEE_CATEGORIES } from '@/types/fee';
 import type { Student } from '@/types/student';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,16 +32,6 @@ import { cn } from '@/lib/utils';
 import { useAcademicConfig } from '@/lib/useAcademicConfig';
 import { openInvoiceWindow } from '@/lib/invoice';
 
-const FEE_TYPE_OPTIONS: { value: '' | FeeCategory; label: string }[] = [
-  { value: '', label: 'All categories' },
-  ...FEE_CATEGORIES,
-];
-const ONE_TIME_FEE_TYPES: { value: 'admission' | 'exam' | 'book' | 'other'; label: string }[] = [
-  { value: 'admission', label: 'Admission Fee' },
-  { value: 'exam', label: 'Exam Fee' },
-  { value: 'book', label: 'Book Fee' },
-  { value: 'other', label: 'Other' },
-];
 const STATUS_OPTIONS: { value: '' | 'unpaid' | 'partial' | 'paid'; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'unpaid', label: 'Unpaid' },
@@ -62,10 +51,20 @@ function getMonthOptions() {
 
 const MONTH_OPTIONS = getMonthOptions();
 
+const selectCls = cn(
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+  'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+);
+
 export default function FeesPage() {
   const { token, user, school } = useAuth();
   const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string; nameBn?: string } | null>(null);
-  const { classes: CLASS_OPTIONS } = useAcademicConfig();
+  const { classes: CLASS_OPTIONS, sections: SECTION_OPTIONS, shifts: SHIFT_OPTIONS } = useAcademicConfig();
+
+  // Dynamic categories
+  const [feeCategories, setFeeCategories] = useState<string[]>([]);
+
+  // Fee list state
   const [fees, setFees] = useState<Fee[]>([]);
   const [summary, setSummary] = useState<FeeSummary>({ totalDue: 0, unpaidCount: 0 });
   const [page, setPage] = useState(1);
@@ -76,50 +75,82 @@ export default function FeesPage() {
   const [error, setError] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'unpaid' | 'partial' | 'paid'>('');
-  const [categoryFilter, setCategoryFilter] = useState<'' | FeeCategory>('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
+
+  // Students list (for individual fee)
   const [students, setStudents] = useState<Student[]>([]);
+
+  // Section 1: Generate Monthly Fees
   const [generating, setGenerating] = useState(false);
   const [generateMonthValue, setGenerateMonthValue] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [payStudentId, setPayStudentId] = useState('');
-  const [payMonth, setPayMonth] = useState(() => {
+
+  // Section 2: Batch/Class Wise Fee Generation
+  const [batchCategory, setBatchCategory] = useState('');
+  const [batchClass, setBatchClass] = useState('');
+  const [batchSection, setBatchSection] = useState('');
+  const [batchShift, setBatchShift] = useState('');
+  const [batchMonth, setBatchMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [payAmount, setPayAmount] = useState('');
-  const [paying, setPaying] = useState(false);
+  const [batchAmount, setBatchAmount] = useState('');
+  const [batchDescription, setBatchDescription] = useState('');
+  const [batchGenerating, setBatchGenerating] = useState(false);
+
+  // Section 3: Add Individual Student Fee
+  const [indivStudentId, setIndivStudentId] = useState('');
+  const [indivCategory, setIndivCategory] = useState('');
+  const [indivDescription, setIndivDescription] = useState('');
+  const [indivMonth, setIndivMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [indivAmount, setIndivAmount] = useState('');
+  const [indivSubmitting, setIndivSubmitting] = useState(false);
+
+  // Collect payment modal
   const [collectFee, setCollectFee] = useState<Fee | null>(null);
   const [collectAmount, setCollectAmount] = useState('');
   const [collectDiscount, setCollectDiscount] = useState('');
   const [collectNote, setCollectNote] = useState('');
   const [collectPaying, setCollectPaying] = useState(false);
-  const [oneTimeStudentId, setOneTimeStudentId] = useState('');
-  const [oneTimeFeeType, setOneTimeFeeType] = useState<'admission' | 'exam' | 'book' | 'other'>('admission');
-  const [oneTimeAmount, setOneTimeAmount] = useState('');
-  const [oneTimeSubmitting, setOneTimeSubmitting] = useState(false);
-  const [additionalCategory, setAdditionalCategory] = useState<FeeCategory>('exam_fee');
-  const [additionalDescription, setAdditionalDescription] = useState('');
-  const [additionalMonth, setAdditionalMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [additionalAmount, setAdditionalAmount] = useState('');
-  const [additionalForAll, setAdditionalForAll] = useState(false);
-  const [additionalStudentId, setAdditionalStudentId] = useState('');
-  const [additionalSubmitting, setAdditionalSubmitting] = useState(false);
+
+  // Details / history modal
   const [detailsFee, setDetailsFee] = useState<Fee | null>(null);
   const [detailsPayments, setDetailsPayments] = useState<FeePayment[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+
+  // Delete confirm
   const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
   const [deleting, setDeleting] = useState(false);
+
   // Payment link
   const [linkFee, setLinkFee] = useState<Fee | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Load categories + school settings
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ success: boolean; data: { feeCategories: string[]; expenseCategories: string[] } }>(
+      '/api/settings/categories', { token }
+    ).then((res) => {
+      if (res.success && res.data?.feeCategories?.length) {
+        setFeeCategories(res.data.feeCategories);
+        setBatchCategory(res.data.feeCategories[0] || '');
+        setIndivCategory(res.data.feeCategories[0] || '');
+      }
+    }).catch(() => {});
+
+    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string; nameBn?: string } }>(
+      '/api/settings', { token }
+    ).then((res) => { if (res.success) setSchoolSettings(res.data); }).catch(() => {});
+  }, [token]);
 
   const fetchFees = useCallback(async (pageNum = 1) => {
     if (!token) return;
@@ -127,14 +158,7 @@ export default function FeesPage() {
     setError(null);
     try {
       const res = await getFees(
-        {
-          month: monthFilter || undefined,
-          status: statusFilter || undefined,
-          category: categoryFilter || undefined,
-          class: classFilter || undefined,
-          page: pageNum,
-          limit: LIMIT,
-        },
+        { month: monthFilter || undefined, status: statusFilter || undefined, category: categoryFilter || undefined, class: classFilter || undefined, page: pageNum, limit: LIMIT },
         token
       );
       setFees(res.data || []);
@@ -153,62 +177,18 @@ export default function FeesPage() {
     }
   }, [token, monthFilter, statusFilter, categoryFilter, classFilter]);
 
-  async function openPaymentLink(fee: Fee) {
-    setLinkFee(fee);
-    setLinkUrl('');
-    setLinkCopied(false);
-    setLinkLoading(true);
-    try {
-      const res = await apiRequest<{ success: boolean; data: { url: string } }>(
-        '/api/payment/link/generate',
-        { method: 'POST', body: JSON.stringify({ fee_id: fee._id }), token: token! }
-      );
-      if (res.success) setLinkUrl(res.data.url);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate link');
-      setLinkFee(null);
-    } finally {
-      setLinkLoading(false);
-    }
-  }
-
-  function copyLink() {
-    if (!linkUrl) return;
-    navigator.clipboard.writeText(linkUrl).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    });
-  }
-
   const fetchStudents = useCallback(async () => {
     if (!token) return;
     try {
       const res = await apiRequest<{ success: boolean; data: Student[] }>('/api/students', { token });
       setStudents(res.data || []);
-    } catch {
-      setStudents([]);
-    }
+    } catch { setStudents([]); }
   }, [token]);
 
-  // Reset to page 1 whenever filters change
-  useEffect(() => {
-    fetchFees(1);
-  }, [fetchFees]);
+  useEffect(() => { fetchFees(1); }, [fetchFees]);
+  useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
-
-  useEffect(() => {
-    if (!token) return;
-    apiRequest<{ success: boolean; data: { logoUrl?: string; contact?: string; address?: string; nameBn?: string } }>(
-      '/api/settings',
-      { token }
-    )
-      .then((res) => { if (res.success) setSchoolSettings(res.data); })
-      .catch(() => { /* ignore */ });
-  }, [token]);
-
+  // Print receipt
   const handlePrintReceipt = useCallback(
     (payment: FeePayment) => {
       if (!detailsFee) return;
@@ -253,15 +233,13 @@ export default function FeesPage() {
     [detailsFee, school, schoolSettings, user]
   );
 
+  // Section 1: Generate Monthly Fees
   const handleGenerateMonth = async () => {
     if (!token) return;
     setGenerating(true);
     try {
       const res = await generateMonth(generateMonthValue, token);
-      toast.success(
-        `Generated: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated for ${generateMonthValue}.`
-      );
-      setGenerateMonthValue(generateMonthValue);
+      toast.success(`Generated: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated for ${generateMonthValue}.`);
       fetchFees(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate month');
@@ -270,6 +248,59 @@ export default function FeesPage() {
     }
   };
 
+  // Section 2: Batch Fee Generation
+  const handleBatchGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !batchCategory || !batchClass || !batchAmount) {
+      toast.error('Category, class, and amount are required.');
+      return;
+    }
+    const amount = Number(batchAmount);
+    if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount.'); return; }
+    setBatchGenerating(true);
+    try {
+      const res = await batchGenerateFee(
+        { category: batchCategory, description: batchDescription.trim() || undefined, month: batchMonth || undefined, amount, class: batchClass, section: batchSection || undefined, shift: batchShift || undefined },
+        token
+      );
+      toast.success(`Generated ${res.data?.created ?? 0} fee(s) for ${batchClass}${batchSection ? ' / ' + batchSection : ''}${batchShift ? ' / ' + batchShift : ''}.`);
+      setBatchAmount('');
+      setBatchDescription('');
+      fetchFees(page);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate batch fee');
+    } finally {
+      setBatchGenerating(false);
+    }
+  };
+
+  // Section 3: Add Individual Student Fee
+  const handleIndivSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !indivStudentId || !indivCategory || !indivAmount) {
+      toast.error('Select student, category, and enter amount.');
+      return;
+    }
+    const amount = Number(indivAmount);
+    if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount.'); return; }
+    setIndivSubmitting(true);
+    try {
+      await createAdditionalFee(
+        { category: indivCategory, description: indivDescription.trim() || undefined, month: indivMonth || undefined, amount, student_id: indivStudentId, for_all_students: false },
+        token
+      );
+      toast.success('Fee added for student.');
+      setIndivAmount('');
+      setIndivDescription('');
+      fetchFees(page);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add fee');
+    } finally {
+      setIndivSubmitting(false);
+    }
+  };
+
+  // Delete fee
   const handleDeleteFee = async () => {
     if (!token || !feeToDelete) return;
     setDeleting(true);
@@ -285,77 +316,22 @@ export default function FeesPage() {
     }
   };
 
-  const handlePay = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token || !payStudentId || !payMonth || !payAmount) {
-      toast.error('Select student, month, and enter amount.');
-      return;
-    }
-    const amount = Number(payAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Enter a valid amount.');
-      return;
-    }
-    setPaying(true);
-    try {
-      await payFee({ student_id: payStudentId, month: payMonth, amount }, token);
-      toast.success('Payment recorded.');
-      setPayAmount('');
-      fetchFees(page);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to record payment');
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  // const handleGenerateYear = async () => {
-  //   if (!token) return;
-  //   setGeneratingYear(true);
-  //   try {
-  //     const res = await generateYear(generateYearValue, token);
-  //     toast.success(
-  //       `Generated year ${generateYearValue}: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated.`
-  //     );
-  //     fetchFees(page);
-  //   } catch (e) {
-  //     toast.error(e instanceof Error ? e.message : 'Failed to generate year');
-  //   } finally {
-  //     setGeneratingYear(false);
-  //   }
-  // };
-
+  // Collect modal
   const openCollectModal = (fee: Fee) => {
     setCollectFee(fee);
     setCollectAmount(String(fee.due_amount || 0));
     setCollectDiscount('');
     setCollectNote('');
   };
-  const closeCollectModal = () => {
-    setCollectFee(null);
-    setCollectAmount('');
-    setCollectDiscount('');
-    setCollectNote('');
-  };
+  const closeCollectModal = () => { setCollectFee(null); setCollectAmount(''); setCollectDiscount(''); setCollectNote(''); };
   const handleCollectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !collectFee) return;
     const amount = Number(collectAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Enter a valid amount.');
-      return;
-    }
+    if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount.'); return; }
     setCollectPaying(true);
     try {
-      await collectPayment(
-        collectFee._id,
-        {
-          amount,
-          discount: Number(collectDiscount) || 0,
-          note: collectNote.trim() || undefined,
-        },
-        token
-      );
+      await collectPayment(collectFee._id, { amount, discount: Number(collectDiscount) || 0, note: collectNote.trim() || undefined }, token);
       toast.success('Payment collected.');
       closeCollectModal();
       fetchFees(page);
@@ -366,128 +342,58 @@ export default function FeesPage() {
     }
   };
 
-  const handleOneTimeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token || !oneTimeStudentId || !oneTimeAmount) {
-      toast.error('Select student and enter amount.');
-      return;
-    }
-    const amount = Number(oneTimeAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Enter a valid amount.');
-      return;
-    }
-    setOneTimeSubmitting(true);
-    try {
-      await createOneTimeFee(
-        { student_id: oneTimeStudentId, fee_type: oneTimeFeeType, amount },
-        token
-      );
-      toast.success(`${ONE_TIME_FEE_TYPES.find((t) => t.value === oneTimeFeeType)?.label} added.`);
-      setOneTimeAmount('');
-      fetchFees(page);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add fee');
-    } finally {
-      setOneTimeSubmitting(false);
-    }
-  };
-
-  const handleAdditionalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-    const amount = Number(additionalAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Enter a valid amount.');
-      return;
-    }
-    if (!additionalForAll && !additionalStudentId) {
-      toast.error('Select a student or choose "All students".');
-      return;
-    }
-    setAdditionalSubmitting(true);
-    try {
-      const res = await createAdditionalFee(
-        {
-          category: additionalCategory,
-          description: additionalDescription.trim() || undefined,
-          month: additionalMonth || undefined,
-          amount,
-          student_id: additionalForAll ? undefined : additionalStudentId,
-          for_all_students: additionalForAll,
-        },
-        token
-      );
-      toast.success(
-        additionalForAll
-          ? `Added ${res.count ?? 0} fee(s) for all students.`
-          : 'Additional fee added.'
-      );
-      setAdditionalAmount('');
-      setAdditionalDescription('');
-      fetchFees(page);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add fee');
-    } finally {
-      setAdditionalSubmitting(false);
-    }
-  };
-
-  const openDetailsModal = useCallback(
-    async (fee: Fee) => {
-      setDetailsFee(fee);
-      setDetailsPayments([]);
-      if (!token) return;
-      setDetailsLoading(true);
-      try {
-        const res = await getFeeHistory(fee._id, token);
-        setDetailsPayments(res.data || []);
-      } catch {
-        setDetailsPayments([]);
-      } finally {
-        setDetailsLoading(false);
-      }
-    },
-    [token]
-  );
-  const closeDetailsModal = () => {
-    setDetailsFee(null);
+  // Details modal
+  const openDetailsModal = useCallback(async (fee: Fee) => {
+    setDetailsFee(fee);
     setDetailsPayments([]);
-  };
+    if (!token) return;
+    setDetailsLoading(true);
+    try {
+      const res = await getFeeHistory(fee._id, token);
+      setDetailsPayments(res.data || []);
+    } catch { setDetailsPayments([]); } finally { setDetailsLoading(false); }
+  }, [token]);
+  const closeDetailsModal = () => { setDetailsFee(null); setDetailsPayments([]); };
 
-  const feeCategoryLabel = (fee: Fee) => {
-    const cat = fee.category || (fee.fee_type === 'monthly' ? 'student_fee' : fee.fee_type === 'exam' ? 'exam_fee' : fee.fee_type === 'book' ? 'book_sales' : 'other');
-    return FEE_CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
-  };
+  // Payment link
+  async function openPaymentLink(fee: Fee) {
+    setLinkFee(fee);
+    setLinkUrl('');
+    setLinkCopied(false);
+    setLinkLoading(true);
+    try {
+      const res = await apiRequest<{ success: boolean; data: { url: string } }>(
+        '/api/payment/link/generate',
+        { method: 'POST', body: JSON.stringify({ fee_id: fee._id }), token: token! }
+      );
+      if (res.success) setLinkUrl(res.data.url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate link');
+      setLinkFee(null);
+    } finally { setLinkLoading(false); }
+  }
 
-  const studentName = (fee: Fee) => {
-    const s = fee.student_id;
-    return typeof s === 'object' && s?.name ? s.name : '—';
-  };
-  const studentClass = (fee: Fee) => {
-    const s = fee.student_id;
-    return typeof s === 'object' && s?.class ? s.class : '—';
-  };
-  const studentSection = (fee: Fee) => {
-    const s = fee.student_id;
-    return typeof s === 'object' && s?.section ? s.section : '—';
-  };
-  const studentRoll = (fee: Fee) => {
-    const s = fee.student_id;
-    return typeof s === 'object' && s?.rollNo ? s.rollNo : '—';
-  };
-  const studentIdValue = (fee: Fee) => {
-    const s = fee.student_id as { studentId?: string } | string | undefined;
-    return typeof s === 'object' && s?.studentId ? s.studentId : '—';
-  };
+  function copyLink() {
+    if (!linkUrl) return;
+    navigator.clipboard.writeText(linkUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
+
+  // Helpers
+  const feeCategoryLabel = (fee: Fee) => fee.category || fee.fee_type || 'other';
+  const studentName = (fee: Fee) => { const s = fee.student_id; return typeof s === 'object' && s?.name ? s.name : '—'; };
+  const studentClass = (fee: Fee) => { const s = fee.student_id; return typeof s === 'object' && s?.class ? s.class : '—'; };
+  const studentSection = (fee: Fee) => { const s = fee.student_id; return typeof s === 'object' && s?.section ? s.section : '—'; };
+  const studentRoll = (fee: Fee) => { const s = fee.student_id; return typeof s === 'object' && s?.rollNo ? s.rollNo : '—'; };
+  const studentIdValue = (fee: Fee) => { const s = fee.student_id as { studentId?: string } | string | undefined; return typeof s === 'object' && s?.studentId ? s.studentId : '—'; };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Fees & Due</h1>
-        <p className="mt-1 text-muted-foreground">
-          Generate monthly fees, record payments, and view due list.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Fees &amp; Due</h1>
+        <p className="mt-1 text-muted-foreground">Generate fees, record payments, and view due list.</p>
       </div>
 
       {/* Summary cards */}
@@ -541,64 +447,76 @@ export default function FeesPage() {
         </CardContent>
       </Card>
 
-      {/* Section 2: Record Payment */}
+      {/* Section 2: Batch/Class Wise Fee Generation */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Wallet className="h-4 w-4" />
-            Record Payment
+            <Users className="h-4 w-4" />
+            Batch / Class Wise Fee Generation
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Record a payment received from a student for a specific month.
+            Generate a specific fee for all students in a class, section, or shift at once.
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handlePay}>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <form onSubmit={handleBatchGenerate}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <div className="space-y-2">
-                <Label htmlFor="pay-student">Student</Label>
-                <select
-                  id="pay-student"
-                  value={payStudentId}
-                  onChange={(e) => setPayStudentId(e.target.value)}
-                  className={cn(
-                    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                  )}
-                >
-                  <option value="">Select student</option>
-                  {students.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name} {s.class ? `(${s.class})` : ''}
-                    </option>
-                  ))}
+                <Label>Category *</Label>
+                <select value={batchCategory} onChange={(e) => setBatchCategory(e.target.value)} className={selectCls}>
+                  <option value="">Select category</option>
+                  {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pay-month">Month</Label>
-                <Input
-                  id="pay-month"
-                  type="month"
-                  value={payMonth}
-                  onChange={(e) => setPayMonth(e.target.value)}
-                />
+                <Label>Class *</Label>
+                <select value={batchClass} onChange={(e) => setBatchClass(e.target.value)} className={selectCls}>
+                  <option value="">Select class</option>
+                  {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pay-amount">Amount (৳)</Label>
+                <Label>Section</Label>
+                <select value={batchSection} onChange={(e) => setBatchSection(e.target.value)} className={selectCls}>
+                  <option value="">All sections</option>
+                  {SECTION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Shift / Batch</Label>
+                <select value={batchShift} onChange={(e) => setBatchShift(e.target.value)} className={selectCls}>
+                  <option value="">All shifts</option>
+                  {SHIFT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Month</Label>
+                <Input type="month" value={batchMonth} onChange={(e) => setBatchMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (৳) *</Label>
                 <Input
-                  id="pay-amount"
                   type="number"
                   min="1"
-                  step="1"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  placeholder="e.g. 1500"
+                  value={batchAmount}
+                  onChange={(e) => setBatchAmount(e.target.value)}
+                  placeholder="e.g. 500"
+                />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  value={batchDescription}
+                  onChange={(e) => setBatchDescription(e.target.value)}
+                  placeholder="e.g. March Exam Fee"
                 />
               </div>
               <div className="flex items-end">
-                <Button type="submit" disabled={paying} className="gap-2">
-                  {paying && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <Plus className="h-4 w-4" />
-                  Record payment
+                <Button type="submit" disabled={batchGenerating} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                  {batchGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Generate Batch Fee
                 </Button>
               </div>
             </div>
@@ -606,171 +524,70 @@ export default function FeesPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Add Fees */}
+      {/* Section 3: Add Individual Student Fee */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Add Fee
+            <UserPlus className="h-4 w-4" />
+            Add Individual Student Fee
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Create additional or one-time fees for individual students or all students at once.
+            Add a specific fee (admission, exam, fine, etc.) for a single student.
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Additional fee */}
-          <div>
-            <p className="text-sm font-medium mb-3">Fee for one or all students (exam, book, fine, etc.)</p>
-            <form onSubmit={handleAdditionalSubmit}>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <select
-                    value={additionalCategory}
-                    onChange={(e) => setAdditionalCategory(e.target.value as FeeCategory)}
-                    className={cn(
-                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                    )}
-                  >
-                    {FEE_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Description (optional)</Label>
-                  <Input
-                    value={additionalDescription}
-                    onChange={(e) => setAdditionalDescription(e.target.value)}
-                    placeholder="e.g. March Exam Fee"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Month (optional)</Label>
-                  <Input
-                    type="month"
-                    value={additionalMonth}
-                    onChange={(e) => setAdditionalMonth(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Amount (৳)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={additionalAmount}
-                    onChange={(e) => setAdditionalAmount(e.target.value)}
-                    placeholder="e.g. 500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>For</Label>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="radio"
-                        checked={additionalForAll}
-                        onChange={() => setAdditionalForAll(true)}
-                      />
-                      All students
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="radio"
-                        checked={!additionalForAll}
-                        onChange={() => setAdditionalForAll(false)}
-                      />
-                      One student
-                    </label>
-                    {!additionalForAll && (
-                      <select
-                        value={additionalStudentId}
-                        onChange={(e) => setAdditionalStudentId(e.target.value)}
-                        className={cn(
-                          'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
-                        )}
-                      >
-                        <option value="">Select student</option>
-                        {students.map((s) => (
-                          <option key={s._id} value={s._id}>
-                            {s.name} {s.class ? `(${s.class})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                </div>
+        <CardContent>
+          <form onSubmit={handleIndivSubmit}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="space-y-2">
+                <Label>Student *</Label>
+                <select value={indivStudentId} onChange={(e) => setIndivStudentId(e.target.value)} className={selectCls}>
+                  <option value="">Select student</option>
+                  {students.map((s) => (
+                    <option key={s._id} value={s._id}>{s.name}{s.class ? ` (${s.class})` : ''}</option>
+                  ))}
+                </select>
               </div>
-              <div className="mt-4">
-                <Button type="submit" disabled={additionalSubmitting}>
-                  {additionalSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add fee
-                </Button>
+              <div className="space-y-2">
+                <Label>Category *</Label>
+                <select value={indivCategory} onChange={(e) => setIndivCategory(e.target.value)} className={selectCls}>
+                  <option value="">Select category</option>
+                  {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
-            </form>
-          </div>
-
-          <hr className="border-border" />
-
-          {/* One-time fee */}
-          <div>
-            <p className="text-sm font-medium mb-3">One-time fee (Admission, Exam, Book, Other)</p>
-            <form onSubmit={handleOneTimeSubmit}>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-2">
-                  <Label>Student</Label>
-                  <select
-                    value={oneTimeStudentId}
-                    onChange={(e) => setOneTimeStudentId(e.target.value)}
-                    className={cn(
-                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                    )}
-                  >
-                    <option value="">Select student</option>
-                    {students.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.name} {s.class ? `(${s.class})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Fee type</Label>
-                  <select
-                    value={oneTimeFeeType}
-                    onChange={(e) => setOneTimeFeeType(e.target.value as 'admission' | 'exam' | 'book' | 'other')}
-                    className={cn(
-                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                    )}
-                  >
-                    {ONE_TIME_FEE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Amount (৳)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={oneTimeAmount}
-                    onChange={(e) => setOneTimeAmount(e.target.value)}
-                    placeholder="e.g. 5000"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button type="submit" disabled={oneTimeSubmitting}>
-                    {oneTimeSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Add fee
-                  </Button>
-                </div>
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  value={indivDescription}
+                  onChange={(e) => setIndivDescription(e.target.value)}
+                  placeholder="e.g. Annual exam fee"
+                />
               </div>
-            </form>
-          </div>
+              <div className="space-y-2">
+                <Label>Month (optional)</Label>
+                <Input type="month" value={indivMonth} onChange={(e) => setIndivMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (৳) *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={indivAmount}
+                  onChange={(e) => setIndivAmount(e.target.value)}
+                  placeholder="e.g. 2000"
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <Button type="submit" disabled={indivSubmitting}>
+                {indivSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add Fee
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
-      {/* Filters + Due list */}
+      {/* Fee list / Due list */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -781,80 +598,41 @@ export default function FeesPage() {
         <CardContent>
           <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
-              <Label htmlFor="filter-month">Month</Label>
-              <select
-                id="filter-month"
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className={cn(
-                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                )}
-              >
+              <Label>Month</Label>
+              <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={selectCls}>
                 <option value="">All</option>
-                {MONTH_OPTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
+                {MONTH_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-category">Category</Label>
-              <select
-                id="filter-category"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value as '' | FeeCategory)}
-                className={cn(
-                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                )}
-              >
-                {FEE_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-                ))}
+              <Label>Category</Label>
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectCls}>
+                <option value="">All categories</option>
+                {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-status">Status</Label>
-              <select
-                id="filter-status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as '' | 'unpaid' | 'partial' | 'paid')}
-                className={cn(
-                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                )}
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-                ))}
+              <Label>Status</Label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as '' | 'unpaid' | 'partial' | 'paid')} className={selectCls}>
+                {STATUS_OPTIONS.map((o) => <option key={o.value || 'all'} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-class">Class</Label>
-              <select
-                id="filter-class"
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className={cn(
-                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                )}
-              >
+              <Label>Class</Label>
+              <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className={selectCls}>
                 <option value="">All</option>
-                {CLASS_OPTIONS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
 
-          {error && (
-            <p className="mb-4 text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : fees.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">
-              No fees match the filters. Generate a month first.
-            </p>
+            <p className="py-8 text-center text-muted-foreground">No fees match the filters. Generate fees first.</p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
               <Table>
@@ -882,9 +660,7 @@ export default function FeesPage() {
                         {fee.createdAt ? new Date(fee.createdAt).toLocaleDateString() : '—'}
                       </TableCell>
                       <TableCell className="capitalize">{feeCategoryLabel(fee)}</TableCell>
-                      <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>
-                        {fee.description || '—'}
-                      </TableCell>
+                      <TableCell className="max-w-[140px] truncate" title={fee.description || ''}>{fee.description || '—'}</TableCell>
                       <TableCell className="font-mono text-xs">{studentIdValue(fee)}</TableCell>
                       <TableCell className="font-medium">{studentName(fee)}</TableCell>
                       <TableCell>{studentClass(fee)}</TableCell>
@@ -894,26 +670,18 @@ export default function FeesPage() {
                       <TableCell className="text-right">{fee.paid_amount.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{fee.due_amount.toLocaleString()}</TableCell>
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                            fee.status === 'paid' && 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200',
-                            fee.status === 'partial' && 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-200',
-                            fee.status === 'unpaid' && 'bg-destructive/10 text-destructive'
-                          )}
-                        >
+                        <span className={cn(
+                          'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                          fee.status === 'paid' && 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200',
+                          fee.status === 'partial' && 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-200',
+                          fee.status === 'unpaid' && 'bg-destructive/10 text-destructive'
+                        )}>
                           {fee.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-right flex gap-1 justify-end">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8"
-                          onClick={() => openDetailsModal(fee)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => openDetailsModal(fee)}>
+                          <Eye className="h-4 w-4 mr-1" />View
                         </Button>
                         {(fee.status === 'unpaid' || fee.status === 'partial') && fee.due_amount > 0 && (
                           <>
@@ -941,7 +709,6 @@ export default function FeesPage() {
                           variant="ghost"
                           className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setFeeToDelete(fee)}
-                          aria-label="Delete fee entry"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -952,22 +719,14 @@ export default function FeesPage() {
               </Table>
             </div>
           )}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            limit={LIMIT}
-            onPageChange={(p) => fetchFees(p)}
-          />
+          <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onPageChange={(p) => fetchFees(p)} />
         </CardContent>
       </Card>
 
       {/* Collect payment modal */}
       <Dialog open={!!collectFee} onOpenChange={(open) => !open && closeCollectModal()}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Collect payment</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Collect payment</DialogTitle></DialogHeader>
           {collectFee && (
             <form onSubmit={handleCollectSubmit} className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -977,46 +736,21 @@ export default function FeesPage() {
                 <p><span className="font-medium">Due amount:</span> ৳ {(collectFee.due_amount || 0).toLocaleString()}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="collect-amount">Amount to collect (৳)</Label>
-                <Input
-                  id="collect-amount"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={collectAmount}
-                  onChange={(e) => setCollectAmount(e.target.value)}
-                  placeholder="e.g. 1500"
-                />
+                <Label>Amount to collect (৳)</Label>
+                <Input type="number" min="1" step="1" value={collectAmount} onChange={(e) => setCollectAmount(e.target.value)} placeholder="e.g. 1500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="collect-discount">Discount (৳, optional)</Label>
-                <Input
-                  id="collect-discount"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={collectDiscount}
-                  onChange={(e) => setCollectDiscount(e.target.value)}
-                  placeholder="0"
-                />
+                <Label>Discount (৳, optional)</Label>
+                <Input type="number" min="0" step="1" value={collectDiscount} onChange={(e) => setCollectDiscount(e.target.value)} placeholder="0" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="collect-note">Note (optional)</Label>
-                <Input
-                  id="collect-note"
-                  type="text"
-                  value={collectNote}
-                  onChange={(e) => setCollectNote(e.target.value)}
-                  placeholder="e.g. Cash received"
-                />
+                <Label>Note (optional)</Label>
+                <Input type="text" value={collectNote} onChange={(e) => setCollectNote(e.target.value)} placeholder="e.g. Cash received" />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>
-                  Cancel
-                </Button>
+                <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>Cancel</Button>
                 <Button type="submit" disabled={collectPaying} className="bg-emerald-600 hover:bg-emerald-700">
-                  {collectPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Collect
+                  {collectPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Collect
                 </Button>
               </DialogFooter>
             </form>
@@ -1027,21 +761,16 @@ export default function FeesPage() {
       {/* Delete fee confirmation */}
       <Dialog open={!!feeToDelete} onOpenChange={(open) => !open && setFeeToDelete(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Remove fee entry?</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Remove fee entry?</DialogTitle></DialogHeader>
           {feeToDelete && (
             <>
               <p className="text-sm text-muted-foreground">
-                This will permanently remove this fee entry (student: {studentName(feeToDelete)}, {feeCategoryLabel(feeToDelete)}, ৳ {(feeToDelete.total_fee || 0).toLocaleString()}). Any payment history and related income records for this fee will also be removed.
+                Permanently removes fee for {studentName(feeToDelete)} — {feeCategoryLabel(feeToDelete)}, ৳{(feeToDelete.total_fee || 0).toLocaleString()}. Payment history and related income records will also be removed.
               </p>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>Cancel</Button>
                 <Button variant="destructive" onClick={handleDeleteFee} disabled={deleting}>
-                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Remove
+                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Remove
                 </Button>
               </DialogFooter>
             </>
@@ -1049,12 +778,10 @@ export default function FeesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Details modal — payment history */}
+      {/* View Details modal */}
       <Dialog open={!!detailsFee} onOpenChange={(open) => !open && closeDetailsModal()}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Fee details & payment history</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Fee details &amp; payment history</DialogTitle></DialogHeader>
           {detailsFee && (
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -1070,9 +797,7 @@ export default function FeesPage() {
               <div>
                 <p className="mb-2 text-sm font-medium">Payment history</p>
                 {detailsLoading ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
+                  <div className="flex items-center justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                 ) : detailsPayments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
                 ) : (
@@ -1090,20 +815,12 @@ export default function FeesPage() {
                       <TableBody>
                         {detailsPayments.map((p) => (
                           <TableRow key={p._id}>
-                            <TableCell className="text-xs">
-                              {p.payment_date ? new Date(p.payment_date).toLocaleString() : '—'}
-                            </TableCell>
+                            <TableCell className="text-xs">{p.payment_date ? new Date(p.payment_date).toLocaleString() : '—'}</TableCell>
                             <TableCell className="text-right">{p.amount.toLocaleString()}</TableCell>
                             <TableCell className="text-right">{(p.discount ?? 0).toLocaleString()}</TableCell>
                             <TableCell className="max-w-[180px] truncate text-muted-foreground">{p.note || '—'}</TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2"
-                                onClick={() => handlePrintReceipt(p)}
-                                title="Print money receipt"
-                              >
+                              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => handlePrintReceipt(p)} title="Print money receipt">
                                 <Printer className="h-3.5 w-3.5" />
                               </Button>
                             </TableCell>
@@ -1130,12 +847,10 @@ export default function FeesPage() {
           {linkFee && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Share this link with the parent/guardian. They can pay <strong>৳{linkFee.due_amount.toLocaleString()}</strong> directly via bKash — no login required.
+                Share this link with the parent/guardian. They can pay <strong>৳{linkFee.due_amount.toLocaleString()}</strong> directly via bKash.
               </p>
               {linkLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : linkUrl ? (
                 <>
                   <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
@@ -1144,11 +859,8 @@ export default function FeesPage() {
                       {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
-                  <Button
-                    className="w-full bg-[#E2136E] hover:bg-[#c0125e] text-white"
-                    onClick={copyLink}
-                  >
-                    {linkCopied ? <><Check className="h-4 w-4 mr-2" /> Copied!</> : <><Copy className="h-4 w-4 mr-2" /> Copy Link</>}
+                  <Button className="w-full bg-[#E2136E] hover:bg-[#c0125e] text-white" onClick={copyLink}>
+                    {linkCopied ? <><Check className="h-4 w-4 mr-2" />Copied!</> : <><Copy className="h-4 w-4 mr-2" />Copy Link</>}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">Link expires in 7 days</p>
                 </>

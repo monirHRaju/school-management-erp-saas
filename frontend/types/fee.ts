@@ -83,7 +83,7 @@ export interface CreateOneTimePayload {
 }
 
 export interface CreateAdditionalPayload {
-  category: FeeCategory;
+  category: FeeCategory | string;
   description?: string;
   month?: string; // YYYY-MM
   amount: number;

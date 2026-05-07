@@ -141,8 +141,8 @@ router.post('/expense', requireFeature('incomeExpenseTracking'), async (req, res
     if (!date || !title || !category || amount == null) {
       return res.status(400).json({ success: false, error: 'date, title, category, and amount are required' });
     }
-    if (!EXPENSE_CATEGORIES.includes(category)) {
-      return res.status(400).json({ success: false, error: `Invalid category. Must be one of: ${EXPENSE_CATEGORIES.join(', ')}` });
+    if (!category || typeof category !== 'string' || !category.trim()) {
+      return res.status(400).json({ success: false, error: 'category is required' });
     }
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -215,8 +215,8 @@ router.post('/income', requireFeature('incomeExpenseTracking'), async (req, res)
     if (!date || !title || !category || amount == null) {
       return res.status(400).json({ success: false, error: 'date, title, category, and amount are required' });
     }
-    if (!MANUAL_INCOME_CATEGORIES.includes(category)) {
-      return res.status(400).json({ success: false, error: `Invalid category. Must be one of: ${MANUAL_INCOME_CATEGORIES.join(', ')}` });
+    if (!category || typeof category !== 'string' || !category.trim()) {
+      return res.status(400).json({ success: false, error: 'category is required' });
     }
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {

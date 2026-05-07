@@ -14,8 +14,6 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(requireRole('admin', 'accountant', 'staff'));
 
-const { FEE_CATEGORIES } = require('../models/Fee');
-const { INCOME_CATEGORIES } = require('../models/Income');
 
 // Legacy fee_type to category (for reading old records)
 const FEE_TYPE_TO_CATEGORY = {
@@ -33,10 +31,12 @@ function normalizeFee(fee) {
 }
 
 function buildCategoryMatch(categoryParam) {
-  if (!categoryParam || !FEE_CATEGORIES.includes(categoryParam)) return null;
-  const legacyKeys = Object.keys(FEE_TYPE_TO_CATEGORY).filter((k) => FEE_TYPE_TO_CATEGORY[k] === categoryParam);
-  if (legacyKeys.length === 0) return { category: categoryParam };
-  return { $or: [{ category: categoryParam }, { fee_type: { $in: legacyKeys } }] };
+  if (!categoryParam || typeof categoryParam !== 'string' || !categoryParam.trim()) return null;
+  const cat = categoryParam.trim();
+  // Legacy mapping: if category matches a canonical value, also match old fee_type values
+  const legacyKeys = Object.keys(FEE_TYPE_TO_CATEGORY).filter((k) => FEE_TYPE_TO_CATEGORY[k] === cat);
+  if (legacyKeys.length === 0) return { category: cat };
+  return { $or: [{ category: cat }, { fee_type: { $in: legacyKeys } }] };
 }
 
 // GET /api/fees — list fees with filters; supports pagination via page & limit params
@@ -239,14 +239,71 @@ router.post('/generate-year', requireFeature('bulkFeeGeneration'), requireRole('
   }
 });
 
+// POST /api/fees/batch — batch fee generation by class/section/shift
+router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 'accountant'), async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const { category, description, month, amount, class: classFilter, section, shift } = req.body;
+
+    if (!category || typeof category !== 'string' || !category.trim()) {
+      return res.status(400).json({ success: false, error: 'category is required' });
+    }
+    if (!classFilter || typeof classFilter !== 'string' || !classFilter.trim()) {
+      return res.status(400).json({ success: false, error: 'class is required for batch fee generation' });
+    }
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'amount must be a positive number' });
+    }
+
+    const studentFilter = { school_id: schoolId, status: 'active', class: classFilter.trim() };
+    if (section && typeof section === 'string' && section.trim()) studentFilter.section = section.trim();
+    if (shift && typeof shift === 'string' && shift.trim()) studentFilter.shift = shift.trim();
+
+    const monthStr = typeof month === 'string' ? month.trim() : '';
+    const cat = category.trim();
+    const descStr = typeof description === 'string' && description.trim()
+      ? description.trim()
+      : monthStr ? `${monthStr} ${cat}` : cat;
+
+    const students = await Student.find(studentFilter, { _id: 1 }).lean();
+    if (students.length === 0) {
+      return res.status(404).json({ success: false, error: 'No active students found for the selected class/section/shift' });
+    }
+
+    const created = [];
+    for (const stu of students) {
+      const fee = await Fee.create({
+        school_id: schoolId,
+        student_id: stu._id,
+        category: cat,
+        month: monthStr,
+        description: descStr,
+        total_fee: numAmount,
+        paid_amount: 0,
+        due_amount: numAmount,
+        status: 'unpaid',
+      });
+      created.push(fee._id);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { created: created.length, class: classFilter.trim(), section: section?.trim() || null, shift: shift?.trim() || null },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/fees/additional — create additional fee(s): single student or all students
 router.post('/additional', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { category, description, month, amount, student_id: studentIdParam, for_all_students } = req.body;
 
-    if (!category || !FEE_CATEGORIES.includes(category)) {
-      return res.status(400).json({ success: false, error: 'category must be one of: ' + FEE_CATEGORIES.join(', ') });
+    if (!category || typeof category !== 'string' || !category.trim()) {
+      return res.status(400).json({ success: false, error: 'category is required' });
     }
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {

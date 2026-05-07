@@ -18,6 +18,14 @@ const schoolSchema = new mongoose.Schema(
     sms_balance: { type: Number, default: 0 },
     logoUrl: { type: String, trim: true },
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
+    feeCategories: {
+      type: [String],
+      default: ['Student Fee', 'Exam Fee', 'Book Fee', 'Stationery', 'Library Fee', 'Sports Fee', 'Transport Fee', 'Admission Fee', 'Fine', 'Other'],
+    },
+    expenseCategories: {
+      type: [String],
+      default: ['Teachers Salary', 'Rents', 'Hospitality', 'Printing', 'Stationary', 'Furniture', 'Repair', 'Entertainment', 'Advertisement', 'Other'],
+    },
   },
   { timestamps: true }
 );

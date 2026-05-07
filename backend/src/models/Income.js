@@ -13,7 +13,7 @@ const INCOME_CATEGORIES = [
 const incomeSchema = new mongoose.Schema(
   {
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
-    category: { type: String, enum: INCOME_CATEGORIES, required: true },
+    category: { type: String, required: true },
     amount: { type: Number, required: true, min: 0 },
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
     fee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Fee' },

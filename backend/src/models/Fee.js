@@ -15,7 +15,7 @@ const feeSchema = new mongoose.Schema(
   {
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    category: { type: String, enum: FEE_CATEGORIES, required: true },
+    category: { type: String, required: true },
     month: { type: String, trim: true, default: '' }, // YYYY-MM for monthly/reference; '' for one-off
     description: { type: String, trim: true, default: '' },
     total_fee: { type: Number, default: 0 },
