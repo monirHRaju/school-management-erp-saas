@@ -1,171 +1,119 @@
 'use client';
 
-import Link from 'next/link';
-import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
-import { Check, X, Zap } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { FileText } from 'lucide-react';
 
-const plans = [
-  {
-    name: 'Free',
-    price: '৳0',
-    period: '/ forever',
-    desc: 'Perfect for small schools just getting started.',
-    highlight: false,
-    cta: 'Get Started Free',
-    ctaHref: '/register',
-    ctaStyle: 'border border-zinc-700 text-zinc-300 hover:bg-zinc-800',
-    features: [
-      { text: 'Up to 50 students', available: true },
-      { text: '1 admin account', available: true },
-      { text: 'Fee management', available: true },
-      { text: 'Attendance tracking', available: true },
-      { text: 'Basic dashboard', available: true },
-      { text: 'Reports & export', available: false },
-      { text: 'Guardian portal', available: false },
-      { text: 'Priority support', available: false },
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '৳999',
-    period: '/ month',
-    desc: 'For growing schools that need full power.',
-    highlight: true,
-    badge: 'Most Popular',
-    cta: 'Start Free Trial',
-    ctaHref: '/register',
-    ctaStyle: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30',
-    features: [
-      { text: 'Unlimited students', available: true },
-      { text: '5 staff accounts', available: true },
-      { text: 'Fee management', available: true },
-      { text: 'Attendance tracking', available: true },
-      { text: 'Advanced dashboard', available: true },
-      { text: 'Full reports & export (CSV/PDF)', available: true },
-      { text: 'Guardian portal', available: true },
-      { text: 'Email support', available: true },
-    ],
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    desc: 'For large institutions with advanced needs.',
-    highlight: false,
-    cta: 'Contact Sales',
-    ctaHref: 'mailto:contact@amarschool.com',
-    ctaStyle: 'border border-zinc-700 text-zinc-300 hover:bg-zinc-800',
-    features: [
-      { text: 'Unlimited students', available: true },
-      { text: 'Unlimited staff accounts', available: true },
-      { text: 'Everything in Pro', available: true },
-      { text: 'Multiple branches', available: true },
-      { text: 'API access', available: true },
-      { text: 'Custom branding', available: true },
-      { text: 'Dedicated support', available: true },
-      { text: 'SLA guarantee', available: true },
-    ],
-  },
+const REPORT_TABS = [
+  'ভর্তির তথ্যপত্র',
+  'ছবিসহ প্রবেশপত্র',
+  'শ্রেণী শিক্ষার্থীর নথিপত্র',
+  'অনুপস্থিত তালিকা',
+  'বেতন তালিকা',
+  'আগামী পরীক্ষাসমূহ',
+  'ক্লাস রুটিন',
+  'সিট প্ল্যান',
+  'শিক্ষার্থী উপস্থিতি রিপোর্ট',
+  'শিক্ষার্থী আইডি কার্ড',
+  'শিক্ষার্থী তালিকা',
+  'শিক্ষার্থী প্রোফাইল',
+  'ট্যাবুলেশন শিট',
+  'শিক্ষক আইডি কার্ড',
+  'শিক্ষকদের মানসম্পন্ন উপস্থিতি',
+  'শিক্ষক তালিকা',
+  'শিক্ষক ট্র্যাকিং',
 ];
 
+/* eslint-disable @next/next/no-img-element */
+function ReportPreview({ tab }: { tab: string }) {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={tab}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -12 }}
+        transition={{ duration: 0.25 }}
+        className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden"
+      >
+        {/* Fake browser bar */}
+        <div className="flex items-center gap-1.5 px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <div className="w-3 h-3 rounded-full bg-yellow-400" />
+          <div className="w-3 h-3 rounded-full bg-green-400" />
+          <span className="ml-3 text-xs text-gray-400">{tab} — রিপোর্ট প্রিভিউ</span>
+        </div>
+
+        <div className="p-4 bg-gray-50">
+          <img
+            src="https://i.ibb.co.com/1YHrDf31/Student-Information-Kamrun-Nahar.png"
+            alt={`${tab} রিপোর্ট প্রিভিউ`}
+            className="w-full rounded-lg shadow-md object-contain max-h-96"
+            loading="lazy"
+          />
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-100 bg-white flex items-center justify-between">
+          <span className="text-xs text-gray-500 font-medium">{tab}</span>
+          <span className="text-xs bg-[#E8471D]/10 text-[#E8471D] font-semibold px-3 py-1 rounded-full">
+            PDF ডাউনলোড সমর্থিত
+          </span>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export default function Pricing() {
+  const [activeTab, setActiveTab] = useState(REPORT_TABS[0]);
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-100px' });
+  const inView = useInView(ref, { once: true, margin: '-60px' });
 
   return (
-    <section id="pricing" className="py-24 bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+    <section id="reports" className="py-20 bg-[#0D1B2A] font-bengali">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-10"
         >
-          <span className="text-sm font-semibold text-amber-400 tracking-wider uppercase">Flexible Pricing</span>
-          <h2 className="mt-3 text-4xl font-extrabold text-white tracking-tight">
-            Plans for Every{' '}
-            <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-              School
-            </span>
+          <span className="text-sm font-semibold text-[#E8471D] uppercase tracking-wider">
+            রিপোর্টসমূহ
+          </span>
+          <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-white">
+            আমার স্কুল-এর মাধ্যমে আপনি পাবেন{' '}
+            <span className="text-[#E8471D]">১০০% নির্ভুল রিপোর্ট</span>
           </h2>
-          <p className="mt-4 text-lg text-zinc-500 max-w-xl mx-auto">
-            Start free, scale as you grow. No hidden fees.
-          </p>
         </motion.div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {plans.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 24 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: i * 0.12 + 0.2 }}
-              whileHover={{ y: -4 }}
-              className={`relative rounded-2xl p-7 border transition-all duration-300 ${
-                plan.highlight
-                  ? 'bg-gradient-to-b from-indigo-950/60 to-zinc-900 border-indigo-500/50 shadow-xl shadow-indigo-500/10'
-                  : 'bg-zinc-900 border-zinc-800/60'
-              }`}
-            >
-              {/* Popular badge */}
-              {plan.badge && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-indigo-600/30">
-                    <Zap className="w-3 h-3" />
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Tab list */}
+          <div className="lg:w-64 shrink-0">
+            <div className="flex flex-wrap lg:flex-col gap-2">
+              {REPORT_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-150 ${
+                    activeTab === tab
+                      ? 'bg-[#E8471D] text-white shadow-md'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* Plan header */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                <p className="text-sm text-zinc-500 mt-1">{plan.desc}</p>
-              </div>
-
-              {/* Price */}
-              <div className="mb-7">
-                <span className="text-4xl font-black text-white">{plan.price}</span>
-                {plan.period && <span className="text-zinc-500 ml-1">{plan.period}</span>}
-              </div>
-
-              {/* CTA */}
-              <Link
-                href={plan.ctaHref}
-                className={`w-full block text-center font-semibold px-4 py-2.5 rounded-xl text-sm transition-all mb-7 ${plan.ctaStyle}`}
-              >
-                {plan.cta}
-              </Link>
-
-              {/* Features */}
-              <ul className="space-y-3">
-                {plan.features.map((f) => (
-                  <li key={f.text} className="flex items-start gap-3 text-sm">
-                    {f.available ? (
-                      <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    ) : (
-                      <X className="w-4 h-4 text-zinc-600 shrink-0 mt-0.5" />
-                    )}
-                    <span className={f.available ? 'text-zinc-300' : 'text-zinc-600'}>{f.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
+          {/* Preview */}
+          <div className="flex-1">
+            <ReportPreview tab={activeTab} />
+          </div>
         </div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={inView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.8 }}
-          className="text-center mt-10 text-sm text-zinc-600"
-        >
-          All paid plans include a 14-day free trial · Cancel anytime
-        </motion.p>
       </div>
     </section>
   );

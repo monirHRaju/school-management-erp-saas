@@ -1,6 +1,20 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
 
+/* Brand design tokens */
+:root {
+  --brand-orange: #E8471D;
+  --brand-orange-hover: #CC3D18;
+  --brand-orange-light: #FFF0EB;
+  --brand-navy: #0D1B2A;
+  --brand-navy-light: #1B3A5C;
+  --brand-light: #F8FAFC;
+}
+
+.font-bengali {
+  font-family: var(--font-hind-siliguri), sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

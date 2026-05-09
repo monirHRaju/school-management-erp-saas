@@ -3,166 +3,124 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Menu, X } from 'lucide-react';
+import { Menu, X, GraduationCap } from 'lucide-react';
 
-const navLinks = [
-  { label: 'Home', href: '#home', sectionId: 'home' },
-  { label: 'Features', href: '#features', sectionId: 'features' },
-  { label: 'Pricing', href: '#pricing', sectionId: 'pricing' },
-  { label: 'How It Works', href: '#how-it-works', sectionId: 'how-it-works' },
+const NAV_LINKS = [
+  { label: 'হোম', href: '#home' },
+  { label: 'কাদের জন্য', href: '#features' },
+  { label: 'কেন আমার স্কুল', href: '#why' },
+  { label: 'সেবার বিস্তার', href: '#coverage' },
+  { label: 'রিপোর্টসমূহ', href: '#reports' },
+  { label: 'মতামত', href: '#testimonials' },
+  { label: 'ব্লগ', href: '/blog' },
+  { label: 'যোগাযোগ', href: '#contact' },
 ];
 
 export default function Navbar() {
+  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
+    const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // IntersectionObserver to track which section is in view
-  useEffect(() => {
-    const sectionIds = navLinks.map((l) => l.sectionId);
-    const observers: IntersectionObserver[] = [];
-
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveSection(id);
-        },
-        { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
-      );
-      observer.observe(el);
-      observers.push(observer);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, []);
+  const handleAnchor = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith('#')) return;
+    e.preventDefault();
+    setOpen(false);
+    const el = document.querySelector(href);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <>
-      <motion.header
-        initial={{ y: -24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/60 shadow-lg shadow-black/20'
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <a href="#home" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-shadow">
-                <Shield className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                Amar School
-              </span>
-            </a>
-
-            {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => {
-                const isActive = activeSection === link.sectionId;
-                return (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    className={`px-4 py-2 text-sm rounded-lg transition-all ${
-                      isActive
-                        ? 'text-indigo-400 bg-indigo-500/10 font-medium'
-                        : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
-                    }`}
-                  >
-                    {link.label}
-                  </a>
-                );
-              })}
-            </nav>
-
-            {/* Desktop CTA */}
-            <div className="hidden md:flex items-center gap-3">
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm text-zinc-300 hover:text-white transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors shadow-lg shadow-indigo-600/25"
-              >
-                Get Started Free
-              </Link>
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 font-bengali transition-all duration-300 ${
+        scrolled ? 'bg-white/95 backdrop-blur-md shadow-md' : 'bg-white/80 backdrop-blur-sm'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 rounded-xl bg-[#E8471D] flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-200">
+              <GraduationCap className="w-5 h-5 text-white" />
             </div>
+            <span className="text-xl font-bold text-[#0D1B2A]">
+              আমার <span className="text-[#E8471D]">স্কুল</span>
+            </span>
+          </Link>
 
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 text-zinc-400 hover:text-zinc-100 rounded-lg hover:bg-zinc-800/60 transition-colors"
+          {/* Desktop nav */}
+          <nav className="hidden lg:flex items-center gap-0.5">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={(e) => handleAnchor(e, link.href)}
+                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-[#E8471D] rounded-lg hover:bg-orange-50 transition-all duration-150 whitespace-nowrap"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          {/* Desktop CTA */}
+          <div className="hidden lg:flex items-center gap-3">
+            <Link
+              href="/try-demo"
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-[#E8471D] rounded-full hover:bg-[#CC3D18] transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 whitespace-nowrap"
             >
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+              ডেমো দেখুন
+            </Link>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setOpen(!open)}
+            className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="মেনু"
+          >
+            {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
-      </motion.header>
+      </div>
 
       {/* Mobile menu */}
       <AnimatePresence>
-        {menuOpen && (
+        {open && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-0 top-16 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 md:hidden"
+            className="lg:hidden bg-white border-t border-gray-100 overflow-hidden shadow-lg"
           >
-            <div className="px-4 py-4 space-y-1">
-              {navLinks.map((link) => {
-                const isActive = activeSection === link.sectionId;
-                return (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={`block px-4 py-2.5 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? 'text-indigo-400 bg-indigo-500/10 font-medium'
-                        : 'text-zinc-300 hover:text-white hover:bg-zinc-800/60'
-                    }`}
-                  >
-                    {link.label}
-                  </a>
-                );
-              })}
-              <div className="pt-3 border-t border-zinc-800 flex flex-col gap-2">
-                <Link
-                  href="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800/60 rounded-lg transition-colors"
+            <div className="px-4 py-4 space-y-1 font-bengali">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={(e) => handleAnchor(e, link.href)}
+                  className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-[#E8471D] hover:bg-orange-50 rounded-lg transition-all"
                 >
-                  Log in
-                </Link>
+                  {link.label}
+                </a>
+              ))}
+              <div className="pt-3 border-t border-gray-100">
                 <Link
-                  href="/register"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-4 py-2.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-center transition-colors"
+                  href="/try-demo"
+                  onClick={() => setOpen(false)}
+                  className="block px-4 py-3 text-sm font-semibold text-center text-white bg-[#E8471D] rounded-full hover:bg-[#CC3D18] transition-all"
                 >
-                  Get Started Free
+                  ডেমো দেখুন
                 </Link>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </header>
   );
 }

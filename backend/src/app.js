@@ -21,6 +21,7 @@ const academicConfigRoutes = require('./routes/academicConfig');
 const homeworkRoutes = require('./routes/homework');
 const settingsRoutes = require('./routes/settings');
 const profileRoutes = require('./routes/profile');
+const demoRoutes = require('./routes/demo');
 
 const app = express();
 
@@ -57,5 +58,6 @@ app.use('/api/academic-config', academicConfigRoutes);
 app.use('/api/homework', homeworkRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/demo', demoRoutes);
 
 module.exports = app;
