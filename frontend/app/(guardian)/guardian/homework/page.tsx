@@ -174,8 +174,10 @@ function HomeworkCard({
       overdue ? 'border-destructive/30' : dueToday ? 'border-amber-400/40' : 'border-border'
     }`}>
       <button
+        type="button"
         onClick={onToggle}
-        className="flex w-full items-start justify-between px-4 py-3.5 text-left gap-3"
+        className="flex w-full items-start justify-between px-4 py-3.5 text-left gap-3 cursor-pointer select-none active:bg-muted/30"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${subjectColor(hw.subject)}`}>

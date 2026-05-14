@@ -7,13 +7,18 @@ import {
   markAttendance,
   getMonthlyAttendance,
   getAttendanceReport,
+  getHolidays,
+  createHoliday,
+  deleteHoliday,
+  clearAttendance,
 } from '@/lib/attendance';
+import type { Holiday } from '@/lib/attendance';
 import type { AttendanceRecord, MonthlyStudentRow, ClassSummary } from '@/types/attendance';
 import toast from 'react-hot-toast';
-import { Loader2, Users, CalendarDays, BarChart3, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
+import { Loader2, Users, CalendarDays, BarChart3, CheckCircle2, XCircle, Download, Printer, PartyPopper, Trash2, Plus } from 'lucide-react';
 import { useAcademicConfig } from '@/lib/useAcademicConfig';
 
-type Tab = 'mark' | 'monthly' | 'reports';
+type Tab = 'mark' | 'monthly' | 'reports' | 'holidays';
 
 // ─── Download CSV helper ─────────────────────────────────────────────────────
 function downloadCSV(filename: string, csvContent: string) {
@@ -105,9 +110,26 @@ function MarkAttendanceTab() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [holidayForDate, setHolidayForDate] = useState<Holiday | null>(null);
+  const [holidaysThisMonth, setHolidaysThisMonth] = useState<Holiday[]>([]);
+  const [clearing, setClearing] = useState(false);
 
   // Set default class once config loads
   useEffect(() => { if (CLASS_OPTIONS.length && !cls) setCls(CLASS_OPTIONS[0]); }, [CLASS_OPTIONS]);
+
+  // Fetch holidays for the selected month
+  useEffect(() => {
+    if (!token || !date) return;
+    const month = date.slice(0, 7);
+    getHolidays(month, token).then((res) => {
+      if (res.success) {
+        setHolidaysThisMonth(res.data);
+        const dateUtc = date; // YYYY-MM-DD
+        const found = res.data.find((h) => h.date.slice(0, 10) === dateUtc);
+        setHolidayForDate(found || null);
+      }
+    }).catch(() => {});
+  }, [token, date]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -153,6 +175,24 @@ function MarkAttendanceTab() {
     }
   };
 
+  const resetToHoliday = async () => {
+    if (!token || !cls) return;
+    setClearing(true);
+    try {
+      const res = await clearAttendance(date, cls, section, shift, token);
+      if (res.success) {
+        const count = res.data.deleted;
+        toast.success(`Cleared ${count} record${count !== 1 ? 's' : ''} — date now shows as Holiday.`);
+        setStudents((prev) => prev.map((s) => ({ ...s, status: 'present' })));
+        setLoaded(false);
+      }
+    } catch {
+      toast.error('Failed to clear attendance.');
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const presentCount = students.filter((s) => s.status === 'present').length;
   const absentCount = students.length - presentCount;
 
@@ -182,6 +222,30 @@ function MarkAttendanceTab() {
           </button>
         </div>
       </div>
+
+      {/* Holiday banner */}
+      {holidayForDate && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50 px-4 py-2.5 text-sm">
+          <PartyPopper className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="font-semibold text-amber-700 dark:text-amber-300">{holidayForDate.name}</span>
+          {holidayForDate.description && (
+            <span className="text-amber-600 dark:text-amber-400 hidden sm:inline">— {holidayForDate.description}</span>
+          )}
+          <span className="text-xs text-amber-500 hidden sm:inline">Holiday</span>
+          {loaded && (
+            <button
+              onClick={resetToHoliday}
+              disabled={clearing}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 disabled:opacity-50 transition-colors"
+            >
+              {clearing
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : <XCircle className="w-3 h-3" />}
+              Reset to Holiday
+            </button>
+          )}
+        </div>
+      )}
 
       {loaded && students.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-6">No active students found for this class.</p>
@@ -276,20 +340,32 @@ function MonthlyViewTab() {
   const [daysInMonth, setDaysInMonth] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
 
   useEffect(() => { if (CLASS_OPTIONS.length && !cls) setCls(CLASS_OPTIONS[0]); }, [CLASS_OPTIONS]);
+
+  // Build a set of holiday day-numbers for the current month
+  const holidayDays = new Set(
+    holidays
+      .filter((h) => h.date.slice(0, 7) === month)
+      .map((h) => new Date(h.date).getUTCDate())
+  );
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await getMonthlyAttendance(month, cls, section, shift, token);
-      if (res.success) {
-        setStudents(res.data.students);
-        setTotalDays(res.data.totalDays);
-        setDaysInMonth(res.data.daysInMonth);
+      const [attRes, holRes] = await Promise.all([
+        getMonthlyAttendance(month, cls, section, shift, token),
+        getHolidays(month, token),
+      ]);
+      if (attRes.success) {
+        setStudents(attRes.data.students);
+        setTotalDays(attRes.data.totalDays);
+        setDaysInMonth(attRes.data.daysInMonth);
         setLoaded(true);
       }
+      if (holRes.success) setHolidays(holRes.data);
     } catch {
       toast.error('Failed to load monthly data.');
     } finally {
@@ -368,7 +444,10 @@ function MonthlyViewTab() {
                     <th className="text-left px-2 py-2 font-medium text-muted-foreground w-20">Student ID</th>
                     <th className="text-left px-2 py-2 font-medium text-muted-foreground w-14">Roll</th>
                     {dayNumbers.map((d) => (
-                      <th key={d} className="text-center px-1 py-2 font-medium text-muted-foreground w-8">{d}</th>
+                      <th key={d} className={`text-center px-1 py-2 font-medium w-8 ${holidayDays.has(d) ? 'text-amber-500' : 'text-muted-foreground'}`} title={holidayDays.has(d) ? (holidays.find((h) => new Date(h.date).getUTCDate() === d)?.name || 'Holiday') : undefined}>
+                        {d}
+                        {holidayDays.has(d) && <span className="block text-[8px] leading-none">H</span>}
+                      </th>
                     ))}
                     <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">Total</th>
                     <th className="text-center px-2 py-2 font-medium text-muted-foreground w-14">%</th>
@@ -382,11 +461,14 @@ function MonthlyViewTab() {
                       <td className="px-2 py-2 text-muted-foreground">{s.rollNo}</td>
                       {dayNumbers.map((d) => {
                         const val = s.days[String(d)];
+                        const isHoliday = holidayDays.has(d);
                         return (
-                          <td key={d} className="text-center px-1 py-2">
-                            {val === 'P' && <span className="text-emerald-500 font-bold">P</span>}
+                          <td key={d} className={`text-center px-1 py-2 ${isHoliday ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                            {isHoliday && !val && <span className="text-amber-500 font-bold text-xs">H</span>}
+                            {!isHoliday && val === 'P' && <span className="text-emerald-500 font-bold">P</span>}
                             {val === 'A' && <span className="text-red-500 font-bold">A</span>}
-                            {!val && <span className="text-muted-foreground/30">·</span>}
+                            {val === 'P' && isHoliday && <span className="text-emerald-500 font-bold">P</span>}
+                            {!val && !isHoliday && <span className="text-muted-foreground/30">·</span>}
                           </td>
                         );
                       })}
@@ -553,12 +635,185 @@ function ReportsTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TAB 4 — Holidays
+// ═══════════════════════════════════════════════════════════════════════════════
+function HolidaysTab() {
+  const { token } = useAuth();
+  const [month, setMonth] = useState(currentMonthStr());
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [date, setDate] = useState(todayStr());
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const res = await getHolidays(month, token);
+      if (res.success) setHolidays(res.data);
+    } catch {
+      toast.error('Failed to load holidays.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token, month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !date || !name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await createHoliday(date, name.trim(), description.trim(), token);
+      if (res.success) {
+        toast.success('Holiday added.');
+        setName('');
+        setDescription('');
+        load();
+      }
+    } catch {
+      toast.error('Failed to add holiday.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!token) return;
+    setDeletingId(id);
+    try {
+      await deleteHoliday(id, token);
+      toast.success('Holiday removed.');
+      setHolidays((prev) => prev.filter((h) => h._id !== id));
+    } catch {
+      toast.error('Failed to delete.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      {/* Add holiday form */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Holiday
+        </h3>
+        <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Holiday Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Eid ul-Fitr"
+              required
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">Description (optional)</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Short note"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin inline" /> : 'Add Holiday'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Holiday list for month */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <h3 className="font-semibold text-foreground">Holidays by Month</h3>
+          <div className="flex items-center gap-2">
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : holidays.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No holidays for {month}.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Name</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Description</th>
+                <th className="w-12 px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {holidays.map((h) => (
+                <tr key={h._id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                    {new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-foreground">{h.name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{h.description || '—'}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button
+                      onClick={() => handleDelete(h._id)}
+                      disabled={deletingId === h._id}
+                      className="p-1.5 rounded-md text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingId === h._id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Main Page
 // ═══════════════════════════════════════════════════════════════════════════════
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'mark', label: 'Mark Attendance', icon: Users },
   { key: 'monthly', label: 'Monthly View', icon: CalendarDays },
   { key: 'reports', label: 'Reports', icon: BarChart3 },
+  { key: 'holidays', label: 'Holidays', icon: PartyPopper },
 ];
 
 export default function AttendancePage() {
@@ -593,6 +848,7 @@ export default function AttendancePage() {
       {tab === 'mark' && <MarkAttendanceTab />}
       {tab === 'monthly' && <MonthlyViewTab />}
       {tab === 'reports' && <ReportsTab />}
+      {tab === 'holidays' && <HolidaysTab />}
     </div>
   );
 }

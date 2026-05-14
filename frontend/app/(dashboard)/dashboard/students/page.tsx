@@ -74,7 +74,7 @@ export default function StudentsPage() {
   const [deleting, setDeleting] = useState(false);
   const [sortField, setSortField] = useState<
     'name' | 'class' | 'section' | 'rollNo' | 'monthlyFee' | 'admissionDate' | 'dateOfBirth'
-  >('name');
+  >('rollNo');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [detailsStudent, setDetailsStudent] = useState<Student | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -511,8 +511,11 @@ export default function StudentsPage() {
       if (!av) return -1 * dir;
       if (!bv) return 1 * dir;
       if (field === 'monthlyFee') return (Number(av) - Number(bv)) * dir;
-      if (field === 'admissionDate') {
+      if (field === 'admissionDate' || field === 'dateOfBirth') {
         return (new Date(av).getTime() - new Date(bv).getTime()) * dir;
+      }
+      if (field === 'rollNo') {
+        return String(av).localeCompare(String(bv), undefined, { numeric: true }) * dir;
       }
       return String(av).localeCompare(String(bv)) * dir;
     });

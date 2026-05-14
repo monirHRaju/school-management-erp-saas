@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft, Loader2, CreditCard, TrendingUp, Eye, Plus,
-  Printer, Link2, Copy, Check, CheckSquare, Square, Receipt,
+  Printer, Link2, Copy, Check, CheckSquare, Square, Receipt, Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
-import { getFees, getFeeHistory, collectPayment, createAdditionalFee, collectMultiFees } from '@/lib/fees';
+import { getFees, getFeeHistory, collectPayment, createAdditionalFee, collectMultiFees, deleteFee } from '@/lib/fees';
 import { apiRequest } from '@/lib/api';
 import { openInvoiceWindow, openMultiInvoiceWindow } from '@/lib/invoice';
 import type { Fee, FeeSummary, FeePayment } from '@/types/fee';
@@ -81,6 +81,10 @@ export default function StudentFeeReportPage() {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Delete fee
+  const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -194,6 +198,21 @@ export default function StudentFeeReportPage() {
     if (!linkUrl) return;
     navigator.clipboard.writeText(linkUrl).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); });
   }
+
+  const handleDeleteFee = async () => {
+    if (!token || !feeToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteFee(feeToDelete._id, token);
+      toast.success('Fee entry removed.');
+      setFeeToDelete(null);
+      fetchFees();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Single collect
   const openCollectModal = (fee: Fee) => {
@@ -570,6 +589,14 @@ export default function StudentFeeReportPage() {
                               </Button>
                             </>
                           )}
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setFeeToDelete(fee)}
+                            title="Delete fee"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -768,6 +795,28 @@ export default function StudentFeeReportPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete fee confirmation */}
+      <Dialog open={!!feeToDelete} onOpenChange={(open) => !open && setFeeToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Remove fee entry?</DialogTitle></DialogHeader>
+          {feeToDelete && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Permanently removes <strong>{feeCategoryLabel(feeToDelete)}</strong>
+                {feeToDelete.month ? ` (${feeToDelete.month})` : ''} — ৳{(feeToDelete.total_fee || 0).toLocaleString()}.
+                Payment history and related income records will also be removed.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>Cancel</Button>
+                <Button variant="destructive" onClick={handleDeleteFee} disabled={deleting}>
+                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Remove
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

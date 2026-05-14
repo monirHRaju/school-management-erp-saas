@@ -302,74 +302,121 @@ export default function HomeworkPage() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Subject</th>
-                <th className="px-4 py-3 text-left font-medium">Title</th>
-                <th className="px-4 py-3 text-left font-medium">Class / Section</th>
-                <th className="px-4 py-3 text-left font-medium">Due Date</th>
-                <th className="px-4 py-3 text-left font-medium">Posted By</th>
-                {canManage && <th className="px-4 py-3 text-right font-medium">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {homeworks.map((hw) => (
-                <tr key={hw._id} className="bg-card hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {hw.subject}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-foreground">{hw.title}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">{hw.description}</div>
-                    {hw.attachment_url && (
-                      <a href={hw.attachment_url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary mt-0.5 hover:underline">
-                        <Paperclip className="h-3 w-3" /> Attachment
-                      </a>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {hw.class}{hw.section ? ` — ${hw.section}` : ''}
-                    {hw.group ? <span className="block text-xs">{hw.group}</span> : null}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`font-medium ${isOverdue(hw.due_date) ? 'text-destructive' : 'text-foreground'}`}>
-                      {formatDate(hw.due_date)}
-                    </span>
-                    {isOverdue(hw.due_date) && (
-                      <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-destructive">
-                        <AlertCircle className="h-3 w-3" /> Overdue
+        <>
+          {/* Mobile card view */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {homeworks.map((hw) => (
+              <div key={hw._id} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary shrink-0">
+                    {hw.subject}
+                  </span>
+                  {canManage && canEdit(hw) && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(hw)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(hw)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{hw.title}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{hw.description}</p>
+                  {hw.attachment_url && (
+                    <a href={hw.attachment_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
+                      <Paperclip className="h-3 w-3" /> Attachment
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
+                  <span>Class {hw.class}{hw.section ? ` — ${hw.section}` : ''}{hw.group ? ` (${hw.group})` : ''}</span>
+                  <span className={`font-medium ${isOverdue(hw.due_date) ? 'text-destructive' : 'text-foreground'}`}>
+                    {isOverdue(hw.due_date) && <AlertCircle className="h-3 w-3 inline mr-0.5" />}
+                    Due {formatDate(hw.due_date)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground capitalize">
+                  By {hw.created_by?.name} · {hw.created_by?.role}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Subject</th>
+                  <th className="px-4 py-3 text-left font-medium">Title</th>
+                  <th className="px-4 py-3 text-left font-medium">Class / Section</th>
+                  <th className="px-4 py-3 text-left font-medium">Due Date</th>
+                  <th className="px-4 py-3 text-left font-medium">Posted By</th>
+                  {canManage && <th className="px-4 py-3 text-right font-medium">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {homeworks.map((hw) => (
+                  <tr key={hw._id} className="bg-card hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                        {hw.subject}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground capitalize">
-                    {hw.created_by?.name}
-                    <span className="block text-xs">{hw.created_by?.role}</span>
-                  </td>
-                  {canManage && (
-                    <td className="px-4 py-3 text-right">
-                      {canEdit(hw) && (
-                        <div className="inline-flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(hw)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(hw)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-foreground">{hw.title}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">{hw.description}</div>
+                      {hw.attachment_url && (
+                        <a href={hw.attachment_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary mt-0.5 hover:underline">
+                          <Paperclip className="h-3 w-3" /> Attachment
+                        </a>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {hw.class}{hw.section ? ` — ${hw.section}` : ''}
+                      {hw.group ? <span className="block text-xs">{hw.group}</span> : null}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`font-medium ${isOverdue(hw.due_date) ? 'text-destructive' : 'text-foreground'}`}>
+                        {formatDate(hw.due_date)}
+                      </span>
+                      {isOverdue(hw.due_date) && (
+                        <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-destructive">
+                          <AlertCircle className="h-3 w-3" /> Overdue
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground capitalize">
+                      {hw.created_by?.name}
+                      <span className="block text-xs">{hw.created_by?.role}</span>
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right">
+                        {canEdit(hw) && (
+                          <div className="inline-flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(hw)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(hw)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}

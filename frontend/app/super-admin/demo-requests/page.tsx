@@ -37,7 +37,11 @@ export default function DemoRequestsPage() {
     try {
       const params = new URLSearchParams({ page: String(pg), limit: String(LIMIT) });
       if (q) params.set('search', q);
-      const data = await apiRequest(`/api/demo/requests?${params}`, { token: token ?? undefined });
+      const data = await apiRequest(`/api/demo/requests?${params}`, { token: token ?? undefined }) as {
+        requests?: DemoRequest[];
+        total?: number;
+        totalPages?: number;
+      };
       setRequests(data.requests ?? []);
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);

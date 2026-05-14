@@ -270,4 +270,37 @@ router.get('/report', authMiddleware, requireRole('admin', 'staff', 'teacher'), 
   }
 });
 
+// ─── DELETE /clear ── Remove all attendance records for a date/class (holiday reset) ──
+router.delete('/clear', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const { date, class: cls, section, shift } = req.query;
+
+    if (!date || !cls) {
+      return res.status(400).json({ success: false, error: 'date and class are required.' });
+    }
+
+    const dateObj = new Date(date + 'T00:00:00.000Z');
+
+    // Find student IDs matching the class/section/shift
+    const filter = { school_id: schoolId, status: 'active', class: cls };
+    if (section) filter.section = section;
+    if (shift) filter.shift = shift;
+
+    const students = await Student.find(filter, { _id: 1 }).lean();
+    const studentIds = students.map((s) => s._id);
+
+    const result = await Attendance.deleteMany({
+      school_id: schoolId,
+      date: dateObj,
+      student_id: { $in: studentIds },
+    });
+
+    res.json({ success: true, data: { deleted: result.deletedCount, date, class: cls } });
+  } catch (err) {
+    console.error('Attendance clear error:', err);
+    res.status(500).json({ success: false, error: 'Failed to clear attendance.' });
+  }
+});
+
 module.exports = router;

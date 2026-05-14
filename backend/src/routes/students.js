@@ -52,7 +52,8 @@ router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (r
       const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
       const total = await Student.countDocuments(finalFilter);
       const students = await Student.find(finalFilter)
-        .sort({ createdAt: -1 })
+        .collation({ locale: 'en', numericOrdering: true })
+        .sort({ rollNo: 1, name: 1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
         .lean();
@@ -60,7 +61,10 @@ router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (r
     }
 
     // No pagination — return all (used by dropdowns in other pages)
-    const students = await Student.find(finalFilter).sort({ createdAt: -1 }).lean();
+    const students = await Student.find(finalFilter)
+      .collation({ locale: 'en', numericOrdering: true })
+      .sort({ rollNo: 1, name: 1 })
+      .lean();
     res.json({ success: true, data: students });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
