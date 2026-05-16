@@ -6,6 +6,8 @@ const Fee = require('../models/Fee');
 const Transaction = require('../models/Transaction');
 const Income = require('../models/Income');
 const Attendance = require('../models/Attendance');
+const User = require('../models/User');
+const School = require('../models/School');
 const mongoose = require('mongoose');
 
 const router = express.Router();
@@ -135,8 +137,66 @@ router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant'), asy
       count,
     }));
 
+    // Total / running students
+    const runningStudents = totalStudents; // active count
+    const totalStudentsAll = await Student.countDocuments({ school_id: schoolId });
+
+    // Teachers count
+    const totalTeachers = await User.countDocuments({ school_id: schoolId, role: 'teacher' });
+
+    // SMS balance
+    const schoolDoc = await School.findById(schoolId).select('sms_balance').lean();
+    const smsBalance = schoolDoc?.sms_balance ?? 0;
+
+    // Today income / expense
+    const todayEnd = new Date(todayStart);
+    todayEnd.setUTCHours(23, 59, 59, 999);
+
+    const [todayIncAgg, todayTxIncAgg, todayExpAgg] = await Promise.all([
+      Income.aggregate([
+        { $match: { school_id: schoolId, date: { $gte: todayStart, $lte: todayEnd } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { school_id: schoolId, type: 'income', date: { $gte: todayStart, $lte: todayEnd } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { school_id: schoolId, type: 'expense', date: { $gte: todayStart, $lte: todayEnd } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+    ]);
+    const todayIncome = (todayIncAgg[0]?.total ?? 0) + (todayTxIncAgg[0]?.total ?? 0);
+    const todayExpense = todayExpAgg[0]?.total ?? 0;
+
+    // All-time totals
+    const [totalIncAgg, totalTxIncAgg, totalExpAgg] = await Promise.all([
+      Income.aggregate([
+        { $match: { school_id: schoolId } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { school_id: schoolId, type: 'income' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { school_id: schoolId, type: 'expense' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+    ]);
+    const totalIncome = (totalIncAgg[0]?.total ?? 0) + (totalTxIncAgg[0]?.total ?? 0);
+    const totalExpense = totalExpAgg[0]?.total ?? 0;
+
     const data = {
       totalStudents,
+      totalStudentsAll,
+      runningStudents,
+      totalTeachers,
+      smsBalance,
+      todayIncome,
+      todayExpense,
+      totalIncome,
+      totalExpense,
       todayAttendancePercent,
       monthIncome,
       monthExpense,

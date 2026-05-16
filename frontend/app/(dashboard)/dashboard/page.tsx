@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Users, CreditCard, ClipboardList, Wallet, Settings, ArrowRight,
   TrendingUp, TrendingDown, AlertCircle, CalendarCheck,
+  GraduationCap, UserCheck, MessageSquare, UserPlus, Receipt,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -13,9 +14,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
+import { QuickStudentSearch } from '@/components/QuickStudentSearch';
 
 interface DashboardStats {
   totalStudents: number;
+  totalStudentsAll?: number;
+  runningStudents?: number;
+  totalTeachers?: number;
+  smsBalance?: number;
+  todayIncome?: number;
+  todayExpense?: number;
+  totalIncome?: number;
+  totalExpense?: number;
   todayAttendancePercent: number;
   monthIncome: number;
   monthExpense: number;
@@ -34,39 +44,45 @@ interface DashboardResponse {
   error?: string;
 }
 
+const quickActions = [
+  { key: 'overview', label: 'Overview', href: '/dashboard' },
+  { key: 'admission', label: 'New Admission', href: '/dashboard/students/new' },
+  { key: 'payment', label: 'Take Payment', href: '/dashboard/fees' },
+  { key: 'attendance', label: 'Take Attendance', href: '/dashboard/attendance' },
+];
+
 const quickLinks = [
-  { title: 'Students', desc: 'Manage student records and guardian info', href: '/dashboard/students', icon: Users, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-  { title: 'Fees', desc: 'Fee types, assignments, and payments', href: '/dashboard/fees', icon: CreditCard, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-  { title: 'Attendance', desc: 'Mark and view daily attendance', href: '/dashboard/attendance', icon: ClipboardList, color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+  { title: 'Students', desc: 'Manage student records and guardian info', href: '/dashboard/students', icon: Users, color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+  { title: 'Fees', desc: 'Fee types, assignments, and payments', href: '/dashboard/fees', icon: CreditCard, color: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400' },
+  { title: 'Attendance', desc: 'Mark and view daily attendance', href: '/dashboard/attendance', icon: ClipboardList, color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400' },
   { title: 'Income / Expense', desc: 'Simple income and expense ledger', href: '/dashboard/income-expense', icon: Wallet, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  { title: 'Settings', desc: 'Users and school profile', href: '/dashboard/settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
+  { title: 'Settings', desc: 'Users and school profile', href: '/dashboard/settings', icon: Settings, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
 ];
 
 interface StatCardProps {
   label: string;
   value: string;
   icon: React.ElementType;
-  iconBg: string;
+  gradient: string; // tailwind gradient classes
   iconColor: string;
-  borderColor: string;
   loading?: boolean;
 }
 
-function StatCard({ label, value, icon: Icon, iconBg, iconColor, borderColor, loading }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, gradient, iconColor, loading }: StatCardProps) {
   return (
-    <Card className={`border-l-4 ${borderColor} overflow-hidden`}>
+    <Card className={`overflow-hidden border-0 ${gradient} hover:shadow-md transition-shadow`}>
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
-            {loading ? (
-              <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
-            ) : (
-              <p className="mt-1.5 text-2xl font-bold text-foreground">{value}</p>
-            )}
-          </div>
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/70 dark:bg-black/20 shadow-sm">
             <Icon className={`h-5 w-5 ${iconColor}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+            {loading ? (
+              <div className="h-7 w-16 animate-pulse rounded bg-white/40 dark:bg-white/10" />
+            ) : (
+              <p className="text-2xl font-bold text-foreground tabular-nums leading-tight">{value}</p>
+            )}
+            <p className="text-xs font-medium text-foreground/70 mt-0.5">{label}</p>
           </div>
         </div>
       </CardContent>
@@ -125,15 +141,40 @@ export default function DashboardPage() {
 
   const tkFmt = (v: unknown) => `৳ ${Number(v).toLocaleString()}`;
 
+  const totalStudentsAll = stats?.totalStudentsAll ?? totalStudents;
+  const runningStudents = stats?.runningStudents ?? totalStudents;
+  const totalTeachers = stats?.totalTeachers ?? 0;
+  const smsBalance = stats?.smsBalance ?? 0;
+  const todayIncome = stats?.todayIncome ?? 0;
+  const todayExpense = stats?.todayExpense ?? 0;
+  const totalIncome = stats?.totalIncome ?? 0;
+  const totalExpense = stats?.totalExpense ?? 0;
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          School Overview
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Students, attendance, fees, and finance at a glance.
-        </p>
+    <div className="space-y-6">
+      {/* Quick search */}
+      <div className="pt-2">
+        <QuickStudentSearch />
+      </div>
+
+      {/* Quick action tabs */}
+      <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+        {quickActions.map((a) => {
+          const isActive = a.key === 'overview';
+          return (
+            <Link
+              key={a.key}
+              href={a.href}
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                isActive
+                  ? 'bg-linear-to-r from-violet-600 to-violet-500 text-white shadow-violet-300/40 dark:shadow-violet-900/40'
+                  : 'bg-card border border-border text-foreground hover:border-violet-300 hover:text-violet-600 dark:hover:border-violet-800 dark:hover:text-violet-400'
+              }`}
+            >
+              {a.label}
+            </Link>
+          );
+        })}
       </div>
 
       {error && (
@@ -142,64 +183,100 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stat cards — row 1 */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Stat cards — 8 colored tiles */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Students"
-          value={String(totalStudents)}
+          value={String(totalStudentsAll)}
           icon={Users}
-          iconBg="bg-blue-500/10"
-          iconColor="text-blue-600 dark:text-blue-400"
-          borderColor="border-blue-500"
+          gradient="bg-linear-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-violet-900/20"
+          iconColor="text-violet-600 dark:text-violet-300"
           loading={loading}
         />
+        <StatCard
+          label="Running Students"
+          value={String(runningStudents)}
+          icon={GraduationCap}
+          gradient="bg-linear-to-br from-fuchsia-100 to-fuchsia-50 dark:from-fuchsia-950/40 dark:to-fuchsia-900/20"
+          iconColor="text-fuchsia-600 dark:text-fuchsia-300"
+          loading={loading}
+        />
+        <StatCard
+          label="Total Teachers"
+          value={String(totalTeachers)}
+          icon={UserCheck}
+          gradient="bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-950/40 dark:to-indigo-900/20"
+          iconColor="text-indigo-600 dark:text-indigo-300"
+          loading={loading}
+        />
+        <StatCard
+          label="SMS Balance"
+          value={smsBalance.toLocaleString()}
+          icon={MessageSquare}
+          gradient="bg-linear-to-br from-sky-100 to-sky-50 dark:from-sky-950/40 dark:to-sky-900/20"
+          iconColor="text-sky-600 dark:text-sky-300"
+          loading={loading}
+        />
+        <StatCard
+          label="Total Income"
+          value={`৳ ${totalIncome.toLocaleString()}`}
+          icon={TrendingUp}
+          gradient="bg-linear-to-br from-teal-100 to-teal-50 dark:from-teal-950/40 dark:to-teal-900/20"
+          iconColor="text-teal-600 dark:text-teal-300"
+          loading={loading}
+        />
+        <StatCard
+          label="Today's Income"
+          value={`৳ ${todayIncome.toLocaleString()}`}
+          icon={Receipt}
+          gradient="bg-linear-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/40 dark:to-emerald-900/20"
+          iconColor="text-emerald-600 dark:text-emerald-300"
+          loading={loading}
+        />
+        <StatCard
+          label="Total Expense"
+          value={`৳ ${totalExpense.toLocaleString()}`}
+          icon={TrendingDown}
+          gradient="bg-linear-to-br from-rose-100 to-rose-50 dark:from-rose-950/40 dark:to-rose-900/20"
+          iconColor="text-rose-600 dark:text-rose-300"
+          loading={loading}
+        />
+        <StatCard
+          label="Today's Expense"
+          value={`৳ ${todayExpense.toLocaleString()}`}
+          icon={Wallet}
+          gradient="bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-950/40 dark:to-amber-900/20"
+          iconColor="text-amber-600 dark:text-amber-300"
+          loading={loading}
+        />
+      </div>
+
+      {/* Secondary stat row */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
         <StatCard
           label="Today's Attendance"
           value={`${todayAttendancePercent.toFixed(0)}%`}
           icon={CalendarCheck}
-          iconBg="bg-green-500/10"
-          iconColor="text-green-600 dark:text-green-400"
-          borderColor="border-green-500"
+          gradient="bg-linear-to-br from-cyan-100 to-cyan-50 dark:from-cyan-950/40 dark:to-cyan-900/20"
+          iconColor="text-cyan-600 dark:text-cyan-300"
           loading={loading}
         />
         <StatCard
           label="Total Due Fees"
           value={`৳ ${totalDueFees.toLocaleString()}`}
           icon={AlertCircle}
-          iconBg="bg-amber-500/10"
-          iconColor="text-amber-600 dark:text-amber-400"
-          borderColor="border-amber-500"
-          loading={loading}
-        />
-      </div>
-
-      {/* Stat cards — row 2 */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Month Income"
-          value={`৳ ${monthIncome.toLocaleString()}`}
-          icon={TrendingUp}
-          iconBg="bg-emerald-500/10"
-          iconColor="text-emerald-600 dark:text-emerald-400"
-          borderColor="border-emerald-500"
-          loading={loading}
-        />
-        <StatCard
-          label="Month Expense"
-          value={`৳ ${monthExpense.toLocaleString()}`}
-          icon={TrendingDown}
-          iconBg="bg-rose-500/10"
-          iconColor="text-rose-600 dark:text-rose-400"
-          borderColor="border-rose-500"
+          gradient="bg-linear-to-br from-orange-100 to-orange-50 dark:from-orange-950/40 dark:to-orange-900/20"
+          iconColor="text-orange-600 dark:text-orange-300"
           loading={loading}
         />
         <StatCard
           label="Net Balance"
           value={`৳ ${netBalance.toLocaleString()}`}
           icon={Wallet}
-          iconBg={netPositive ? 'bg-purple-500/10' : 'bg-red-500/10'}
-          iconColor={netPositive ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}
-          borderColor={netPositive ? 'border-purple-500' : 'border-red-500'}
+          gradient={netPositive
+            ? 'bg-linear-to-br from-purple-100 to-purple-50 dark:from-purple-950/40 dark:to-purple-900/20'
+            : 'bg-linear-to-br from-red-100 to-red-50 dark:from-red-950/40 dark:to-red-900/20'}
+          iconColor={netPositive ? 'text-purple-600 dark:text-purple-300' : 'text-red-600 dark:text-red-300'}
           loading={loading}
         />
       </div>
