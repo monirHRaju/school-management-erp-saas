@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Phone } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
+import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 
 type LoginTab = 'staff' | 'guardian';
 
@@ -22,6 +24,7 @@ const DEMO_ACCOUNTS = {
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const t = useTranslations('login');
   const [tab, setTab] = useState<LoginTab>('staff');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -53,10 +56,15 @@ export default function LoginPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
+      {/* Language switcher */}
+      <div className="flex justify-end mb-4">
+        <LocaleSwitcher />
+      </div>
+
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-white">Welcome back</h1>
-        <p className="mt-2 text-zinc-500">Sign in to your school dashboard</p>
+        <h1 className="text-3xl font-extrabold text-white">{t('welcome')}</h1>
+        <p className="mt-2 text-zinc-500">{t('subtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -70,7 +78,7 @@ export default function LoginPage() {
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
-          Admin / Staff
+          {t('adminStaff')}
         </button>
         <button
           type="button"
@@ -81,7 +89,7 @@ export default function LoginPage() {
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
-          Guardian
+          {t('guardian')}
         </button>
       </div>
 
@@ -90,7 +98,7 @@ export default function LoginPage() {
         {tab === 'staff' ? (
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-zinc-400 mb-1.5">
-              Email address
+              {t('emailLabel')}
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
@@ -101,7 +109,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@yourschool.com"
+                placeholder={t('emailPlaceholder')}
                 className="w-full bg-zinc-900 border border-zinc-700/60 text-zinc-100 placeholder-zinc-600 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"
               />
             </div>
@@ -109,7 +117,7 @@ export default function LoginPage() {
         ) : (
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-zinc-400 mb-1.5">
-              Phone number
+              {t('phoneLabel')}
             </label>
             <div className="relative">
               <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
@@ -120,7 +128,7 @@ export default function LoginPage() {
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="01XXXXXXXXX"
+                placeholder={t('phonePlaceholder')}
                 className="w-full bg-zinc-900 border border-zinc-700/60 text-zinc-100 placeholder-zinc-600 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"
               />
             </div>
@@ -131,10 +139,10 @@ export default function LoginPage() {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label htmlFor="password" className="block text-sm font-medium text-zinc-400">
-              Password
+              {t('passwordLabel')}
             </label>
             <button type="button" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-              Forgot password?
+              {t('forgotPassword')}
             </button>
           </div>
           <div className="relative">
@@ -181,7 +189,7 @@ export default function LoginPage() {
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
-              Sign in
+              {t('signIn')}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -190,7 +198,7 @@ export default function LoginPage() {
 
       {/* Demo accounts */}
       <div className="mt-5">
-        <p className="text-xs text-zinc-600 text-center mb-2">Quick demo login</p>
+        <p className="text-xs text-zinc-600 text-center mb-2">{t('quickDemo')}</p>
         <div className="flex flex-wrap gap-2 justify-center">
           {(tab === 'staff' ? DEMO_ACCOUNTS.staff : DEMO_ACCOUNTS.guardian).map((demo) => (
             <button
@@ -218,15 +226,15 @@ export default function LoginPage() {
       {/* Footer links */}
       <div className="mt-6 space-y-3">
         <p className="text-center text-sm text-zinc-600">
-          Don&apos;t have an account?{' '}
+          {t('noAccount')}{' '}
           <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-            Create one free
+            {t('createFree')}
           </Link>
         </p>
         <p className="text-center text-xs text-zinc-700">
-          Super Admin?{' '}
+          {t('superAdmin')}{' '}
           <Link href="/super-admin/login" className="text-zinc-500 hover:text-zinc-400 transition-colors">
-            Log in here →
+            {t('loginHere')}
           </Link>
         </p>
       </div>

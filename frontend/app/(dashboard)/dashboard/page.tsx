@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { QuickStudentSearch } from '@/components/QuickStudentSearch';
+import { useTranslations } from 'next-intl';
 
 interface DashboardStats {
   totalStudents: number;
@@ -44,20 +45,7 @@ interface DashboardResponse {
   error?: string;
 }
 
-const quickActions = [
-  { key: 'overview', label: 'Overview', href: '/dashboard' },
-  { key: 'admission', label: 'New Admission', href: '/dashboard/students/new' },
-  { key: 'payment', label: 'Take Payment', href: '/dashboard/fees' },
-  { key: 'attendance', label: 'Take Attendance', href: '/dashboard/attendance' },
-];
-
-const quickLinks = [
-  { title: 'Students', desc: 'Manage student records and guardian info', href: '/dashboard/students', icon: Users, color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
-  { title: 'Fees', desc: 'Fee types, assignments, and payments', href: '/dashboard/fees', icon: CreditCard, color: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400' },
-  { title: 'Attendance', desc: 'Mark and view daily attendance', href: '/dashboard/attendance', icon: ClipboardList, color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400' },
-  { title: 'Income / Expense', desc: 'Simple income and expense ledger', href: '/dashboard/income-expense', icon: Wallet, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  { title: 'Settings', desc: 'Users and school profile', href: '/dashboard/settings', icon: Settings, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
-];
+// quickActions and quickLinks are built inside the component to use translations
 
 interface StatCardProps {
   label: string;
@@ -92,6 +80,7 @@ function StatCard({ label, value, icon: Icon, gradient, iconColor, loading }: St
 
 export default function DashboardPage() {
   const { token, loading: authLoading } = useAuth();
+  const t = useTranslations('dashboard');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,14 +113,29 @@ export default function DashboardPage() {
 
   const netPositive = netBalance >= 0;
 
+  const quickActions = [
+    { key: 'overview', label: t('overview'), href: '/dashboard' },
+    { key: 'admission', label: t('newAdmission'), href: '/dashboard/students/new' },
+    { key: 'payment', label: t('takePayment'), href: '/dashboard/fees' },
+    { key: 'attendance', label: t('takeAttendance'), href: '/dashboard/attendance' },
+  ];
+
+  const quickLinks = [
+    { title: t('students'), desc: t('manageDesc'), href: '/dashboard/students', icon: Users, color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+    { title: t('fees'), desc: t('feeDesc'), href: '/dashboard/fees', icon: CreditCard, color: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400' },
+    { title: t('attendance'), desc: t('attendanceDesc'), href: '/dashboard/attendance', icon: ClipboardList, color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400' },
+    { title: t('incomeExpense'), desc: t('incomeDesc'), href: '/dashboard/income-expense', icon: Wallet, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    { title: t('settings'), desc: t('settingsDesc'), href: '/dashboard/settings', icon: Settings, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
+  ];
+
   const monthlyFinance = stats?.monthlyFinance ?? [];
   const feeStats = stats?.feeStats ?? { paid: 0, partial: 0, unpaid: 0 };
   const studentsByClass = stats?.studentsByClass ?? [];
 
   const feeStatusData = [
-    { name: 'Paid', value: feeStats.paid, color: '#10b981' },
-    { name: 'Partial', value: feeStats.partial, color: '#f59e0b' },
-    { name: 'Unpaid', value: feeStats.unpaid, color: '#f43f5e' },
+    { name: t('paid'), value: feeStats.paid, color: '#10b981' },
+    { name: t('partial'), value: feeStats.partial, color: '#f59e0b' },
+    { name: t('unpaid'), value: feeStats.unpaid, color: '#f43f5e' },
   ].filter((d) => d.value > 0);
 
   const attendanceData = [
@@ -185,107 +189,28 @@ export default function DashboardPage() {
 
       {/* Stat cards — 8 colored tiles */}
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Students"
-          value={String(totalStudentsAll)}
-          icon={Users}
-          gradient="bg-linear-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-violet-900/20"
-          iconColor="text-violet-600 dark:text-violet-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Running Students"
-          value={String(runningStudents)}
-          icon={GraduationCap}
-          gradient="bg-linear-to-br from-fuchsia-100 to-fuchsia-50 dark:from-fuchsia-950/40 dark:to-fuchsia-900/20"
-          iconColor="text-fuchsia-600 dark:text-fuchsia-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Total Teachers"
-          value={String(totalTeachers)}
-          icon={UserCheck}
-          gradient="bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-950/40 dark:to-indigo-900/20"
-          iconColor="text-indigo-600 dark:text-indigo-300"
-          loading={loading}
-        />
-        <StatCard
-          label="SMS Balance"
-          value={smsBalance.toLocaleString()}
-          icon={MessageSquare}
-          gradient="bg-linear-to-br from-sky-100 to-sky-50 dark:from-sky-950/40 dark:to-sky-900/20"
-          iconColor="text-sky-600 dark:text-sky-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Total Income"
-          value={`৳ ${totalIncome.toLocaleString()}`}
-          icon={TrendingUp}
-          gradient="bg-linear-to-br from-teal-100 to-teal-50 dark:from-teal-950/40 dark:to-teal-900/20"
-          iconColor="text-teal-600 dark:text-teal-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Today's Income"
-          value={`৳ ${todayIncome.toLocaleString()}`}
-          icon={Receipt}
-          gradient="bg-linear-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/40 dark:to-emerald-900/20"
-          iconColor="text-emerald-600 dark:text-emerald-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Total Expense"
-          value={`৳ ${totalExpense.toLocaleString()}`}
-          icon={TrendingDown}
-          gradient="bg-linear-to-br from-rose-100 to-rose-50 dark:from-rose-950/40 dark:to-rose-900/20"
-          iconColor="text-rose-600 dark:text-rose-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Today's Expense"
-          value={`৳ ${todayExpense.toLocaleString()}`}
-          icon={Wallet}
-          gradient="bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-950/40 dark:to-amber-900/20"
-          iconColor="text-amber-600 dark:text-amber-300"
-          loading={loading}
-        />
+        <StatCard label={t('totalStudents')} value={String(totalStudentsAll)} icon={Users} gradient="bg-linear-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-violet-900/20" iconColor="text-violet-600 dark:text-violet-300" loading={loading} />
+        <StatCard label={t('runningStudents')} value={String(runningStudents)} icon={GraduationCap} gradient="bg-linear-to-br from-fuchsia-100 to-fuchsia-50 dark:from-fuchsia-950/40 dark:to-fuchsia-900/20" iconColor="text-fuchsia-600 dark:text-fuchsia-300" loading={loading} />
+        <StatCard label={t('teachers')} value={String(totalTeachers)} icon={UserCheck} gradient="bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-950/40 dark:to-indigo-900/20" iconColor="text-indigo-600 dark:text-indigo-300" loading={loading} />
+        <StatCard label={t('smsBalance')} value={smsBalance.toLocaleString()} icon={MessageSquare} gradient="bg-linear-to-br from-sky-100 to-sky-50 dark:from-sky-950/40 dark:to-sky-900/20" iconColor="text-sky-600 dark:text-sky-300" loading={loading} />
+        <StatCard label={t('totalIncome')} value={`৳ ${totalIncome.toLocaleString()}`} icon={TrendingUp} gradient="bg-linear-to-br from-teal-100 to-teal-50 dark:from-teal-950/40 dark:to-teal-900/20" iconColor="text-teal-600 dark:text-teal-300" loading={loading} />
+        <StatCard label={t('todayIncome')} value={`৳ ${todayIncome.toLocaleString()}`} icon={Receipt} gradient="bg-linear-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/40 dark:to-emerald-900/20" iconColor="text-emerald-600 dark:text-emerald-300" loading={loading} />
+        <StatCard label={t('totalExpense')} value={`৳ ${totalExpense.toLocaleString()}`} icon={TrendingDown} gradient="bg-linear-to-br from-rose-100 to-rose-50 dark:from-rose-950/40 dark:to-rose-900/20" iconColor="text-rose-600 dark:text-rose-300" loading={loading} />
+        <StatCard label={t('todayExpense')} value={`৳ ${todayExpense.toLocaleString()}`} icon={Wallet} gradient="bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-950/40 dark:to-amber-900/20" iconColor="text-amber-600 dark:text-amber-300" loading={loading} />
       </div>
 
       {/* Secondary stat row */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-        <StatCard
-          label="Today's Attendance"
-          value={`${todayAttendancePercent.toFixed(0)}%`}
-          icon={CalendarCheck}
-          gradient="bg-linear-to-br from-cyan-100 to-cyan-50 dark:from-cyan-950/40 dark:to-cyan-900/20"
-          iconColor="text-cyan-600 dark:text-cyan-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Total Due Fees"
-          value={`৳ ${totalDueFees.toLocaleString()}`}
-          icon={AlertCircle}
-          gradient="bg-linear-to-br from-orange-100 to-orange-50 dark:from-orange-950/40 dark:to-orange-900/20"
-          iconColor="text-orange-600 dark:text-orange-300"
-          loading={loading}
-        />
-        <StatCard
-          label="Net Balance"
-          value={`৳ ${netBalance.toLocaleString()}`}
-          icon={Wallet}
-          gradient={netPositive
-            ? 'bg-linear-to-br from-purple-100 to-purple-50 dark:from-purple-950/40 dark:to-purple-900/20'
-            : 'bg-linear-to-br from-red-100 to-red-50 dark:from-red-950/40 dark:to-red-900/20'}
-          iconColor={netPositive ? 'text-purple-600 dark:text-purple-300' : 'text-red-600 dark:text-red-300'}
-          loading={loading}
-        />
+        <StatCard label={t('todayAttendance')} value={`${todayAttendancePercent.toFixed(0)}%`} icon={CalendarCheck} gradient="bg-linear-to-br from-cyan-100 to-cyan-50 dark:from-cyan-950/40 dark:to-cyan-900/20" iconColor="text-cyan-600 dark:text-cyan-300" loading={loading} />
+        <StatCard label={t('dueFees')} value={`৳ ${totalDueFees.toLocaleString()}`} icon={AlertCircle} gradient="bg-linear-to-br from-orange-100 to-orange-50 dark:from-orange-950/40 dark:to-orange-900/20" iconColor="text-orange-600 dark:text-orange-300" loading={loading} />
+        <StatCard label={t('netBalance')} value={`৳ ${netBalance.toLocaleString()}`} icon={Wallet} gradient={netPositive ? 'bg-linear-to-br from-purple-100 to-purple-50 dark:from-purple-950/40 dark:to-purple-900/20' : 'bg-linear-to-br from-red-100 to-red-50 dark:from-red-950/40 dark:to-red-900/20'} iconColor={netPositive ? 'text-purple-600 dark:text-purple-300' : 'text-red-600 dark:text-red-300'} loading={loading} />
       </div>
 
       {/* Charts row 1 — Monthly Finance + Fee Status */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Monthly Income vs Expense</CardTitle>
+            <CardTitle className="text-base">{t('monthlyFinance')}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -308,7 +233,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Fee Status</CardTitle>
+            <CardTitle className="text-base">{t('feeStatus')}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -343,7 +268,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Students by Class</CardTitle>
+            <CardTitle className="text-base">{t('studentsByClass')}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -366,7 +291,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Today&apos;s Attendance</CardTitle>
+            <CardTitle className="text-base">{t('attendanceToday')}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -403,7 +328,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between gap-2 mb-4">
-              <h2 className="text-base font-semibold">Recent Activity</h2>
+              <h2 className="text-base font-semibold">{t('recentActivity')}</h2>
               <span className="text-xs text-muted-foreground">
                 {loading ? 'Loading...' : 'Live from your data'}
               </span>
@@ -472,7 +397,7 @@ export default function DashboardPage() {
 
         {/* Quick links */}
         <div className="space-y-3">
-          <h2 className="text-base font-semibold">Quick Links</h2>
+          <h2 className="text-base font-semibold">{t('quickLinks')}</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             {quickLinks.map(({ title, desc, href, icon: Icon, color }) => (
               <Link key={href} href={href}>

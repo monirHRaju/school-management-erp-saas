@@ -11,8 +11,14 @@
   --brand-light: #F8FAFC;
 }
 
+/* Bengali script uses Noto Sans Bengali; Latin falls back to Geist */
+:lang(bn) {
+  font-family: var(--font-noto-bengali), var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Utility class for explicitly Bengali text blocks */
 .font-bengali {
-  font-family: var(--font-hind-siliguri), sans-serif;
+  font-family: var(--font-noto-bengali), system-ui, sans-serif;
 }
 
 @custom-variant dark (&:is(.dark *));

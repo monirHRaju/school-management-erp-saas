@@ -32,9 +32,11 @@ import {
   SlidersHorizontal,
   BookMarked,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/NotificationBell';
+import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
@@ -42,118 +44,118 @@ type Role = 'admin' | 'staff' | 'accountant' | 'guardian' | 'teacher';
 
 interface NavLeaf {
   href: string;
-  label: string;
+  labelKey: string;
   icon?: LucideIcon;
 }
 
 interface NavItem {
   key: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   roles: Role[];
-  href?: string; // single link
-  children?: NavLeaf[]; // collapsible group
+  href?: string;
+  children?: NavLeaf[];
 }
 
 const navItems: NavItem[] = [
   {
     key: 'dashboard',
-    label: 'Dashboard',
+    labelKey: 'dashboard',
     icon: LayoutDashboard,
     href: '/dashboard',
     roles: ['admin', 'staff', 'accountant', 'teacher'],
   },
   {
     key: 'new-admission',
-    label: 'New Admission',
+    labelKey: 'newAdmission',
     icon: UserPlus,
     href: '/dashboard/students/new',
     roles: ['admin', 'staff'],
   },
   {
     key: 'students',
-    label: 'Students',
+    labelKey: 'students',
     icon: GraduationCap,
     roles: ['admin', 'staff', 'teacher'],
     children: [
-      { href: '/dashboard/students', label: 'All Students' },
-      { href: '/dashboard/students/admit-card', label: 'Admit Card', icon: IdCard },
+      { href: '/dashboard/students', labelKey: 'allStudents' },
+      { href: '/dashboard/students/admit-card', labelKey: 'admitCard', icon: IdCard },
     ],
   },
   {
     key: 'accounts',
-    label: 'Accounts',
+    labelKey: 'accounts',
     icon: Wallet,
     roles: ['admin', 'staff', 'accountant'],
     children: [
-      { href: '/dashboard/fees', label: 'Fees & Due', icon: Receipt },
-      { href: '/dashboard/income', label: 'Income', icon: TrendingUp },
-      { href: '/dashboard/income-expense', label: 'Income / Expense', icon: ArrowLeftRight },
+      { href: '/dashboard/fees', labelKey: 'feesAndDue', icon: Receipt },
+      { href: '/dashboard/income', labelKey: 'income', icon: TrendingUp },
+      { href: '/dashboard/income-expense', labelKey: 'incomeExpense', icon: ArrowLeftRight },
     ],
   },
   {
     key: 'attendance',
-    label: 'Attendance',
+    labelKey: 'attendance',
     icon: CalendarCheck,
     roles: ['admin', 'staff', 'teacher'],
     children: [
-      { href: '/dashboard/attendance', label: 'Take Attendance' },
-      { href: '/dashboard/attendance?tab=monthly', label: 'Attendance Report' },
-      { href: '/dashboard/attendance?tab=holidays', label: 'Holidays', icon: PartyPopper },
+      { href: '/dashboard/attendance', labelKey: 'takeAttendance' },
+      { href: '/dashboard/attendance?tab=monthly', labelKey: 'attendanceReport' },
+      { href: '/dashboard/attendance?tab=holidays', labelKey: 'holidays', icon: PartyPopper },
     ],
   },
   {
     key: 'homework',
-    label: 'Homework',
+    labelKey: 'homework',
     icon: BookOpen,
     href: '/dashboard/homework',
     roles: ['admin', 'staff', 'teacher'],
   },
   {
     key: 'sms',
-    label: 'Bulk SMS',
+    labelKey: 'bulkSMS',
     icon: MessageSquare,
     roles: ['admin'],
     children: [
-      { href: '/dashboard/sms', label: 'Send SMS' },
-      { href: '/dashboard/sms-order', label: 'Buy SMS', icon: ShoppingCart },
+      { href: '/dashboard/sms', labelKey: 'sendSMS' },
+      { href: '/dashboard/sms-order', labelKey: 'buySMS', icon: ShoppingCart },
     ],
   },
   {
     key: 'notices',
-    label: 'Notices',
+    labelKey: 'notices',
     icon: Megaphone,
     roles: ['admin', 'staff', 'accountant', 'teacher'],
     children: [
-      { href: '/dashboard/school-notices', label: 'School Notices' },
-      { href: '/dashboard/notices', label: 'System Notices', icon: Bell },
+      { href: '/dashboard/school-notices', labelKey: 'schoolNotices' },
+      { href: '/dashboard/notices', labelKey: 'systemNotices', icon: Bell },
     ],
   },
   {
     key: 'manage-users',
-    label: 'Manage Users',
+    labelKey: 'manageUsers',
     icon: Users,
     roles: ['admin'],
     children: [
-      { href: '/dashboard/users', label: 'Staff & Users' },
-      { href: '/dashboard/teachers', label: 'Teachers', icon: UserCheck },
+      { href: '/dashboard/users', labelKey: 'staffAndUsers' },
+      { href: '/dashboard/teachers', labelKey: 'teachers', icon: UserCheck },
     ],
   },
   {
     key: 'subscription',
-    label: 'Subscription',
+    labelKey: 'subscription',
     icon: CreditCard,
     href: '/dashboard/subscription',
     roles: ['admin'],
   },
   {
     key: 'settings',
-    label: 'Settings',
+    labelKey: 'settings',
     icon: Settings,
     roles: ['admin'],
     children: [
-      { href: '/dashboard/settings', label: 'General', icon: SlidersHorizontal },
-      { href: '/dashboard/settings/academic', label: 'Academic', icon: BookMarked },
+      { href: '/dashboard/settings', labelKey: 'general', icon: SlidersHorizontal },
+      { href: '/dashboard/settings/academic', labelKey: 'academic', icon: BookMarked },
     ],
   },
 ];
@@ -175,6 +177,7 @@ function NavGroup({
   onToggleGroup,
   onLinkClick,
   mobile = false,
+  t,
 }: {
   items: NavItem[];
   pathname: string;
@@ -183,11 +186,13 @@ function NavGroup({
   onToggleGroup: (key: string) => void;
   onLinkClick?: () => void;
   mobile?: boolean;
+  t: ReturnType<typeof useTranslations<'nav'>>;
 }) {
   return (
     <>
       {items.map((item) => {
-        const { key, label, icon: Icon, href, children } = item;
+        const { key, labelKey, icon: Icon, href, children } = item;
+        const label = t(labelKey as Parameters<typeof t>[0]);
 
         // Single link
         if (href) {
@@ -249,6 +254,7 @@ function NavGroup({
                 {children.map((leaf) => {
                   const ChildIcon = leaf.icon;
                   const childActive = isLinkActive(pathname, leaf.href);
+                  const childLabel = t(leaf.labelKey as Parameters<typeof t>[0]);
                   return (
                     <Link
                       key={leaf.href}
@@ -261,7 +267,7 @@ function NavGroup({
                       }`}
                     >
                       {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />}
-                      <span className="truncate">{leaf.label}</span>
+                      <span className="truncate">{childLabel}</span>
                     </Link>
                   );
                 })}
@@ -277,6 +283,8 @@ function NavGroup({
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, loading, user, school, logout } = useAuth();
+  const t = useTranslations('nav');
+  const tHeader = useTranslations('header');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -356,7 +364,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );
@@ -366,14 +374,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return null;
   }
 
+  // Build a human-readable page title from the pathname
   const pageTitle =
     pathname === '/dashboard'
-      ? 'Dashboard'
+      ? t('dashboard')
       : pathname
           .split('/')
           .slice(2)
           .map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' '))
-          .join(' / ') || 'Dashboard';
+          .join(' / ') || t('dashboard');
 
   const schoolInitial = (school?.name || 'S')[0].toUpperCase();
 
@@ -388,12 +397,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }`}
       >
         <div className="flex h-full flex-col">
-          {/* Header */}
+          {/* Sidebar header */}
           <div className="flex items-center justify-between border-b border-sidebar-border p-4 min-h-14.25">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2.5 min-w-0"
-            >
+            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
               {showLabels ? (
                 <span className="text-lg font-semibold tracking-tight text-sidebar-foreground truncate">
                   {school?.name || 'School'}
@@ -408,7 +414,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 onClick={toggleCollapsed}
                 className="rounded-md p-1.5 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={tHeader('collapseExpand')}
               >
                 <ChevronLeft className={`h-4 w-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} />
               </button>
@@ -423,16 +429,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               showLabels={showLabels}
               openGroups={openGroups}
               onToggleGroup={toggleGroup}
+              t={t}
             />
           </div>
 
-          {/* Footer collapse */}
+          {/* Collapsed expand button */}
           {!showLabels && (
             <div className="border-t border-sidebar-border p-2">
               <button
                 onClick={toggleCollapsed}
                 className="flex w-full items-center justify-center rounded-lg p-2.5 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-                aria-label="Expand sidebar"
+                aria-label={tHeader('expandSidebar')}
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -458,6 +465,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onToggleGroup={toggleGroup}
               onLinkClick={() => setMobileMenuOpen(false)}
               mobile
+              t={t}
             />
           </nav>
         </SheetContent>
@@ -465,35 +473,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Top header */}
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <Button
             variant="ghost"
             size="icon"
             className="md:hidden"
             onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open menu"
+            aria-label={tHeader('openMenu')}
           >
             <Menu className="h-5 w-5" />
           </Button>
+
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-medium text-foreground md:text-base">
               {pageTitle}
             </h1>
           </div>
-          <div className="flex items-center gap-1">
+
+          <div className="flex items-center gap-1.5">
+            {/* Language switcher */}
+            <LocaleSwitcher />
+
             <ThemeToggle />
             <NotificationBell noticesHref="/dashboard/school-notices" />
+
             <div className="hidden items-center gap-2 border-l border-border pl-3 md:flex">
-              <Link href="/dashboard/profile" className="text-sm text-foreground hover:text-primary transition-colors">
+              <Link
+                href="/dashboard/profile"
+                className="text-sm text-foreground hover:text-primary transition-colors"
+              >
                 {user?.name}
               </Link>
               <span className="text-xs text-muted-foreground">({user?.role})</span>
             </div>
+
             <Button
               variant="ghost"
               size="icon"
               onClick={logout}
-              aria-label="Log out"
+              aria-label={tHeader('logout')}
               className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4" />
