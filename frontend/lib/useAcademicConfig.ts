@@ -9,12 +9,15 @@ export interface ClassSubjects {
   subjects: string[];
 }
 
+export type Weekday = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+
 export interface AcademicConfig {
   classes: string[];
   sections: string[];
   shifts: string[];
   groups: string[];
   classSubjects: ClassSubjects[];
+  weeklyHolidays: Weekday[];
 }
 
 const DEFAULTS: AcademicConfig = {
@@ -23,6 +26,7 @@ const DEFAULTS: AcademicConfig = {
   shifts: ['Morning', 'Day'],
   groups: ['General', 'Science', 'Commerce', 'Arts'],
   classSubjects: [],
+  weeklyHolidays: ['Friday'],
 };
 
 // Simple in-memory cache so multiple components don't re-fetch
@@ -56,6 +60,7 @@ export function useAcademicConfig() {
         shifts: res.data.shifts ?? DEFAULTS.shifts,
         groups: res.data.groups ?? DEFAULTS.groups,
         classSubjects: res.data.classSubjects ?? [],
+        weeklyHolidays: res.data.weeklyHolidays ?? DEFAULTS.weeklyHolidays,
       };
       cache = { data, ts: Date.now() };
       setConfig(data);

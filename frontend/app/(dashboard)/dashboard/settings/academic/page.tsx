@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, X, Loader2, GraduationCap, BookOpen } from 'lucide-react';
+import { Plus, X, Loader2, GraduationCap, BookOpen, CalendarOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
-import { invalidateAcademicConfigCache, type ClassSubjects } from '@/lib/useAcademicConfig';
+import { invalidateAcademicConfigCache, type ClassSubjects, type Weekday } from '@/lib/useAcademicConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,9 +16,12 @@ interface ConfigData {
   shifts: string[];
   groups: string[];
   classSubjects: ClassSubjects[];
+  weeklyHolidays: Weekday[];
 }
 
-const CATEGORY_LABELS: { key: keyof Omit<ConfigData, 'classSubjects'>; label: string }[] = [
+const ALL_WEEKDAYS: Weekday[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const CATEGORY_LABELS: { key: keyof Omit<ConfigData, 'classSubjects' | 'weeklyHolidays'>; label: string }[] = [
   { key: 'classes', label: 'Classes' },
   { key: 'sections', label: 'Sections' },
   { key: 'shifts', label: 'Shifts' },
@@ -27,7 +30,7 @@ const CATEGORY_LABELS: { key: keyof Omit<ConfigData, 'classSubjects'>; label: st
 
 export default function AcademicSettingsPage() {
   const { token } = useAuth();
-  const [config, setConfig] = useState<ConfigData>({ classes: [], sections: [], shifts: [], groups: [], classSubjects: [] });
+  const [config, setConfig] = useState<ConfigData>({ classes: [], sections: [], shifts: [], groups: [], classSubjects: [], weeklyHolidays: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newValues, setNewValues] = useState<Record<string, string>>({ classes: '', sections: '', shifts: '', groups: '' });
@@ -40,7 +43,7 @@ export default function AcademicSettingsPage() {
     if (!token) return;
     try {
       const res = await apiRequest<{ success: boolean; data: ConfigData }>('/api/academic-config', { token });
-      setConfig({ ...res.data, classSubjects: res.data.classSubjects ?? [] });
+      setConfig({ ...res.data, classSubjects: res.data.classSubjects ?? [], weeklyHolidays: res.data.weeklyHolidays ?? [] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load config');
     } finally {
@@ -66,7 +69,7 @@ export default function AcademicSettingsPage() {
         body: JSON.stringify(updated),
         token,
       });
-      setConfig({ ...res.data, classSubjects: res.data.classSubjects ?? [] });
+      setConfig({ ...res.data, classSubjects: res.data.classSubjects ?? [], weeklyHolidays: res.data.weeklyHolidays ?? [] });
       invalidateAcademicConfigCache();
       toast.success('Settings saved');
     } catch (e) {
@@ -76,7 +79,7 @@ export default function AcademicSettingsPage() {
     }
   };
 
-  const addItem = (key: keyof Omit<ConfigData, 'classSubjects'>) => {
+  const addItem = (key: keyof Omit<ConfigData, 'classSubjects' | 'weeklyHolidays'>) => {
     const val = newValues[key]?.trim();
     if (!val) return;
     if (config[key].includes(val)) { toast.error(`"${val}" already exists`); return; }
@@ -86,8 +89,17 @@ export default function AcademicSettingsPage() {
     save(updated);
   };
 
-  const removeItem = (key: keyof Omit<ConfigData, 'classSubjects'>, index: number) => {
+  const removeItem = (key: keyof Omit<ConfigData, 'classSubjects' | 'weeklyHolidays'>, index: number) => {
     const updated = { ...config, [key]: config[key].filter((_, i) => i !== index) };
+    setConfig(updated);
+    save(updated);
+  };
+
+  // Weekly holidays helpers
+  const toggleWeeklyHoliday = (day: Weekday) => {
+    const current = config.weeklyHolidays || [];
+    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+    const updated = { ...config, weeklyHolidays: next };
     setConfig(updated);
     save(updated);
   };
@@ -173,6 +185,44 @@ export default function AcademicSettingsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Weekly Holidays card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CalendarOff className="h-4 w-4" />
+            Weekly Holidays
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Select day(s) of the week that are weekly off. These days are automatically marked as holiday in attendance and excluded from attendance percentage.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {ALL_WEEKDAYS.map((day) => {
+              const active = (config.weeklyHolidays || []).includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleWeeklyHoliday(day)}
+                  disabled={saving}
+                  className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium border transition-colors disabled:opacity-50 ${
+                    active
+                      ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                      : 'bg-muted/50 border-border hover:bg-muted text-foreground'
+                  }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          {(config.weeklyHolidays || []).length === 0 && (
+            <p className="text-xs text-muted-foreground italic mt-3">No weekly holiday selected.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Class Subjects card — full width */}
       <Card>
