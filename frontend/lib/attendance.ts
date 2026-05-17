@@ -1,8 +1,11 @@
 import { apiRequest } from './api';
 import type {
+  AttendanceStatus,
   DailyAttendanceResponse,
   MonthlyAttendanceResponse,
   ReportResponse,
+  StudentMonthlyResponse,
+  StudentYearlyResponse,
 } from '@/types/attendance';
 
 export function getDailyAttendance(
@@ -23,14 +26,17 @@ export function markAttendance(
   cls: string,
   section: string,
   shift: string,
-  records: { student_id: string; status: 'present' | 'absent' }[],
+  records: { student_id: string; status: AttendanceStatus }[],
   token: string
 ) {
-  return apiRequest<{ success: boolean; data: { marked: number } }>('/api/attendance/mark', {
-    method: 'POST',
-    body: JSON.stringify({ date, class: cls, section, shift, records }),
-    token,
-  });
+  return apiRequest<{ success: boolean; data: { marked: number; smsSent?: number } }>(
+    '/api/attendance/mark',
+    {
+      method: 'POST',
+      body: JSON.stringify({ date, class: cls, section, shift, records }),
+      token,
+    }
+  );
 }
 
 export function getMonthlyAttendance(
@@ -48,6 +54,34 @@ export function getMonthlyAttendance(
 
 export function getAttendanceReport(month: string, token: string) {
   return apiRequest<ReportResponse>(`/api/attendance/report?month=${month}`, { token });
+}
+
+export function getStudentMonthlyReport(
+  month: string,
+  filters: { class?: string; section?: string; shift?: string; student_id?: string; search?: string },
+  token: string
+) {
+  const params = new URLSearchParams({ month });
+  if (filters.class) params.set('class', filters.class);
+  if (filters.section) params.set('section', filters.section);
+  if (filters.shift) params.set('shift', filters.shift);
+  if (filters.student_id) params.set('student_id', filters.student_id);
+  if (filters.search) params.set('search', filters.search);
+  return apiRequest<StudentMonthlyResponse>(`/api/attendance/student-monthly?${params}`, { token });
+}
+
+export function getStudentYearlyReport(
+  year: string | number,
+  filters: { class?: string; section?: string; shift?: string; student_id?: string; search?: string },
+  token: string
+) {
+  const params = new URLSearchParams({ year: String(year) });
+  if (filters.class) params.set('class', filters.class);
+  if (filters.section) params.set('section', filters.section);
+  if (filters.shift) params.set('shift', filters.shift);
+  if (filters.student_id) params.set('student_id', filters.student_id);
+  if (filters.search) params.set('search', filters.search);
+  return apiRequest<StudentYearlyResponse>(`/api/attendance/student-yearly?${params}`, { token });
 }
 
 export interface Holiday {

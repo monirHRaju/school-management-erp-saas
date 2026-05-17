@@ -13,7 +13,10 @@ const DEFAULTS = {
   sections: ['A', 'B', 'C', 'D'],
   shifts: ['Morning', 'Day'],
   groups: ['General', 'Science', 'Commerce', 'Arts'],
+  weeklyHolidays: ['Friday'],
 };
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // GET /api/academic-config — return config (auto-seed defaults if none)
 router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
@@ -35,12 +38,15 @@ router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (r
 // PATCH /api/academic-config — update arrays (admin only)
 router.patch('/', requireRole('admin'), async (req, res) => {
   try {
-    const { classes, sections, shifts, groups, classSubjects } = req.body;
+    const { classes, sections, shifts, groups, classSubjects, weeklyHolidays } = req.body;
     const update = {};
     if (Array.isArray(classes)) update.classes = classes.map((c) => String(c).trim()).filter(Boolean);
     if (Array.isArray(sections)) update.sections = sections.map((s) => String(s).trim()).filter(Boolean);
     if (Array.isArray(shifts)) update.shifts = shifts.map((s) => String(s).trim()).filter(Boolean);
     if (Array.isArray(groups)) update.groups = groups.map((g) => String(g).trim()).filter(Boolean);
+    if (Array.isArray(weeklyHolidays)) {
+      update.weeklyHolidays = weeklyHolidays.map((d) => String(d).trim()).filter((d) => WEEKDAYS.includes(d));
+    }
     if (Array.isArray(classSubjects)) {
       update.classSubjects = classSubjects
         .filter((cs) => cs.class && String(cs.class).trim())

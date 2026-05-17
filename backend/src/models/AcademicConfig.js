@@ -11,6 +11,11 @@ const academicConfigSchema = new mongoose.Schema(
       class: { type: String, required: true, trim: true },
       subjects: [{ type: String, trim: true }],
     }],
+    // Weekly off-days (e.g. ['Friday'] or ['Friday','Saturday'])
+    weeklyHolidays: {
+      type: [{ type: String, enum: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }],
+      default: ['Friday'],
+    },
   },
   { timestamps: true }
 );
