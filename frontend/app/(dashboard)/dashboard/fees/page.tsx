@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { CreditCard, Loader2, Calendar, Users, UserPlus, FileText, Eye, Trash2, Link2, Copy, Check, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -57,6 +58,8 @@ const selectCls = cn(
 );
 
 export default function FeesPage() {
+  const t = useTranslations('fees');
+  const tc = useTranslations('common');
   const { token, user, school } = useAuth();
   const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string; nameBn?: string } | null>(null);
   const { classes: CLASS_OPTIONS, sections: SECTION_OPTIONS, shifts: SHIFT_OPTIONS } = useAcademicConfig();
@@ -392,21 +395,21 @@ export default function FeesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Fees &amp; Due</h1>
-        <p className="mt-1 text-muted-foreground">Generate fees, record payments, and view due list.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="mt-1 text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-muted-foreground">Total due amount</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('totalDueAmount')}</p>
             <p className="mt-2 text-2xl font-semibold">৳ {summary.totalDue.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-muted-foreground">Unpaid / partial count</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('unpaidCount')}</p>
             <p className="mt-2 text-2xl font-semibold">{summary.unpaidCount}</p>
           </CardContent>
         </Card>
@@ -417,16 +420,16 @@ export default function FeesPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Generate Monthly Fees
+            {t('generateMonthly')}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Auto-create monthly fee entries for all active students based on their monthly fee amount.
+            {t('generateMonthlyDesc')}
           </p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2">
-              <Label htmlFor="generate-month">Month</Label>
+              <Label htmlFor="generate-month">{t('month')}</Label>
               <Input
                 id="generate-month"
                 type="month"
@@ -441,7 +444,7 @@ export default function FeesPage() {
               className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Generate month
+              {t('generateMonth')}
             </Button>
           </div>
         </CardContent>
@@ -452,49 +455,49 @@ export default function FeesPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Batch / Class Wise Fee Generation
+            {t('batchFee')}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Generate a specific fee for all students in a class, section, or shift at once.
+            {t('batchFeeDesc')}
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleBatchGenerate}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <div className="space-y-2">
-                <Label>Category *</Label>
+                <Label>{t('category')} *</Label>
                 <select value={batchCategory} onChange={(e) => setBatchCategory(e.target.value)} className={selectCls}>
-                  <option value="">Select category</option>
+                  <option value="">{t('selectCategory')}</option>
                   {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Class *</Label>
+                <Label>{t('class')} *</Label>
                 <select value={batchClass} onChange={(e) => setBatchClass(e.target.value)} className={selectCls}>
-                  <option value="">Select class</option>
+                  <option value="">{t('selectClass')}</option>
                   {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Section</Label>
+                <Label>{t('section')}</Label>
                 <select value={batchSection} onChange={(e) => setBatchSection(e.target.value)} className={selectCls}>
-                  <option value="">All sections</option>
+                  <option value="">{t('allSections')}</option>
                   {SECTION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Shift / Batch</Label>
+                <Label>{t('shiftBatch')}</Label>
                 <select value={batchShift} onChange={(e) => setBatchShift(e.target.value)} className={selectCls}>
-                  <option value="">All shifts</option>
+                  <option value="">{t('allShifts')}</option>
                   {SHIFT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Month</Label>
+                <Label>{t('month')}</Label>
                 <Input type="month" value={batchMonth} onChange={(e) => setBatchMonth(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Amount (৳) *</Label>
+                <Label>{t('amount')} *</Label>
                 <Input
                   type="number"
                   min="1"
@@ -506,7 +509,7 @@ export default function FeesPage() {
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
-                <Label>Description (optional)</Label>
+                <Label>{t('descriptionOptional')}</Label>
                 <Input
                   value={batchDescription}
                   onChange={(e) => setBatchDescription(e.target.value)}
@@ -516,7 +519,7 @@ export default function FeesPage() {
               <div className="flex items-end">
                 <Button type="submit" disabled={batchGenerating} className="bg-emerald-600 text-white hover:bg-emerald-700">
                   {batchGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Batch Fee
+                  {t('generateBatch')}
                 </Button>
               </div>
             </div>
@@ -529,33 +532,33 @@ export default function FeesPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
-            Add Individual Student Fee
+            {t('individualFee')}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Add a specific fee (admission, exam, fine, etc.) for a single student.
+            {t('individualFeeDesc')}
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleIndivSubmit}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <div className="space-y-2">
-                <Label>Student *</Label>
+                <Label>{t('student')} *</Label>
                 <select value={indivStudentId} onChange={(e) => setIndivStudentId(e.target.value)} className={selectCls}>
-                  <option value="">Select student</option>
+                  <option value="">{t('selectStudent')}</option>
                   {students.map((s) => (
                     <option key={s._id} value={s._id}>{s.name}{s.class ? ` (${s.class})` : ''}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Category *</Label>
+                <Label>{t('category')} *</Label>
                 <select value={indivCategory} onChange={(e) => setIndivCategory(e.target.value)} className={selectCls}>
-                  <option value="">Select category</option>
+                  <option value="">{t('selectCategory')}</option>
                   {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Description (optional)</Label>
+                <Label>{t('descriptionOptional')}</Label>
                 <Input
                   value={indivDescription}
                   onChange={(e) => setIndivDescription(e.target.value)}
@@ -563,11 +566,11 @@ export default function FeesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Month (optional)</Label>
+                <Label>{t('monthOptional')}</Label>
                 <Input type="month" value={indivMonth} onChange={(e) => setIndivMonth(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Amount (৳) *</Label>
+                <Label>{t('amount')} *</Label>
                 <Input
                   type="number"
                   min="1"
@@ -580,7 +583,7 @@ export default function FeesPage() {
             <div className="mt-4">
               <Button type="submit" disabled={indivSubmitting}>
                 {indivSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Add Fee
+                {t('addFee')}
               </Button>
             </div>
           </form>
@@ -592,35 +595,35 @@ export default function FeesPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            Due list
+            {t('dueList')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
-              <Label>Month</Label>
+              <Label>{t('month')}</Label>
               <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={selectCls}>
-                <option value="">All</option>
+                <option value="">{tc('all')}</option>
                 {MONTH_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{t('category')}</Label>
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectCls}>
-                <option value="">All categories</option>
+                <option value="">{t('allCategories')}</option>
                 {feeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>{t('status')}</Label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as '' | 'unpaid' | 'partial' | 'paid')} className={selectCls}>
                 {STATUS_OPTIONS.map((o) => <option key={o.value || 'all'} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Class</Label>
+              <Label>{t('class')}</Label>
               <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className={selectCls}>
-                <option value="">All</option>
+                <option value="">{tc('all')}</option>
                 {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -632,24 +635,24 @@ export default function FeesPage() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : fees.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">No fees match the filters. Generate fees first.</p>
+            <p className="py-8 text-center text-muted-foreground">{t('noFees')}</p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Roll</TableHead>
-                    <TableHead>Month</TableHead>
+                    <TableHead>{t('date')}</TableHead>
+                    <TableHead>{t('category')}</TableHead>
+                    <TableHead>{t('description')}</TableHead>
+                    <TableHead>{t('studentId')}</TableHead>
+                    <TableHead>{t('student')}</TableHead>
+                    <TableHead>{t('class')}</TableHead>
+                    <TableHead>{t('roll')}</TableHead>
+                    <TableHead>{t('month')}</TableHead>
                     <TableHead className="text-right">Amount (৳)</TableHead>
                     <TableHead className="text-right">Paid (৳)</TableHead>
                     <TableHead className="text-right">Due (৳)</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('status')}</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -676,12 +679,12 @@ export default function FeesPage() {
                           fee.status === 'partial' && 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-200',
                           fee.status === 'unpaid' && 'bg-destructive/10 text-destructive'
                         )}>
-                          {fee.status}
+                          {fee.status === 'unpaid' ? t('unpaid') : fee.status === 'partial' ? t('partial') : t('paidStatus')}
                         </span>
                       </TableCell>
                       <TableCell className="text-right flex gap-1 justify-end">
                         <Button size="sm" variant="ghost" className="h-8" onClick={() => openDetailsModal(fee)}>
-                          <Eye className="h-4 w-4 mr-1" />View
+                          <Eye className="h-4 w-4 mr-1" />{t('view')}
                         </Button>
                         {(fee.status === 'unpaid' || fee.status === 'partial') && fee.due_amount > 0 && (
                           <>
@@ -691,7 +694,7 @@ export default function FeesPage() {
                               className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/50"
                               onClick={() => openCollectModal(fee)}
                             >
-                              Collect
+                              {t('collect')}
                             </Button>
                             <Button
                               size="sm"
@@ -726,7 +729,7 @@ export default function FeesPage() {
       {/* Collect payment modal */}
       <Dialog open={!!collectFee} onOpenChange={(open) => !open && closeCollectModal()}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Collect payment</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('collectPayment')}</DialogTitle></DialogHeader>
           {collectFee && (
             <form onSubmit={handleCollectSubmit} className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -736,21 +739,21 @@ export default function FeesPage() {
                 <p><span className="font-medium">Due amount:</span> ৳ {(collectFee.due_amount || 0).toLocaleString()}</p>
               </div>
               <div className="space-y-2">
-                <Label>Amount to collect (৳)</Label>
+                <Label>{t('amountToCollect')}</Label>
                 <Input type="number" min="1" step="1" value={collectAmount} onChange={(e) => setCollectAmount(e.target.value)} placeholder="e.g. 1500" />
               </div>
               <div className="space-y-2">
-                <Label>Discount (৳, optional)</Label>
+                <Label>{t('discount')}</Label>
                 <Input type="number" min="0" step="1" value={collectDiscount} onChange={(e) => setCollectDiscount(e.target.value)} placeholder="0" />
               </div>
               <div className="space-y-2">
-                <Label>Note (optional)</Label>
+                <Label>{t('note')}</Label>
                 <Input type="text" value={collectNote} onChange={(e) => setCollectNote(e.target.value)} placeholder="e.g. Cash received" />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={closeCollectModal} disabled={collectPaying}>{t('cancel')}</Button>
                 <Button type="submit" disabled={collectPaying} className="bg-emerald-600 hover:bg-emerald-700">
-                  {collectPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Collect
+                  {collectPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('collect')}
                 </Button>
               </DialogFooter>
             </form>
@@ -761,16 +764,16 @@ export default function FeesPage() {
       {/* Delete fee confirmation */}
       <Dialog open={!!feeToDelete} onOpenChange={(open) => !open && setFeeToDelete(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Remove fee entry?</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('removeFee')}</DialogTitle></DialogHeader>
           {feeToDelete && (
             <>
               <p className="text-sm text-muted-foreground">
                 Permanently removes fee for {studentName(feeToDelete)} — {feeCategoryLabel(feeToDelete)}, ৳{(feeToDelete.total_fee || 0).toLocaleString()}. Payment history and related income records will also be removed.
               </p>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>Cancel</Button>
+                <Button variant="outline" onClick={() => setFeeToDelete(null)} disabled={deleting}>{t('cancel')}</Button>
                 <Button variant="destructive" onClick={handleDeleteFee} disabled={deleting}>
-                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Remove
+                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('remove')}
                 </Button>
               </DialogFooter>
             </>
@@ -781,7 +784,7 @@ export default function FeesPage() {
       {/* View Details modal */}
       <Dialog open={!!detailsFee} onOpenChange={(open) => !open && closeDetailsModal()}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Fee details &amp; payment history</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('feeDetails')}</DialogTitle></DialogHeader>
           {detailsFee && (
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -795,21 +798,21 @@ export default function FeesPage() {
                 <p><span className="font-medium">Status:</span> {detailsFee.status}</p>
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium">Payment history</p>
+                <p className="mb-2 text-sm font-medium">{t('paymentHistory')}</p>
                 {detailsLoading ? (
                   <div className="flex items-center justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                 ) : detailsPayments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+                  <p className="text-sm text-muted-foreground">{t('noPayments')}</p>
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Date</TableHead>
+                          <TableHead>{t('date')}</TableHead>
                           <TableHead className="text-right">Amount (৳)</TableHead>
                           <TableHead className="text-right">Discount (৳)</TableHead>
-                          <TableHead>Note</TableHead>
-                          <TableHead className="text-right">Receipt</TableHead>
+                          <TableHead>{t('note')}</TableHead>
+                          <TableHead className="text-right">{t('receipt')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -860,9 +863,9 @@ export default function FeesPage() {
                     </Button>
                   </div>
                   <Button className="w-full bg-[#E2136E] hover:bg-[#c0125e] text-white" onClick={copyLink}>
-                    {linkCopied ? <><Check className="h-4 w-4 mr-2" />Copied!</> : <><Copy className="h-4 w-4 mr-2" />Copy Link</>}
+                    {linkCopied ? <><Check className="h-4 w-4 mr-2" />{t('copied')}</> : <><Copy className="h-4 w-4 mr-2" />{t('copyLink')}</>}
                   </Button>
-                  <p className="text-center text-xs text-muted-foreground">Link expires in 7 days</p>
+                  <p className="text-center text-xs text-muted-foreground">{t('linkExpires')}</p>
                 </>
               ) : null}
             </div>

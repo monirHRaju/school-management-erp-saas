@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -60,6 +61,8 @@ function formatDate(d: string) {
 }
 
 export default function HomeworkPage() {
+  const t = useTranslations('homework');
+  const tc = useTranslations('common');
   const { user } = useAuth();
   const { classes, sections, groups, classSubjects } = useAcademicConfig();
 
@@ -206,11 +209,11 @@ export default function HomeworkPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold text-foreground">Homework</h1>
+          <h1 className="text-xl font-semibold text-foreground">{t('title')}</h1>
         </div>
         {canManage && (
           <Button onClick={openCreate} size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" /> Add Homework
+            <Plus className="h-4 w-4" /> {t('addHomework')}
           </Button>
         )}
       </div>
@@ -222,7 +225,7 @@ export default function HomeworkPage() {
           onChange={(e) => setFilterClass(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="">All Classes</option>
+          <option value="">{t('allClasses')}</option>
           {classes.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
@@ -230,7 +233,7 @@ export default function HomeworkPage() {
           onChange={(e) => setFilterSection(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="">All Sections</option>
+          <option value="">{t('allSections')}</option>
           {sections.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <Input
@@ -264,8 +267,8 @@ export default function HomeworkPage() {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
+          <option value="active">{t('active')}</option>
+          <option value="archived">{t('archived')}</option>
         </select>
         {hasActiveFilters && (
           <Button
@@ -274,7 +277,7 @@ export default function HomeworkPage() {
             onClick={() => { setFilterClass(''); setFilterSection(''); setFilterSubject(''); setFilterDate(''); }}
             className="gap-1 text-muted-foreground"
           >
-            <X className="h-3.5 w-3.5" /> Clear all
+            <X className="h-3.5 w-3.5" /> {t('clearAll')}
           </Button>
         )}
       </div>
@@ -282,7 +285,7 @@ export default function HomeworkPage() {
       {/* Date badge — shows when a date is active */}
       {filterDate && (
         <p className="text-xs text-muted-foreground -mt-2">
-          Showing homework due on <span className="font-medium text-foreground">{formatDate(filterDate)}</span>
+          {t('showingDue', { date: formatDate(filterDate) })}
         </p>
       )}
 
@@ -294,10 +297,10 @@ export default function HomeworkPage() {
       ) : homeworks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
           <BookOpen className="h-10 w-10 opacity-20" />
-          <p>No homework found{filterDate ? ` for ${formatDate(filterDate)}` : ''}.</p>
+          <p>{filterDate ? t('noHomeworkForDate', { date: formatDate(filterDate) }) : t('noHomework')}</p>
           {filterDate && (
             <Button variant="ghost" size="sm" onClick={() => setFilterDate('')} className="gap-1 text-muted-foreground">
-              <X className="h-3.5 w-3.5" /> Show all dates
+              <X className="h-3.5 w-3.5" /> {t('showAllDates')}
             </Button>
           )}
         </div>
@@ -329,7 +332,7 @@ export default function HomeworkPage() {
                   {hw.attachment_url && (
                     <a href={hw.attachment_url} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-                      <Paperclip className="h-3 w-3" /> Attachment
+                      <Paperclip className="h-3 w-3" /> {t('attachment')}
                     </a>
                   )}
                 </div>
@@ -352,12 +355,12 @@ export default function HomeworkPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Subject</th>
-                  <th className="px-4 py-3 text-left font-medium">Title</th>
-                  <th className="px-4 py-3 text-left font-medium">Class / Section</th>
-                  <th className="px-4 py-3 text-left font-medium">Due Date</th>
-                  <th className="px-4 py-3 text-left font-medium">Posted By</th>
-                  {canManage && <th className="px-4 py-3 text-right font-medium">Actions</th>}
+                  <th className="px-4 py-3 text-left font-medium">{t('subject')}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t('titleField')}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t('classSection')}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t('dueDate')}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t('postedBy')}</th>
+                  {canManage && <th className="px-4 py-3 text-right font-medium">{tc('actions')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -374,7 +377,7 @@ export default function HomeworkPage() {
                       {hw.attachment_url && (
                         <a href={hw.attachment_url} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-primary mt-0.5 hover:underline">
-                          <Paperclip className="h-3 w-3" /> Attachment
+                          <Paperclip className="h-3 w-3" /> {t('attachment')}
                         </a>
                       )}
                     </td>
@@ -388,7 +391,7 @@ export default function HomeworkPage() {
                       </span>
                       {isOverdue(hw.due_date) && (
                         <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-destructive">
-                          <AlertCircle className="h-3 w-3" /> Overdue
+                          <AlertCircle className="h-3 w-3" /> {t('overdue')}
                         </span>
                       )}
                     </td>
@@ -423,11 +426,11 @@ export default function HomeworkPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => fetchHomeworks(page - 1)}>
-            Previous
+            {t('previous')}
           </Button>
-          <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
+          <span className="text-sm text-muted-foreground">{t('page', { page, total: totalPages })}</span>
           <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => fetchHomeworks(page + 1)}>
-            Next
+            {t('next')}
           </Button>
         </div>
       )}
@@ -436,23 +439,23 @@ export default function HomeworkPage() {
       <Dialog open={showForm} onOpenChange={(o) => !saving && setShowForm(o)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Homework' : 'Add Homework'}</DialogTitle>
+            <DialogTitle>{editTarget ? t('editHomework') : t('addHomework')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Class <span className="text-destructive">*</span></Label>
+                <Label>{t('class')} <span className="text-destructive">*</span></Label>
                 <select
                   value={form.class}
                   onChange={(e) => setForm((f) => ({ ...f, class: e.target.value, subject: '' }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">Select class</option>
+                  <option value="">{t('selectClass')}</option>
                   {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label>Due Date <span className="text-destructive">*</span></Label>
+                <Label>{t('dueDate')} <span className="text-destructive">*</span></Label>
                 <Input
                   type="date"
                   value={form.due_date}
@@ -463,16 +466,16 @@ export default function HomeworkPage() {
 
             {/* Subject — dropdown if class has subjects configured, otherwise free text */}
             <div className="space-y-1.5">
-              <Label>Subject <span className="text-destructive">*</span></Label>
+              <Label>{t('subject')} <span className="text-destructive">*</span></Label>
               {formClassSubjects.length > 0 ? (
                 <select
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">Select subject</option>
+                  <option value="">{t('selectSubject')}</option>
                   {formClassSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
-                  <option value="__other__">Other (type below)</option>
+                  <option value="__other__">{t('other')}</option>
                 </select>
               ) : (
                 <Input
@@ -484,7 +487,7 @@ export default function HomeworkPage() {
               {/* Show text input when "Other" is selected */}
               {formClassSubjects.length > 0 && form.subject === '__other__' && (
                 <Input
-                  placeholder="Type subject name"
+                  placeholder={t('typeSubject')}
                   value={''}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                   autoFocus
@@ -493,7 +496,7 @@ export default function HomeworkPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Title <span className="text-destructive">*</span></Label>
+              <Label>{t('titleField')} <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. Chapter 5 Exercise 3"
                 value={form.title}
@@ -501,41 +504,41 @@ export default function HomeworkPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Description <span className="text-destructive">*</span></Label>
+              <Label>{t('description')} <span className="text-destructive">*</span></Label>
               <textarea
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                 rows={4}
-                placeholder="Detailed instructions for students..."
+                placeholder={t('instructions')}
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Section <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>Section <span className="text-muted-foreground text-xs">{t('optional')}</span></Label>
                 <select
                   value={form.section}
                   onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">All sections</option>
+                  <option value="">{t('allSections2')}</option>
                   {sections.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label>Group <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>Group <span className="text-muted-foreground text-xs">{t('optional')}</span></Label>
                 <select
                   value={form.group}
                   onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">All groups</option>
+                  <option value="">{t('allGroups')}</option>
                   {groups.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Attachment URL <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>{t('attachmentUrl')} <span className="text-muted-foreground text-xs">{t('optional')}</span></Label>
               <Input
                 placeholder="https://..."
                 value={form.attachment_url}
@@ -544,23 +547,23 @@ export default function HomeworkPage() {
             </div>
             {editTarget && (
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label>{t('status')}</Label>
                 <select
                   value={(form as any).status || 'active'}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value } as any))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
+                  <option value="active">{t('active')}</option>
+                  <option value="archived">{t('archived')}</option>
                 </select>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)} disabled={saving}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)} disabled={saving}>{t('cancel')}</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              {editTarget ? 'Update' : 'Post Homework'}
+              {editTarget ? t('update') : t('postHomework')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -570,17 +573,17 @@ export default function HomeworkPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Homework?</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteHomework')}</AlertDialogTitle>
           </AlertDialogHeader>
           <p className="text-sm text-muted-foreground px-6">
-            &quot;{deleteTarget?.title}&quot; will be permanently deleted.
+            {t('deleteConfirm', { title: deleteTarget?.title ?? '' })}
           </p>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

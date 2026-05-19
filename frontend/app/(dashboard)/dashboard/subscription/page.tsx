@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import type { SubscriptionInfo, UsageInfo, SubscriptionPlan } from '@/types/superAdmin';
@@ -53,6 +54,7 @@ function UsageBar({ label, used, max, unlimited }: { label: string; used: number
 }
 
 export default function SubscriptionPage() {
+  const t = useTranslations('subscription');
   const { token } = useAuth();
   const [subInfo, setSubInfo] = useState<SubscriptionInfo | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
@@ -124,8 +126,8 @@ export default function SubscriptionPage() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-foreground">Subscription</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Your current plan, usage, and upgrade options.</p>
+        <h2 className="text-xl font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('subtitle')}</p>
       </div>
 
       {/* Current Plan Card */}
@@ -135,14 +137,14 @@ export default function SubscriptionPage() {
             <div className="flex items-center gap-2 mb-1">
               <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${colors.badge}`}>{slug}</span>
               {isExpired && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400">Expired</span>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400">{t('expiredLabel')}</span>
               )}
             </div>
-            <h3 className="text-2xl font-extrabold text-foreground mt-2">{plan?.name || 'Free Plan'}</h3>
+            <h3 className="text-2xl font-extrabold text-foreground mt-2">{plan?.name || t('freePlan')}</h3>
             {plan && (
               <p className="text-3xl font-black text-foreground mt-1">
                 ৳{plan.price.toLocaleString()}
-                <span className="text-base font-normal text-muted-foreground">/month</span>
+                <span className="text-base font-normal text-muted-foreground">{t('perMonth')}</span>
               </p>
             )}
           </div>
@@ -150,10 +152,10 @@ export default function SubscriptionPage() {
           <div className="text-sm text-muted-foreground space-y-1 sm:text-right">
             {expiry ? (
               <p className={daysLeft !== null && daysLeft <= 7 ? 'text-amber-500 font-medium' : ''}>
-                {isExpired ? 'Expired' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`}
+                {isExpired ? t('expiredLabel') : t('daysRemaining', { n: daysLeft ?? 0 })}
               </p>
             ) : (
-              <p>No expiry set</p>
+              <p>{t('noExpirySet')}</p>
             )}
             {expiry && <p className="text-xs">{new Date(expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>}
           </div>
@@ -163,13 +165,13 @@ export default function SubscriptionPage() {
         {daysLeft !== null && daysLeft <= 7 && !isExpired && (
           <div className="mt-4 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-300">Your subscription expires soon. Contact your administrator to renew.</p>
+            <p className="text-sm text-amber-300">{t('expiringSoon')}</p>
           </div>
         )}
         {isExpired && (
           <div className="mt-4 flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-300">Your subscription has expired. Some features may be limited. Contact support to renew.</p>
+            <p className="text-sm text-red-300">{t('expired')}</p>
           </div>
         )}
       </div>
@@ -177,24 +179,24 @@ export default function SubscriptionPage() {
       {/* Usage */}
       {usage && (
         <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
-          <h3 className="font-semibold text-foreground">Current Usage</h3>
+          <h3 className="font-semibold text-foreground">{t('currentUsage')}</h3>
           <UsageBar
-            label="Students"
+            label={t('students')}
             used={usage.students.used}
             max={usage.students.max}
             unlimited={usage.students.unlimited}
           />
           <UsageBar
-            label="Staff Accounts"
+            label={t('staffAccounts')}
             used={usage.admins.used}
             max={usage.admins.max}
             unlimited={usage.admins.unlimited}
           />
           {subInfo?.effective_limits && (
             <p className="text-xs text-muted-foreground pt-1">
-              {subInfo.effective_limits.maxStudents === -1 ? 'Unlimited students' : `Up to ${subInfo.effective_limits.maxStudents} students`} ·{' '}
-              {subInfo.effective_limits.maxAdmins === -1 ? 'Unlimited admins' : `Up to ${subInfo.effective_limits.maxAdmins} admin accounts`}
-              {(subInfo.custom_limits?.maxStudents != null || subInfo.custom_limits?.maxAdmins != null) && ' (custom limits applied)'}
+              {subInfo.effective_limits.maxStudents === -1 ? t('unlimitedStudents') : t('upToStudents', { n: subInfo.effective_limits.maxStudents })} ·{' '}
+              {subInfo.effective_limits.maxAdmins === -1 ? t('unlimitedAdmins') : t('upToAdmins', { n: subInfo.effective_limits.maxAdmins })}
+              {(subInfo.custom_limits?.maxStudents != null || subInfo.custom_limits?.maxAdmins != null) && ` ${t('customLimits')}`}
             </p>
           )}
         </div>
@@ -203,7 +205,7 @@ export default function SubscriptionPage() {
       {/* Features */}
       {plan && (
         <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-foreground mb-4">Plan Features</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t('planFeatures')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {FEATURE_LABELS.map(({ key, label }) => {
               const enabled = plan.features[key as keyof typeof plan.features];
@@ -224,7 +226,7 @@ export default function SubscriptionPage() {
       {allPlans.length > 0 && (
         <div>
           <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-indigo-400" /> Upgrade Your Plan
+            <Zap className="w-4 h-4 text-indigo-400" /> {t('upgradeYourPlan')}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {allPlans.map((p) => {
@@ -237,26 +239,26 @@ export default function SubscriptionPage() {
                   } ${p.mostPopular ? 'ring-1 ring-amber-500/20' : ''}`}>
                   {p.mostPopular && !isCurrent && (
                     <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-amber-500 rounded-full text-[10px] font-bold text-black tracking-wide uppercase whitespace-nowrap">
-                      Most Popular
+                      {t('mostPopular')}
                     </div>
                   )}
                   {isCurrent && (
-                    <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/15 px-2 py-0.5 rounded-full">Current</span>
+                    <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/15 px-2 py-0.5 rounded-full">{t('current')}</span>
                   )}
                   <div>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${c.badge}`}>{p.slug}</span>
                     <h4 className="text-base font-bold text-foreground mt-2">{p.name}</h4>
                     <p className="text-xl font-extrabold text-foreground mt-0.5">
                       ৳{p.price.toLocaleString()}
-                      <span className="text-xs font-normal text-muted-foreground">/mo</span>
+                      <span className="text-xs font-normal text-muted-foreground">{t('perMonthShort')}</span>
                     </p>
                   </div>
                   <ul className="space-y-1 flex-1">
                     <li className="text-xs text-muted-foreground">
-                      {p.maxStudents === -1 ? 'Unlimited students' : `Up to ${p.maxStudents} students`}
+                      {p.maxStudents === -1 ? t('unlimitedStudents') : t('upToStudents', { n: p.maxStudents })}
                     </li>
                     <li className="text-xs text-muted-foreground">
-                      {p.maxAdmins === -1 ? 'Unlimited admins' : `Up to ${p.maxAdmins} admin accounts`}
+                      {p.maxAdmins === -1 ? t('unlimitedAdmins') : t('upToAdmins', { n: p.maxAdmins })}
                     </li>
                     {FEATURE_LABELS.filter(f => p.features[f.key as keyof typeof p.features]).slice(0, 3).map(f => (
                       <li key={f.key} className="text-xs text-muted-foreground flex items-center gap-1">
@@ -271,7 +273,7 @@ export default function SubscriptionPage() {
                       className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-white bg-[#E2136E] hover:bg-[#c0125e] disabled:opacity-60 rounded-xl transition-colors mt-1"
                     >
                       {bkashPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      Pay ৳{p.price.toLocaleString()} via bKash
+                      {t('payViaBkash', { price: p.price.toLocaleString() })}
                     </button>
                   )}
                   {!isCurrent && p.price === 0 && (
@@ -279,7 +281,7 @@ export default function SubscriptionPage() {
                       href="mailto:support@amarschool.app"
                       className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-colors mt-1"
                     >
-                      Contact Us <ArrowUpRight className="w-3.5 h-3.5" />
+                      {t('contactUs')} <ArrowUpRight className="w-3.5 h-3.5" />
                     </a>
                   )}
                 </div>
@@ -293,8 +295,8 @@ export default function SubscriptionPage() {
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-3 text-center">
-            Pay via bKash and our team will activate your plan within 24 hours. Questions? Contact{' '}
-            <a href="mailto:support@amarschool.app" className="text-indigo-400 hover:underline">support@amarschool.app</a>
+            {t('bkashNote')}{' '}
+            <a href="mailto:support@amarschool.app" className="text-indigo-400 hover:underline">{t('contact')}</a>
           </p>
         </div>
       )}

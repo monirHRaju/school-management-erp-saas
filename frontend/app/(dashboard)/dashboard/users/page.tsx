@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -30,6 +31,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function UsersPage() {
+  const t = useTranslations('users');
   const [users, setUsers] = useState<UserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -155,8 +157,8 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-foreground">User Management</h2>
-          <p className="text-sm text-muted-foreground">{total} users total</p>
+          <h2 className="text-xl font-bold text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('totalUsers', { count: total })}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -164,17 +166,17 @@ export default function UsersPage() {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
           >
-            <option value="">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-            <option value="accountant">Accountant</option>
-            <option value="guardian">Guardian</option>
+            <option value="">{t('allRoles')}</option>
+            <option value="admin">{t('admin')}</option>
+            <option value="staff">{t('staff')}</option>
+            <option value="accountant">{t('accountant')}</option>
+            <option value="guardian">{t('guardian')}</option>
           </select>
           <button
             onClick={openCreate}
             className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            <Plus className="h-4 w-4" /> Add User
+            <Plus className="h-4 w-4" /> {t('addUser')}
           </button>
         </div>
       </div>
@@ -184,18 +186,18 @@ export default function UsersPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       ) : users.length === 0 ? (
-        <p className="text-center text-muted-foreground py-20">No users found.</p>
+        <p className="text-center text-muted-foreground py-20">{t('noUsers')}</p>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">Name</th>
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">Email / Phone</th>
-                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">Role</th>
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">Created</th>
-                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">Actions</th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">{t('name')}</th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">{t('emailPhone')}</th>
+                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('role')}</th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">{t('created')}</th>
+                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -247,7 +249,7 @@ export default function UsersPage() {
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">
-                {editUser ? 'Edit User' : 'Add New User'}
+                {editUser ? t('editUser') : t('addNewUser')}
               </h3>
               <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
@@ -256,7 +258,7 @@ export default function UsersPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">{t('name')}</label>
                 <input
                   type="text"
                   required
@@ -268,7 +270,7 @@ export default function UsersPage() {
 
               {!editUser && (
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Role</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t('role')}</label>
                   <select
                     value={formRole}
                     onChange={(e) => setFormRole(e.target.value)}
@@ -283,7 +285,7 @@ export default function UsersPage() {
 
               {formRole === 'guardian' && !editUser ? (
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t('phone')}</label>
                   <input
                     type="tel"
                     required
@@ -293,13 +295,13 @@ export default function UsersPage() {
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Password will be auto-generated and sent via SMS
+                    {t('autoPassword')}
                   </p>
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Email</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">{t('email')}</label>
                     <input
                       type="email"
                       required={!editUser && formRole !== 'guardian'}
@@ -309,7 +311,7 @@ export default function UsersPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Phone (optional)</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">{t('phoneOptional')}</label>
                     <input
                       type="tel"
                       value={formPhone}
@@ -320,7 +322,7 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      {editUser ? 'New Password (leave blank to keep)' : 'Password'}
+                      {editUser ? t('newPassword') : t('password')}
                     </label>
                     <input
                       type="password"
@@ -342,14 +344,14 @@ export default function UsersPage() {
                   onClick={() => setShowModal(false)}
                   className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
-                  {saving ? 'Saving...' : editUser ? 'Update' : 'Create'}
+                  {saving ? t('saving') : editUser ? t('update') : t('create')}
                 </button>
               </div>
             </form>
