@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus, IdCard } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -58,6 +59,8 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default function StudentsPage() {
+  const t = useTranslations('students');
+  const tc = useTranslations('common');
   const { token, user, school } = useAuth();
   const canManage = user?.role !== 'teacher';
   const { classes, sections } = useAcademicConfig();
@@ -525,9 +528,9 @@ export default function StudentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Students</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Manage admissions, classes, and monthly fees for your school.
+            {t('subtitle')}
           </p>
         </div>
         {canManage && (
@@ -535,7 +538,7 @@ export default function StudentsPage() {
             <Link href="/dashboard/students/admit-card">
               <Button variant="outline" className="gap-1.5">
                 <IdCard className="h-4 w-4" />
-                Admit Cards
+                {t('admitCards')}
               </Button>
             </Link>
             <Button
@@ -544,12 +547,12 @@ export default function StudentsPage() {
               onClick={() => setImportOpen(true)}
             >
               <FileSpreadsheet className="h-4 w-4" />
-              Import CSV / Excel
+              {t('importCsv')}
             </Button>
             <Link href="/dashboard/students/new">
               <Button className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
                 <Plus className="h-4 w-4" />
-                Add student
+                {t('addStudent')}
               </Button>
             </Link>
           </div>
@@ -559,12 +562,12 @@ export default function StudentsPage() {
       {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Filters</CardTitle>
+          <CardTitle className="text-base">{t('filters')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="filter-class">Class</Label>
+              <Label htmlFor="filter-class">{t('class')}</Label>
               <select
                 id="filter-class"
                 value={classFilter}
@@ -573,14 +576,14 @@ export default function StudentsPage() {
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
-                <option value="">All</option>
+                <option value="">{t('all')}</option>
                 {classes.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-section">Section</Label>
+              <Label htmlFor="filter-section">{t('section')}</Label>
               <select
                 id="filter-section"
                 value={sectionFilter}
@@ -589,14 +592,14 @@ export default function StudentsPage() {
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
-                <option value="">All</option>
+                <option value="">{t('all')}</option>
                 {sections.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-status">Status</Label>
+              <Label htmlFor="filter-status">{t('status')}</Label>
               <select
                 id="filter-status"
                 value={statusFilter}
@@ -605,19 +608,19 @@ export default function StudentsPage() {
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
-                <option value="">All</option>
+                <option value="">{t('all')}</option>
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filter-search">Search</Label>
+              <Label htmlFor="filter-search">{t('search')}</Label>
               <Input
                 id="filter-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, student ID, or roll"
+                placeholder={t('searchPlaceholder')}
               />
             </div>
           </div>
@@ -633,7 +636,7 @@ export default function StudentsPage() {
                 setSearchQuery('');
               }}
             >
-              Clear all filters
+              {t('clearFilters')}
             </Button>
           </div>
         </CardContent>
@@ -650,20 +653,20 @@ export default function StudentsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Loading students…</p>
+              <p className="text-sm text-muted-foreground">{t('loadingStudents')}</p>
             </div>
           ) : students.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
               <Users className="h-12 w-12 text-muted-foreground" />
               <div>
-                <p className="font-medium">No students yet</p>
-                <p className="text-sm text-muted-foreground">{canManage ? 'Add your first student to get started.' : 'No students found.'}</p>
+                <p className="font-medium">{t('noStudentsYet')}</p>
+                <p className="text-sm text-muted-foreground">{canManage ? t('addFirstStudent') : t('noStudentsFound')}</p>
               </div>
               {canManage && (
                 <Link href="/dashboard/students/new">
                   <Button>
                     <Plus className="h-4 w-4" />
-                    Add student
+                    {t('addStudent')}
                   </Button>
                 </Link>
               )}
@@ -675,9 +678,9 @@ export default function StudentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>SL</TableHead>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Photo</TableHead>
+                      <TableHead>{t('sl')}</TableHead>
+                      <TableHead>{t('studentId')}</TableHead>
+                      <TableHead>{t('photo')}</TableHead>
                       <TableHead
                         onClick={() => {
                           setSortField((prev) => {
@@ -691,7 +694,7 @@ export default function StudentsPage() {
                         className="cursor-pointer"
                       >
                         <span className="inline-flex items-center gap-1">
-                          Name
+                          {t('name')}
                           <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                         </span>
                       </TableHead>
@@ -708,7 +711,7 @@ export default function StudentsPage() {
                         className="cursor-pointer"
                       >
                         <span className="inline-flex items-center gap-1">
-                          Roll
+                          {t('roll')}
                           <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                         </span>
                       </TableHead>
@@ -725,12 +728,12 @@ export default function StudentsPage() {
                         className="cursor-pointer"
                       >
                         <span className="inline-flex items-center gap-1">
-                          Class
+                          {t('class')}
                           <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                         </span>
                       </TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[140px] text-right">Actions</TableHead>
+                      <TableHead>{t('status')}</TableHead>
+                      <TableHead className="w-[140px] text-right">{t('actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -764,7 +767,7 @@ export default function StudentsPage() {
                               s.status === 'left' && 'bg-destructive/10 text-destructive'
                             )}
                           >
-                            {STATUS_OPTIONS.find((o) => o.value === s.status)?.label ?? s.status}
+                            {t(s.status === 'active' ? 'active' : s.status === 'inactive' ? 'inactive' : 'left')}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -830,7 +833,7 @@ export default function StudentsPage() {
                             <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
                           )}
                           <p className="text-sm text-muted-foreground">
-                            {s.guardianName || 'No guardian'}
+                            {s.guardianName || t('noGuardian')}
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2 text-sm">
                             {s.class && (
@@ -851,7 +854,7 @@ export default function StudentsPage() {
                                 s.status === 'left' && 'bg-destructive/10 text-destructive'
                               )}
                             >
-                              {STATUS_OPTIONS.find((o) => o.value === s.status)?.label ?? s.status}
+                              {t(s.status === 'active' ? 'active' : s.status === 'inactive' ? 'inactive' : 'left')}
                             </span>
                           </div>
                         </div>
@@ -915,7 +918,7 @@ export default function StudentsPage() {
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg print:max-w-none print:block">
           <DialogHeader className="print:hidden">
-            <DialogTitle>Student details</DialogTitle>
+            <DialogTitle>{t('studentDetails')}</DialogTitle>
           </DialogHeader>
           {detailsStudent && (
             <div
@@ -925,7 +928,7 @@ export default function StudentsPage() {
             >
               <div className="border-b pb-4 print:border-black/20">
                 <h3 className="text-center text-lg font-semibold text-muted-foreground print:text-black">
-                  Student Admission Form
+                  {t('admissionForm')}
                 </h3>
               </div>
               <div className="flex justify-center">
@@ -943,32 +946,32 @@ export default function StudentsPage() {
                 )}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <DetailRow label="Name" value={detailsStudent.name} />
-                <DetailRow label="Roll no." value={detailsStudent.rollNo} />
-                <DetailRow label="Father name" value={detailsStudent.fatherName} />
-                <DetailRow label="Mother name" value={detailsStudent.motherName} />
+                <DetailRow label={t('name')} value={detailsStudent.name} />
+                <DetailRow label={t('rollNo')} value={detailsStudent.rollNo} />
+                <DetailRow label={t('fatherName')} value={detailsStudent.fatherName} />
+                <DetailRow label={t('motherName')} value={detailsStudent.motherName} />
                 <DetailRow
-                  label="Date of birth"
+                  label={t('dateOfBirth')}
                   value={
                     detailsStudent.dateOfBirth
                       ? new Date(detailsStudent.dateOfBirth).toLocaleDateString()
                       : undefined
                   }
                 />
-                <DetailRow label="Birth reg. no." value={detailsStudent.birthRegNo} />
-                <DetailRow label="Gender" value={detailsStudent.gender} />
-                <DetailRow label="Religion" value={detailsStudent.religion} />
-                <DetailRow label="Class" value={detailsStudent.class} />
-                <DetailRow label="Section" value={detailsStudent.section} />
-                <DetailRow label="Shift" value={detailsStudent.shift} />
-                <DetailRow label="Group" value={detailsStudent.group} />
-                <DetailRow label="Guardian name" value={detailsStudent.guardianName} />
-                <DetailRow label="Guardian phone" value={detailsStudent.guardianPhone} />
-                <DetailRow label="Monthly fee" value={detailsStudent.monthlyFee != null ? `৳ ${detailsStudent.monthlyFee.toLocaleString()}` : undefined} />
-                <DetailRow label="Admission date" value={detailsStudent.admissionDate ? new Date(detailsStudent.admissionDate).toLocaleDateString() : undefined} />
+                <DetailRow label={t('birthRegNo')} value={detailsStudent.birthRegNo} />
+                <DetailRow label={t('gender')} value={detailsStudent.gender} />
+                <DetailRow label={t('religion')} value={detailsStudent.religion} />
+                <DetailRow label={t('class')} value={detailsStudent.class} />
+                <DetailRow label={t('section')} value={detailsStudent.section} />
+                <DetailRow label={t('shift')} value={detailsStudent.shift} />
+                <DetailRow label={t('group')} value={detailsStudent.group} />
+                <DetailRow label={t('guardianName')} value={detailsStudent.guardianName} />
+                <DetailRow label={t('guardianPhone')} value={detailsStudent.guardianPhone} />
+                <DetailRow label={t('monthlyFee')} value={detailsStudent.monthlyFee != null ? `৳ ${detailsStudent.monthlyFee.toLocaleString()}` : undefined} />
+                <DetailRow label={t('admissionDate')} value={detailsStudent.admissionDate ? new Date(detailsStudent.admissionDate).toLocaleDateString() : undefined} />
                 <DetailRow
-                  label="Status"
-                  value={STATUS_OPTIONS.find((o) => o.value === detailsStudent.status)?.label ?? detailsStudent.status}
+                  label={t('status')}
+                  value={t(detailsStudent.status === 'active' ? 'active' : detailsStudent.status === 'inactive' ? 'inactive' : 'left')}
                 />
               </div>
             </div>
@@ -983,18 +986,18 @@ export default function StudentsPage() {
               title={!detailsStudent?.guardianPhone ? 'Add a guardian phone to this student first' : 'Create or link a guardian account'}
             >
               {guardianLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Generate Guardian
+              {t('generateGuardian')}
             </Button>
             <Button type="button" variant="outline" onClick={handlePrintDetails} className="gap-2">
               <Printer className="h-4 w-4" />
-              Print
+              {tc('print')}
             </Button>
             <Button type="button" variant="outline" onClick={handleDownloadPdf} disabled={pdfLoading} className="gap-2">
               {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              PDF
+              {'PDF'}
             </Button>
             <Button type="button" onClick={() => setDetailsOpen(false)}>
-              Close
+              {tc('close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1004,13 +1007,13 @@ export default function StudentsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete student?</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteStudent')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove {studentToDelete?.name}. This action cannot be undone.
+              {t('deleteConfirm', { name: studentToDelete?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -1020,7 +1023,7 @@ export default function StudentsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Delete
+              {tc('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { Loader2, Bell, Mail, MailOpen, ChevronDown, ChevronUp } from 'lucide-react';
@@ -17,6 +18,7 @@ interface NoticeEntry {
 }
 
 export default function NoticesPage() {
+  const t = useTranslations('notices');
   const { token } = useAuth();
 
   const [notices, setNotices] = useState<NoticeEntry[]>([]);
@@ -65,9 +67,9 @@ export default function NoticesPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Bell className="w-5 h-5" /> Notices
+          <Bell className="w-5 h-5" /> {t('title')}
         </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Notifications from system and admin.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('subtitle')}</p>
       </div>
 
       {loading && notices.length === 0 ? (
@@ -77,7 +79,7 @@ export default function NoticesPage() {
       ) : notices.length === 0 ? (
         <div className="text-center py-12">
           <Bell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No notices yet.</p>
+          <p className="text-sm text-muted-foreground">{t('noNotices')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -115,7 +117,7 @@ export default function NoticesPage() {
                       {' '}
                       {new Date(notice.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       <span className="mx-1.5">·</span>
-                      <span className="capitalize">{notice.from === 'system' ? 'System' : 'Admin'}</span>
+                      <span className="capitalize">{notice.from === 'system' ? t('system') : t('adminNotice')}</span>
                     </p>
                   </div>
                   {isExpanded ? (
@@ -140,7 +142,7 @@ export default function NoticesPage() {
                 disabled={page <= 1}
                 className="px-3 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40"
               >
-                Prev
+                {t('prev')}
               </button>
               <span className="text-xs text-muted-foreground">{page} / {totalPages}</span>
               <button
@@ -148,7 +150,7 @@ export default function NoticesPage() {
                 disabled={page >= totalPages}
                 className="px-3 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40"
               >
-                Next
+                {t('next')}
               </button>
             </div>
           )}

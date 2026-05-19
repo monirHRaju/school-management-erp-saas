@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -35,6 +36,7 @@ function currentMonthStr() {
 }
 
 export default function SmsPage() {
+  const t = useTranslations('sms');
   const { token } = useAuth();
   const { classes: CLASS_OPTIONS } = useAcademicConfig();
 
@@ -174,37 +176,37 @@ export default function SmsPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h2 className="text-xl font-bold text-foreground">SMS Notifications</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Manage SMS notifications, send manual messages, and view history.</p>
+        <h2 className="text-xl font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('subtitle')}</p>
       </div>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-1">
-            <MessageSquare className="w-4 h-4" /> Status
+            <MessageSquare className="w-4 h-4" /> {t('status')}
           </div>
           {statusLoading ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           ) : smsEnabled ? (
-            <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold text-sm"><CheckCircle2 className="w-4 h-4" /> Enabled</span>
+            <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold text-sm"><CheckCircle2 className="w-4 h-4" /> {t('enabled')}</span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-amber-500 font-semibold text-sm"><AlertTriangle className="w-4 h-4" /> Not on plan</span>
+            <span className="inline-flex items-center gap-1 text-amber-500 font-semibold text-sm"><AlertTriangle className="w-4 h-4" /> {t('notOnPlan')}</span>
           )}
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">SMS Balance</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">{t('smsBalance')}</p>
           <p className="text-xl font-bold text-foreground">{smsBalance.toLocaleString()}</p>
           <Link href="/dashboard/sms-order" className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
-            <ShoppingCart className="w-3 h-3" /> Buy SMS
+            <ShoppingCart className="w-3 h-3" /> {t('buySms')}
           </Link>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">Total Sent</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">{t('totalSent')}</p>
           <p className="text-xl font-bold text-emerald-500">{stats.totalSent}</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">Total Failed</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">{t('totalFailed')}</p>
           <p className="text-xl font-bold text-red-500">{stats.totalFailed}</p>
         </div>
       </div>
@@ -212,16 +214,16 @@ export default function SmsPage() {
       {!smsEnabled && !statusLoading && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-amber-600">
           <AlertTriangle className="w-4 h-4 inline mr-1.5" />
-          SMS notifications are not included in your current plan. Upgrade to Standard or Pro to enable SMS.
+          {t('notEnabled')}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Send Manual SMS */}
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <h3 className="font-semibold text-foreground flex items-center gap-2"><Send className="w-4 h-4" /> Send Manual SMS</h3>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Send className="w-4 h-4" /> {t('sendManual')}</h3>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Phone Number</label>
+            <label className="text-xs font-medium text-muted-foreground">{t('phoneNumber')}</label>
             <input
               type="tel"
               placeholder="01XXXXXXXXX"
@@ -231,7 +233,7 @@ export default function SmsPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Message</label>
+            <label className="text-xs font-medium text-muted-foreground">{t('message')}</label>
             <textarea
               rows={3}
               placeholder="Type your message..."
@@ -245,17 +247,17 @@ export default function SmsPage() {
             disabled={manualSending || !smsEnabled || !manualTo || !manualMsg}
             className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {manualSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Send SMS'}
+            {manualSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('sendSms')}
           </button>
         </div>
 
         {/* Send Due Reminders */}
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <h3 className="font-semibold text-foreground flex items-center gap-2"><Megaphone className="w-4 h-4" /> Send Fee Due Reminders</h3>
-          <p className="text-xs text-muted-foreground">Send SMS to all guardians with unpaid/partial fees for a month.</p>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Megaphone className="w-4 h-4" /> {t('sendReminders')}</h3>
+          <p className="text-xs text-muted-foreground">{t('remindersDesc')}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Month</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('month')}</label>
               <input
                 type="month"
                 value={reminderMonth}
@@ -264,13 +266,13 @@ export default function SmsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Class (optional)</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('class')}</label>
               <select
                 value={reminderClass}
                 onChange={(e) => setReminderClass(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                <option value="">All Classes</option>
+                <option value="">{t('allClasses')}</option>
                 {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -280,7 +282,7 @@ export default function SmsPage() {
             disabled={reminderSending || !smsEnabled}
             className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {reminderSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Send Reminders'}
+            {reminderSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('sendRemindersBtn')}
           </button>
         </div>
       </div>
@@ -289,24 +291,24 @@ export default function SmsPage() {
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-border flex items-center gap-2">
           <History className="w-4 h-4 text-muted-foreground" />
-          <h3 className="font-semibold text-foreground">SMS History</h3>
+          <h3 className="font-semibold text-foreground">{t('smsHistory')}</h3>
         </div>
 
         {logsLoading && logs.length === 0 ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : logs.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No SMS history yet.</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{t('noHistory')}</p>
         ) : (
           <>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Message</th>
-                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">Sent</th>
-                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">Failed</th>
-                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">Action</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t('date')}</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t('type')}</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">{t('messageCol')}</th>
+                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">{t('sent')}</th>
+                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">{t('failed')}</th>
+                  <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">{t('action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,7 +343,7 @@ export default function SmsPage() {
                           className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 transition-colors"
                         >
                           {resendingId === log._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
-                          Resend
+                          {t('resend')}
                         </button>
                       ) : (
                         <span className="text-muted-foreground/40 text-xs">—</span>
@@ -359,7 +361,7 @@ export default function SmsPage() {
                   disabled={logsPage <= 1}
                   className="px-3 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  Prev
+                  {t('prev')}
                 </button>
                 <span className="text-xs text-muted-foreground">{logsPage} / {logsTotalPages}</span>
                 <button
@@ -367,7 +369,7 @@ export default function SmsPage() {
                   disabled={logsPage >= logsTotalPages}
                   className="px-3 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  Next
+                  {t('next')}
                 </button>
               </div>
             )}

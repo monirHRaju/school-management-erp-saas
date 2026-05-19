@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Settings2, BookOpen, Loader2, Camera, Plus, X, Tags } from 'lucide-react';
@@ -23,6 +24,7 @@ interface SchoolProfile {
 }
 
 export default function SettingsPage() {
+  const t = useTranslations('settings');
   const { token } = useAuth();
   const [profile, setProfile] = useState<SchoolProfile | null>(null);
   const [name, setName] = useState('');
@@ -169,8 +171,8 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your school profile and configuration.</p>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {/* School Profile Card */}
@@ -178,7 +180,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Settings2 className="h-4 w-4" />
-            School Profile
+            {t('schoolProfile')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -199,8 +201,8 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium">School Logo</p>
-                <p className="text-xs text-muted-foreground">Click to upload. Max 2 MB.</p>
+                <p className="text-sm font-medium">{t('logoLabel')}</p>
+                <p className="text-xs text-muted-foreground">{t('logoNote')}</p>
                 <Button
                   type="button"
                   variant="outline"
@@ -208,7 +210,7 @@ export default function SettingsPage() {
                   className="mt-1.5"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Choose File
+                  {t('chooseFile')}
                 </Button>
               </div>
               <input
@@ -222,7 +224,7 @@ export default function SettingsPage() {
 
             {/* School Name (English) */}
             <div className="space-y-1.5">
-              <Label htmlFor="schoolName">School Name (English) *</Label>
+              <Label htmlFor="schoolName">{t('schoolNameEnLabel')}</Label>
               <Input
                 id="schoolName"
                 value={name}
@@ -234,31 +236,31 @@ export default function SettingsPage() {
 
             {/* School Name (Bangla) */}
             <div className="space-y-1.5">
-              <Label htmlFor="schoolNameBn">School Name (বাংলা)</Label>
+              <Label htmlFor="schoolNameBn">{t('schoolNameBnLabel')}</Label>
               <Input
                 id="schoolNameBn"
                 value={nameBn}
                 onChange={(e) => setNameBn(e.target.value)}
                 placeholder="বিদ্যালয়ের নাম বাংলায়"
               />
-              <p className="text-xs text-muted-foreground">Used in print headers (admit card, money receipt, student information).</p>
+              <p className="text-xs text-muted-foreground">{t('schoolNameBnNote')}</p>
             </div>
 
             {/* School Slug (read-only) */}
             <div className="space-y-1.5">
-              <Label htmlFor="slug">School ID (Slug)</Label>
+              <Label htmlFor="slug">{t('schoolIdLabel')}</Label>
               <Input
                 id="slug"
                 value={profile?.slug ?? ''}
                 readOnly
                 className="bg-muted text-muted-foreground cursor-not-allowed"
               />
-              <p className="text-xs text-muted-foreground">The school ID cannot be changed.</p>
+              <p className="text-xs text-muted-foreground">{t('schoolIdNote')}</p>
             </div>
 
             {/* Contact */}
             <div className="space-y-1.5">
-              <Label htmlFor="contact">Contact Number</Label>
+              <Label htmlFor="contact">{t('contact')}</Label>
               <Input
                 id="contact"
                 value={contact}
@@ -269,7 +271,7 @@ export default function SettingsPage() {
 
             {/* Address */}
             <div className="space-y-1.5">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">{t('address')}</Label>
               <Input
                 id="address"
                 value={address}
@@ -280,7 +282,7 @@ export default function SettingsPage() {
 
             <Button type="submit" disabled={saving} className="w-full sm:w-auto">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Changes
+              {t('save')}
             </Button>
           </form>
         </CardContent>
@@ -291,13 +293,13 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Tags className="h-4 w-4" />
-            Fee &amp; Expense Categories
+            {t('feeExpenseCategories')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Fee Categories */}
           <div>
-            <Label className="mb-2 block text-sm font-medium">Fee Categories</Label>
+            <Label className="mb-2 block text-sm font-medium">{t('feeCategories')}</Label>
             <div className="flex flex-wrap gap-2 mb-3">
               {feeCategories.map((cat) => (
                 <span key={cat} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">
@@ -316,7 +318,7 @@ export default function SettingsPage() {
               <Input
                 value={newFeeCategory}
                 onChange={(e) => setNewFeeCategory(e.target.value)}
-                placeholder="New fee category..."
+                placeholder={t('newFeeCategory')}
                 className="max-w-xs"
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeeCategory())}
               />
@@ -328,7 +330,7 @@ export default function SettingsPage() {
 
           {/* Expense Categories */}
           <div>
-            <Label className="mb-2 block text-sm font-medium">Expense Categories</Label>
+            <Label className="mb-2 block text-sm font-medium">{t('expenseCategories')}</Label>
             <div className="flex flex-wrap gap-2 mb-3">
               {expenseCategories.map((cat) => (
                 <span key={cat} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">
@@ -347,7 +349,7 @@ export default function SettingsPage() {
               <Input
                 value={newExpenseCategory}
                 onChange={(e) => setNewExpenseCategory(e.target.value)}
-                placeholder="New expense category..."
+                placeholder={t('newExpenseCategory')}
                 className="max-w-xs"
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpenseCategory())}
               />
@@ -359,7 +361,7 @@ export default function SettingsPage() {
 
           <Button onClick={handleSaveCategories} disabled={savingCategories} className="w-full sm:w-auto">
             {savingCategories && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Categories
+            {t('saveCategories')}
           </Button>
         </CardContent>
       </Card>
@@ -369,18 +371,18 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BookOpen className="h-4 w-4" />
-            Academic Configuration
+            {t('academicConfig')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Manage the lists of Classes, Sections, Shifts, and Groups used across the school.
+            {t('academicConfigDesc')}
           </p>
           <Link
             href="/dashboard/settings/academic"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
           >
-            Open Academic Settings
+            {t('openAcademic')}
           </Link>
         </CardContent>
       </Card>
