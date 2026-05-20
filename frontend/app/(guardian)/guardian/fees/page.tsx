@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Printer } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { openInvoiceWindow } from '@/lib/invoice';
@@ -43,6 +44,7 @@ interface InvoicePayload {
 }
 
 export default function GuardianFeesPage() {
+  const t = useTranslations('guardian');
   const searchParams = useSearchParams();
   const payFeeId = searchParams.get('pay');
 
@@ -175,7 +177,7 @@ export default function GuardianFeesPage() {
   }
 
   if (children.length === 0) {
-    return <p className="text-center text-muted-foreground py-20">No children linked to your account.</p>;
+    return <p className="text-center text-muted-foreground py-20">{t('noChildrenAccount')}</p>;
   }
 
   const totalDue = fees.filter((f) => f.status !== 'paid').reduce((s, f) => s + (f.due_amount || 0), 0);
@@ -183,7 +185,7 @@ export default function GuardianFeesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-xl font-bold text-foreground">Fees & Payment</h2>
+        <h2 className="text-xl font-bold text-foreground">{t('feesTitle')}</h2>
         {children.length > 1 && (
           <select
             value={selectedChild}
@@ -192,7 +194,7 @@ export default function GuardianFeesPage() {
           >
             {children.map((c) => (
               <option key={c._id} value={c._id}>
-                {c.name} (Class {c.class})
+                {c.name} ({t('class')} {c.class})
               </option>
             ))}
           </select>
@@ -201,7 +203,7 @@ export default function GuardianFeesPage() {
 
       {totalDue > 0 && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-          <p className="text-sm text-muted-foreground">Total Due</p>
+          <p className="text-sm text-muted-foreground">{t('totalDue')}</p>
           <p className="text-2xl font-bold text-red-500">৳{totalDue.toLocaleString()}</p>
         </div>
       )}
@@ -212,18 +214,18 @@ export default function GuardianFeesPage() {
         return (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
-              <h3 className="font-semibold text-foreground text-sm">Payment History & Receipts</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Print money receipt for any past payment.</p>
+              <h3 className="font-semibold text-foreground text-sm">{t('paymentHistory')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('printReceiptHint')}</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-xs">
-                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">Date</th>
-                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">Category</th>
-                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">Month</th>
-                    <th className="px-4 py-2 text-right text-muted-foreground font-medium">Amount</th>
-                    <th className="px-4 py-2 text-center text-muted-foreground font-medium">Receipt</th>
+                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">{t('date')}</th>
+                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">{t('category')}</th>
+                    <th className="px-4 py-2 text-left text-muted-foreground font-medium">{t('month')}</th>
+                    <th className="px-4 py-2 text-right text-muted-foreground font-medium">{t('amount')}</th>
+                    <th className="px-4 py-2 text-center text-muted-foreground font-medium">{t('receipt')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -244,7 +246,7 @@ export default function GuardianFeesPage() {
                           title="Print money receipt"
                         >
                           <Printer className="h-3.5 w-3.5" />
-                          {printingId === p._id ? 'Loading…' : 'Print'}
+                          {printingId === p._id ? t('loadingReceipt') : t('print')}
                         </button>
                       </td>
                     </tr>
@@ -257,20 +259,20 @@ export default function GuardianFeesPage() {
       })()}
 
       {fees.length === 0 ? (
-        <p className="text-center text-muted-foreground py-10">No fees found.</p>
+        <p className="text-center text-muted-foreground py-10">{t('noFees')}</p>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">Category</th>
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">Month</th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">Total</th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">Paid</th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">Due</th>
-                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">Status</th>
-                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">Action</th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">{t('category')}</th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">{t('month')}</th>
+                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">{t('total')}</th>
+                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">{t('paidCol')}</th>
+                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">{t('due')}</th>
+                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('status')}</th>
+                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -289,7 +291,7 @@ export default function GuardianFeesPage() {
                           ? 'bg-yellow-500/10 text-yellow-500'
                           : 'bg-red-500/10 text-red-500'
                       }`}>
-                        {fee.status}
+                        {fee.status === 'paid' ? t('paidStatus') : fee.status === 'partial' ? t('partialStatus') : t('unpaidStatus')}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
@@ -299,7 +301,7 @@ export default function GuardianFeesPage() {
                           disabled={paying === fee._id}
                           className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                         >
-                          {paying === fee._id ? 'Processing...' : 'Pay Now'}
+                          {paying === fee._id ? t('processing') : t('payNow')}
                         </button>
                       )}
                     </td>

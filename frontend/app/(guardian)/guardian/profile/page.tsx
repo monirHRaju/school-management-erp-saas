@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Bell, Receipt, Printer, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -47,6 +48,7 @@ interface InvoicePayload {
 
 export default function GuardianProfilePage() {
   const { user } = useAuth();
+  const t = useTranslations('guardian');
   const [name, setName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -122,7 +124,7 @@ export default function GuardianProfilePage() {
     setMessage(null);
 
     if (newPassword && newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
+      setMessage({ type: 'error', text: t('passwordMismatch') });
       return;
     }
 
@@ -139,7 +141,7 @@ export default function GuardianProfilePage() {
       }
 
       if (Object.keys(body).length === 0) {
-        setMessage({ type: 'error', text: 'Nothing to update' });
+        setMessage({ type: 'error', text: t('nothingToUpdate') });
         return;
       }
 
@@ -149,15 +151,15 @@ export default function GuardianProfilePage() {
       );
 
       if (res.success) {
-        setMessage({ type: 'success', text: 'Profile updated successfully' });
+        setMessage({ type: 'success', text: t('updateSuccess') });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setMessage({ type: 'error', text: res.error || 'Update failed' });
+        setMessage({ type: 'error', text: res.error || t('updateFailed') });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Something went wrong' });
+      setMessage({ type: 'error', text: t('somethingWrong') });
     } finally {
       setSaving(false);
     }
@@ -167,7 +169,7 @@ export default function GuardianProfilePage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h2 className="text-xl font-bold text-foreground">My Profile</h2>
+      <h2 className="text-xl font-bold text-foreground">{t('profileTitle')}</h2>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="space-y-2 text-sm">

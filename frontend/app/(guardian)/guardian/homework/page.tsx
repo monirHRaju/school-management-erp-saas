@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { BookOpen, ChevronDown, ChevronUp, Paperclip, AlertCircle, Clock } from 'lucide-react';
@@ -46,6 +47,7 @@ function subjectColor(subject: string) {
 }
 
 export default function GuardianHomeworkPage() {
+  const t = useTranslations('guardian');
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export default function GuardianHomeworkPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Homework</h2>
+          <h2 className="text-xl font-bold text-foreground">{t('hwTitle')}</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {subjects.length > 0 && (
@@ -97,7 +99,7 @@ export default function GuardianHomeworkPage() {
               onChange={(e) => setFilterSubject(e.target.value)}
               className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
             >
-              <option value="">All Subjects</option>
+              <option value="">{t('allSubjects')}</option>
               {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
@@ -109,7 +111,7 @@ export default function GuardianHomeworkPage() {
                 : 'border-input text-muted-foreground hover:text-foreground'
             }`}
           >
-            {showPast ? 'Hiding past' : 'Show past'}
+            {showPast ? t('hidingPast') : t('showPast')}
           </button>
         </div>
       </div>
@@ -117,7 +119,7 @@ export default function GuardianHomeworkPage() {
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
           <BookOpen className="h-10 w-10 opacity-20" />
-          <p>No homework found.</p>
+          <p>{t('noHomework')}</p>
         </div>
       )}
 
@@ -139,7 +141,7 @@ export default function GuardianHomeworkPage() {
       {showPast && overdue.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-destructive flex items-center gap-1.5">
-            <AlertCircle className="h-4 w-4" /> Overdue ({overdue.length})
+            <AlertCircle className="h-4 w-4" /> {t('overdueLabel')} ({overdue.length})
           </h3>
           {overdue.map((hw) => (
             <HomeworkCard
@@ -167,6 +169,7 @@ function HomeworkCard({
   onToggle: () => void;
   overdue?: boolean;
 }) {
+  const t = useTranslations('guardian');
   const dueToday = isDueToday(hw.due_date);
 
   return (
@@ -196,7 +199,7 @@ function HomeworkCard({
               overdue ? 'text-destructive' : dueToday ? 'text-amber-500 dark:text-amber-400' : 'text-muted-foreground'
             }`}>
               <Clock className="h-3 w-3" />
-              {dueToday ? 'Due Today' : overdue ? 'Overdue' : formatDate(hw.due_date)}
+              {dueToday ? t('dueToday') : overdue ? t('overdueLabel') : formatDate(hw.due_date)}
             </div>
             {!dueToday && !overdue && (
               <p className="text-[10px] text-muted-foreground">{formatDate(hw.due_date)}</p>
@@ -219,12 +222,12 @@ function HomeworkCard({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
             >
-              <Paperclip className="h-3.5 w-3.5" /> View Attachment
+              <Paperclip className="h-3.5 w-3.5" /> {t('viewAttachment')}
             </a>
           )}
           {hw.created_by && (
             <p className="text-xs text-muted-foreground">
-              Posted by {hw.created_by.name} ({hw.created_by.role}) · Assigned {formatDate(hw.due_date)}
+              {t('postedBy', { name: hw.created_by.name, role: hw.created_by.role })} · {t('assigned')} {formatDate(hw.due_date)}
             </p>
           )}
         </div>

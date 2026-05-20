@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -23,6 +24,7 @@ interface NoticeSummary {
 
 export default function GuardianDashboard() {
   const { user } = useAuth();
+  const t = useTranslations('guardian');
   const [children, setChildren] = useState<Child[]>([]);
   const [notices, setNotices] = useState<NoticeSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,10 +59,10 @@ export default function GuardianDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">
-          Welcome, {user?.name || 'Guardian'}
+          {t('welcome', { name: user?.name || '' })}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          View your children&apos;s information, fees, and notices
+          {t('subtitle')}
         </p>
       </div>
 
@@ -70,22 +72,22 @@ export default function GuardianDashboard() {
           href="/guardian/children"
           className="rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-colors"
         >
-          <p className="text-sm text-muted-foreground">My Children</p>
+          <p className="text-sm text-muted-foreground">{t('myChildren')}</p>
           <p className="text-3xl font-bold text-foreground mt-1">{children.length}</p>
         </Link>
         <Link
           href="/guardian/notices"
           className="rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-colors"
         >
-          <p className="text-sm text-muted-foreground">Unread Notices</p>
+          <p className="text-sm text-muted-foreground">{t('unreadNotices')}</p>
           <p className="text-3xl font-bold text-foreground mt-1">{unreadCount}</p>
         </Link>
         <Link
           href="/guardian/fees"
           className="rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-colors"
         >
-          <p className="text-sm text-muted-foreground">Fees & Payment</p>
-          <p className="text-sm font-medium text-primary mt-2">View fees →</p>
+          <p className="text-sm text-muted-foreground">{t('feesPayment')}</p>
+          <p className="text-sm font-medium text-primary mt-2">{t('viewFees')}</p>
         </Link>
       </div>
 
@@ -93,7 +95,7 @@ export default function GuardianDashboard() {
       {children.length > 0 && (
         <div className="rounded-xl border border-border bg-card">
           <div className="border-b border-border px-5 py-3">
-            <h3 className="font-semibold text-foreground">My Children</h3>
+            <h3 className="font-semibold text-foreground">{t('myChildren')}</h3>
           </div>
           <div className="divide-y divide-border">
             {children.map((child) => (
@@ -105,11 +107,11 @@ export default function GuardianDashboard() {
                 <div>
                   <p className="font-medium text-foreground">{child.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Class {child.class}{child.section ? ` - ${child.section}` : ''}
+                    {t('classInfo', { cls: child.class })}{child.section ? ` - ${child.section}` : ''}
                     {child.rollNo ? ` | Roll: ${child.rollNo}` : ''}
                   </p>
                 </div>
-                <span className="text-xs text-primary">View →</span>
+                <span className="text-xs text-primary">{t('view')}</span>
               </Link>
             ))}
           </div>
@@ -120,9 +122,9 @@ export default function GuardianDashboard() {
       {notices.length > 0 && (
         <div className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <h3 className="font-semibold text-foreground">Recent Notices</h3>
+            <h3 className="font-semibold text-foreground">{t('recentNotices')}</h3>
             <Link href="/guardian/notices" className="text-xs text-primary hover:underline">
-              View all
+              {t('viewAll')}
             </Link>
           </div>
           <div className="divide-y divide-border">
