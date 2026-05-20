@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 
@@ -15,6 +16,7 @@ interface Notice {
 }
 
 export default function GuardianNoticesPage() {
+  const t = useTranslations('guardian');
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -57,12 +59,12 @@ export default function GuardianNoticesPage() {
   }
 
   if (notices.length === 0) {
-    return <p className="text-center text-muted-foreground py-20">No notices yet.</p>;
+    return <p className="text-center text-muted-foreground py-20">{t('noNotices')}</p>;
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">Notices</h2>
+      <h2 className="text-xl font-bold text-foreground">{t('noticesTitle')}</h2>
       <div className="space-y-2">
         {notices.map((notice) => (
           <div
@@ -85,7 +87,7 @@ export default function GuardianNoticesPage() {
                   </span>
                   {notice.created_by && (
                     <span className="text-xs text-muted-foreground capitalize">
-                      From: {notice.created_by.name} ({notice.created_by.role})
+                      {t('from', { name: notice.created_by.name, role: notice.created_by.role })}
                     </span>
                   )}
                 </div>

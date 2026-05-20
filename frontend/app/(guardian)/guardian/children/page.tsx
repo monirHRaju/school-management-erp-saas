@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 
@@ -17,6 +18,7 @@ interface Child {
 }
 
 export default function ChildrenPage() {
+  const t = useTranslations('guardian');
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,15 +44,15 @@ export default function ChildrenPage() {
   if (children.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-lg font-medium text-foreground">No children found</p>
-        <p className="text-sm text-muted-foreground mt-1">Your account is not linked to any students yet.</p>
+        <p className="text-lg font-medium text-foreground">{t('noChildrenFound')}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('noChildrenLinked')}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">My Children</h2>
+      <h2 className="text-xl font-bold text-foreground">{t('myChildren')}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {children.map((child) => (
           <Link
@@ -60,8 +62,8 @@ export default function ChildrenPage() {
           >
             <p className="text-lg font-semibold text-foreground">{child.name}</p>
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <p>Class: {child.class}{child.section ? ` | Section: ${child.section}` : ''}</p>
-              {child.rollNo && <p>Roll No: {child.rollNo}</p>}
+              <p>{t('class')}: {child.class}{child.section ? ` | ${t('section')}: ${child.section}` : ''}</p>
+              {child.rollNo && <p>{t('rollNo')}: {child.rollNo}</p>}
               {child.status && (
                 <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                   child.status === 'active'

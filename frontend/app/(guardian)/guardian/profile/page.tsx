@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Bell, Receipt, Printer, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -47,6 +48,7 @@ interface InvoicePayload {
 
 export default function GuardianProfilePage() {
   const { user } = useAuth();
+  const t = useTranslations('guardian');
   const [name, setName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -122,7 +124,7 @@ export default function GuardianProfilePage() {
     setMessage(null);
 
     if (newPassword && newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
+      setMessage({ type: 'error', text: t('passwordMismatch') });
       return;
     }
 
@@ -139,7 +141,7 @@ export default function GuardianProfilePage() {
       }
 
       if (Object.keys(body).length === 0) {
-        setMessage({ type: 'error', text: 'Nothing to update' });
+        setMessage({ type: 'error', text: t('nothingToUpdate') });
         return;
       }
 
@@ -149,15 +151,15 @@ export default function GuardianProfilePage() {
       );
 
       if (res.success) {
-        setMessage({ type: 'success', text: 'Profile updated successfully' });
+        setMessage({ type: 'success', text: t('updateSuccess') });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setMessage({ type: 'error', text: res.error || 'Update failed' });
+        setMessage({ type: 'error', text: res.error || t('updateFailed') });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Something went wrong' });
+      setMessage({ type: 'error', text: t('somethingWrong') });
     } finally {
       setSaving(false);
     }
@@ -167,20 +169,20 @@ export default function GuardianProfilePage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h2 className="text-xl font-bold text-foreground">My Profile</h2>
+      <h2 className="text-xl font-bold text-foreground">{t('profileTitle')}</h2>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Name</span>
+            <span className="text-muted-foreground">{t('nameLabel')}</span>
             <span className="text-foreground font-medium">{user?.name || '-'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Phone</span>
+            <span className="text-muted-foreground">{t('phoneLabel')}</span>
             <span className="text-foreground font-medium">{user?.phone || '-'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Role</span>
+            <span className="text-muted-foreground">{t('roleLabel')}</span>
             <span className="text-foreground font-medium capitalize">{user?.role}</span>
           </div>
         </div>
@@ -191,19 +193,19 @@ export default function GuardianProfilePage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-foreground">Notifications</h3>
+            <h3 className="font-semibold text-foreground">{t('notifications')}</h3>
             {unreadCount > 0 && (
               <span className="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">
-                {unreadCount} unread
+                {t('unread', { count: unreadCount })}
               </span>
             )}
           </div>
           <Link href="/guardian/notices" className="text-xs text-primary hover:underline flex items-center gap-1">
-            View all <ArrowRight className="h-3 w-3" />
+            {t('viewAll')} <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         {notices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No notifications.</p>
+          <p className="text-sm text-muted-foreground">{t('noNotifications')}</p>
         ) : (
           <ul className="space-y-2">
             {notices.map((n) => (
@@ -224,24 +226,24 @@ export default function GuardianProfilePage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-foreground">Recent Payments</h3>
+            <h3 className="font-semibold text-foreground">{t('recentPayments')}</h3>
           </div>
           <Link href="/guardian/fees" className="text-xs text-primary hover:underline flex items-center gap-1">
-            View fees <ArrowRight className="h-3 w-3" />
+            {t('viewFeesLink')} <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         {payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No payments yet.</p>
+          <p className="text-sm text-muted-foreground">{t('noPayments')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="text-left font-medium py-2">Date</th>
-                  <th className="text-left font-medium py-2">Student</th>
-                  <th className="text-left font-medium py-2">Category</th>
-                  <th className="text-right font-medium py-2">Amount</th>
-                  <th className="text-right font-medium py-2">Receipt</th>
+                  <th className="text-left font-medium py-2">{t('date')}</th>
+                  <th className="text-left font-medium py-2">{t('studentCol')}</th>
+                  <th className="text-left font-medium py-2">{t('category')}</th>
+                  <th className="text-right font-medium py-2">{t('amount')}</th>
+                  <th className="text-right font-medium py-2">{t('receipt')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -273,9 +275,9 @@ export default function GuardianProfilePage() {
       </div>
 
       <form onSubmit={handleSave} className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h3 className="font-semibold text-foreground">Account Settings</h3>
+        <h3 className="font-semibold text-foreground">{t('accountSettings')}</h3>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('nameLabel')}</label>
           <input
             type="text"
             value={name}
@@ -285,10 +287,10 @@ export default function GuardianProfilePage() {
         </div>
 
         <hr className="border-border" />
-        <p className="text-sm font-medium text-muted-foreground">Change Password</p>
+        <p className="text-sm font-medium text-muted-foreground">{t('changePassword')}</p>
 
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Current Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('currentPassword')}</label>
           <input
             type="password"
             value={currentPassword}
@@ -297,7 +299,7 @@ export default function GuardianProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">New Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('newPassword')}</label>
           <input
             type="password"
             value={newPassword}
@@ -306,7 +308,7 @@ export default function GuardianProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Confirm New Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('confirmPassword')}</label>
           <input
             type="password"
             value={confirmPassword}
@@ -326,7 +328,7 @@ export default function GuardianProfilePage() {
           disabled={saving}
           className="w-full sm:w-auto rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('saving') : t('saveChanges')}
         </button>
       </form>
     </div>

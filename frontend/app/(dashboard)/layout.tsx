@@ -31,6 +31,10 @@ import {
   PartyPopper,
   SlidersHorizontal,
   BookMarked,
+  ClipboardList,
+  BarChart2,
+  Send,
+  List,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
@@ -78,7 +82,7 @@ const navItems: NavItem[] = [
     icon: GraduationCap,
     roles: ['admin', 'staff', 'teacher'],
     children: [
-      { href: '/dashboard/students', labelKey: 'allStudents' },
+      { href: '/dashboard/students', labelKey: 'allStudents', icon: List },
       { href: '/dashboard/students/admit-card', labelKey: 'admitCard', icon: IdCard },
     ],
   },
@@ -99,8 +103,8 @@ const navItems: NavItem[] = [
     icon: CalendarCheck,
     roles: ['admin', 'staff', 'teacher'],
     children: [
-      { href: '/dashboard/attendance', labelKey: 'takeAttendance' },
-      { href: '/dashboard/attendance?tab=monthly', labelKey: 'attendanceReport' },
+      { href: '/dashboard/attendance', labelKey: 'takeAttendance', icon: ClipboardList },
+      { href: '/dashboard/attendance?tab=monthly', labelKey: 'attendanceReport', icon: BarChart2 },
       { href: '/dashboard/attendance?tab=holidays', labelKey: 'holidays', icon: PartyPopper },
     ],
   },
@@ -117,7 +121,7 @@ const navItems: NavItem[] = [
     icon: MessageSquare,
     roles: ['admin'],
     children: [
-      { href: '/dashboard/sms', labelKey: 'sendSMS' },
+      { href: '/dashboard/sms', labelKey: 'sendSMS', icon: Send },
       { href: '/dashboard/sms-order', labelKey: 'buySMS', icon: ShoppingCart },
     ],
   },
@@ -127,7 +131,7 @@ const navItems: NavItem[] = [
     icon: Megaphone,
     roles: ['admin', 'staff', 'accountant', 'teacher'],
     children: [
-      { href: '/dashboard/school-notices', labelKey: 'schoolNotices' },
+      { href: '/dashboard/school-notices', labelKey: 'schoolNotices', icon: Megaphone },
       { href: '/dashboard/notices', labelKey: 'systemNotices', icon: Bell },
     ],
   },
@@ -137,7 +141,7 @@ const navItems: NavItem[] = [
     icon: Users,
     roles: ['admin'],
     children: [
-      { href: '/dashboard/users', labelKey: 'staffAndUsers' },
+      { href: '/dashboard/users', labelKey: 'staffAndUsers', icon: Users },
       { href: '/dashboard/teachers', labelKey: 'teachers', icon: UserCheck },
     ],
   },
@@ -163,10 +167,16 @@ const navItems: NavItem[] = [
 const STORAGE_KEY = 'sidebar-collapsed';
 const OPEN_GROUPS_KEY = 'sidebar-open-groups';
 
+// Collect all direct (non-group) nav hrefs so they get exclusive ownership of exact paths
+const _directNavHrefs = navItems.filter((i) => i.href).map((i) => i.href as string);
+
 function isLinkActive(pathname: string, href: string) {
   const cleanHref = href.split('?')[0];
   if (cleanHref === '/dashboard') return pathname === '/dashboard';
-  return pathname === cleanHref || pathname.startsWith(cleanHref + '/');
+  if (pathname === cleanHref) return true;
+  // Allow prefix match only if no other direct nav item already claims this exact pathname
+  if (_directNavHrefs.some((dh) => dh !== cleanHref && pathname === dh)) return false;
+  return pathname.startsWith(cleanHref + '/');
 }
 
 function NavGroup({
@@ -205,8 +215,8 @@ function NavGroup({
               title={!showLabels ? label : undefined}
               className={`group relative flex items-center gap-3 rounded-lg px-3 ${mobile ? 'py-3 text-base' : 'py-2.5 text-[13px]'} font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-sidebar-primary/10 text-sidebar-primary'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                  ? 'bg-sidebar-primary/20 text-sidebar-primary'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               }`}
             >
               {isActive && (
@@ -231,8 +241,8 @@ function NavGroup({
               title={!showLabels ? label : undefined}
               className={`group relative flex w-full items-center gap-3 rounded-lg px-3 ${mobile ? 'py-3 text-base' : 'py-2.5 text-[13px]'} font-medium transition-all duration-200 ${
                 groupActive
-                  ? 'bg-sidebar-primary/10 text-sidebar-primary'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                  ? 'bg-sidebar-primary/20 text-sidebar-primary'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               }`}
             >
               {groupActive && (
@@ -262,8 +272,8 @@ function NavGroup({
                       onClick={onLinkClick}
                       className={`flex items-center gap-2 rounded-md px-2.5 ${mobile ? 'py-2 text-sm' : 'py-2 text-[12.5px]'} transition-colors ${
                         childActive
-                          ? 'bg-sidebar-primary/10 text-sidebar-primary font-medium'
-                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                          ? 'bg-sidebar-primary/20 text-sidebar-primary font-medium'
+                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                       }`}
                     >
                       {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />}
