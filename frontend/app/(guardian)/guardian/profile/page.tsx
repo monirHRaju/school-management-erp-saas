@@ -275,9 +275,9 @@ export default function GuardianProfilePage() {
       </div>
 
       <form onSubmit={handleSave} className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h3 className="font-semibold text-foreground">Account Settings</h3>
+        <h3 className="font-semibold text-foreground">{t('accountSettings')}</h3>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('nameLabel')}</label>
           <input
             type="text"
             value={name}
@@ -287,10 +287,10 @@ export default function GuardianProfilePage() {
         </div>
 
         <hr className="border-border" />
-        <p className="text-sm font-medium text-muted-foreground">Change Password</p>
+        <p className="text-sm font-medium text-muted-foreground">{t('changePassword')}</p>
 
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Current Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('currentPassword')}</label>
           <input
             type="password"
             value={currentPassword}
@@ -299,7 +299,7 @@ export default function GuardianProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">New Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('newPassword')}</label>
           <input
             type="password"
             value={newPassword}
@@ -308,7 +308,7 @@ export default function GuardianProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Confirm New Password</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1">{t('confirmPassword')}</label>
           <input
             type="password"
             value={confirmPassword}
@@ -328,7 +328,7 @@ export default function GuardianProfilePage() {
           disabled={saving}
           className="w-full sm:w-auto rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('saving') : t('saveChanges')}
         </button>
       </form>
     </div>
