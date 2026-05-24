@@ -24,7 +24,8 @@ interface AcademicSubject {
   name: string;
   code: string;
   writtenMark: number;
-  otherMark: number;
+  mcqMark: number;
+  practicalMark: number;
   type: 'Main' | 'Optional';
   status: 'active' | 'inactive';
 }
@@ -36,7 +37,8 @@ const emptyForm = {
   name: '',
   code: '',
   writtenMark: '',
-  otherMark: '',
+  mcqMark: '',
+  practicalMark: '',
   type: 'Main' as 'Main' | 'Optional',
   status: 'active' as 'active' | 'inactive',
 };
@@ -98,7 +100,8 @@ export default function SubjectsPage() {
       name: item.name,
       code: item.code ?? '',
       writtenMark: item.writtenMark ? String(item.writtenMark) : '',
-      otherMark: item.otherMark ? String(item.otherMark) : '',
+      mcqMark: item.mcqMark ? String(item.mcqMark) : '',
+      practicalMark: item.practicalMark ? String(item.practicalMark) : '',
       type: item.type,
       status: item.status,
     });
@@ -121,7 +124,8 @@ export default function SubjectsPage() {
         name: form.name.trim(),
         code: form.code.trim(),
         writtenMark: Number(form.writtenMark) || 0,
-        otherMark: Number(form.otherMark) || 0,
+        mcqMark: Number(form.mcqMark) || 0,
+        practicalMark: Number(form.practicalMark) || 0,
         type: form.type,
         status: form.status,
       };
@@ -209,7 +213,8 @@ export default function SubjectsPage() {
               <th className="px-4 py-3 text-left font-medium">Code</th>
               <th className="px-4 py-3 text-left font-medium">Classes</th>
               <th className="px-4 py-3 text-center font-medium">Written</th>
-              <th className="px-4 py-3 text-center font-medium">Other</th>
+              <th className="px-4 py-3 text-center font-medium">MCQ</th>
+              <th className="px-4 py-3 text-center font-medium">Practical</th>
               <th className="px-4 py-3 text-center font-medium">Type</th>
               <th className="px-4 py-3 text-center font-medium">Status</th>
               {isAdmin && <th className="px-4 py-3 text-center font-medium">Actions</th>}
@@ -217,9 +222,9 @@ export default function SubjectsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={isAdmin ? 9 : 8} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
+              <tr><td colSpan={isAdmin ? 10 : 9} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={isAdmin ? 9 : 8} className="py-12 text-center text-muted-foreground">No subjects found.</td></tr>
+              <tr><td colSpan={isAdmin ? 10 : 9} className="py-12 text-center text-muted-foreground">No subjects found.</td></tr>
             ) : (
               items.map((item, idx) => (
                 <tr key={item._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
@@ -234,7 +239,8 @@ export default function SubjectsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">{item.writtenMark || <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-4 py-3 text-center">{item.otherMark || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-3 text-center">{item.mcqMark || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-3 text-center">{item.practicalMark || <span className="text-muted-foreground">—</span>}</td>
                   <td className="px-4 py-3 text-center">
                     <Badge variant={item.type === 'Main' ? 'default' : 'secondary'}>{item.type}</Badge>
                   </td>
@@ -281,12 +287,16 @@ export default function SubjectsPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Written Mark</Label>
+                <Label>Written Mark (max)</Label>
                 <Input type="number" min="0" placeholder="0" value={form.writtenMark} onChange={(e) => setForm((f) => ({ ...f, writtenMark: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>Other Mark</Label>
-                <Input type="number" min="0" placeholder="0" value={form.otherMark} onChange={(e) => setForm((f) => ({ ...f, otherMark: e.target.value }))} />
+                <Label>MCQ Mark (max)</Label>
+                <Input type="number" min="0" placeholder="0" value={form.mcqMark} onChange={(e) => setForm((f) => ({ ...f, mcqMark: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Practical Mark (max)</Label>
+                <Input type="number" min="0" placeholder="0" value={form.practicalMark} onChange={(e) => setForm((f) => ({ ...f, practicalMark: e.target.value }))} />
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Status</Label>

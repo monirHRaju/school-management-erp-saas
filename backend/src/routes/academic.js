@@ -319,7 +319,7 @@ router.get('/subjects', requireRole(...READ_ROLES), async (req, res) => {
 
 router.post('/subjects', requireRole('admin'), async (req, res) => {
   try {
-    const { classes, name, code, writtenMark, otherMark, type, status } = req.body;
+    const { classes, name, code, writtenMark, mcqMark, otherMark, practicalMark, type, status } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, error: 'Name is required' });
     const doc = await AcademicSubject.create({
       school_id: schoolObjId(req),
@@ -327,7 +327,8 @@ router.post('/subjects', requireRole('admin'), async (req, res) => {
       name: name.trim(),
       code: code?.trim() || '',
       writtenMark: Number(writtenMark) || 0,
-      otherMark: Number(otherMark) || 0,
+      mcqMark: Number(mcqMark ?? otherMark) || 0,
+      practicalMark: Number(practicalMark) || 0,
       type: type || 'Main',
       status: status || 'active',
     });
@@ -339,13 +340,15 @@ router.post('/subjects', requireRole('admin'), async (req, res) => {
 
 router.patch('/subjects/:id', requireRole('admin'), async (req, res) => {
   try {
-    const { classes, name, code, writtenMark, otherMark, type, status } = req.body;
+    const { classes, name, code, writtenMark, mcqMark, otherMark, practicalMark, type, status } = req.body;
     const update = {};
     if (classes !== undefined) update.classes = Array.isArray(classes) ? classes.map((c) => String(c).trim()).filter(Boolean) : [];
     if (name !== undefined) update.name = name.trim();
     if (code !== undefined) update.code = code.trim();
     if (writtenMark !== undefined) update.writtenMark = Number(writtenMark) || 0;
-    if (otherMark !== undefined) update.otherMark = Number(otherMark) || 0;
+    if (mcqMark !== undefined) update.mcqMark = Number(mcqMark) || 0;
+    else if (otherMark !== undefined) update.mcqMark = Number(otherMark) || 0;
+    if (practicalMark !== undefined) update.practicalMark = Number(practicalMark) || 0;
     if (type !== undefined) update.type = type;
     if (status !== undefined) update.status = status;
     const doc = await AcademicSubject.findOneAndUpdate(
