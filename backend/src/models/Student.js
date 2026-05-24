@@ -29,6 +29,7 @@ const studentSchema = new mongoose.Schema(
     religion: { type: String, trim: true },
     class: { type: String, trim: true },
     section: { type: String, trim: true },
+    session: { type: String, trim: true, default: '' },
     rollNo: { type: String, trim: true },
     monthlyFee: { type: Number, min: 0 },
     admissionDate: { type: Date },
