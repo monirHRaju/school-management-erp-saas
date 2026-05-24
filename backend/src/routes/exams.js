@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Exam = require('../models/Exam');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 const canRead = requireRole(['admin', 'staff', 'teacher']);
 const canWrite = requireRole(['admin', 'staff']);
