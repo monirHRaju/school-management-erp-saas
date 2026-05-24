@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const GradeScale = require('../models/GradeScale');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 const DEFAULT_GRADES = [
   { grade: 'A+', minMark: 80, gradePoint: 5.0, isFail: false },

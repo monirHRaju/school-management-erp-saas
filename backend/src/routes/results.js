@@ -5,7 +5,8 @@ const GradeScale = require('../models/GradeScale');
 const ResultSettings = require('../models/ResultSettings');
 const Exam = require('../models/Exam');
 const { calcGrade } = require('../utils/gradeCalc');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 const canRead = requireRole(['admin', 'staff', 'teacher']);
 const canWrite = requireRole(['admin', 'staff']);

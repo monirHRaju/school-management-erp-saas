@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const ResultSettings = require('../models/ResultSettings');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
 // GET /api/result-settings
 router.get('/', authMiddleware, requireRole(['admin', 'staff', 'teacher']), async (req, res) => {
