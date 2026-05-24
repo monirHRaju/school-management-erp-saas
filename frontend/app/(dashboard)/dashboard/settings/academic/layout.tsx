@@ -12,6 +12,7 @@ const SUB_PAGES = [
   { href: '/dashboard/settings/academic/shifts', label: 'Shifts' },
   { href: '/dashboard/settings/academic/groups', label: 'Groups' },
   { href: '/dashboard/settings/academic/holidays', label: 'Holidays' },
+  { href: '/dashboard/settings/academic/result-settings', label: 'Result Settings' },
 ];
 
 export default function AcademicLayout({ children }: { children: React.ReactNode }) {

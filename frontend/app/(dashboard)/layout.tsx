@@ -35,6 +35,11 @@ import {
   BarChart2,
   Send,
   List,
+  FileText,
+  Trophy,
+  Star,
+  Table,
+  BarChart,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
@@ -114,6 +119,30 @@ const navItems: NavItem[] = [
     icon: BookOpen,
     href: '/dashboard/homework',
     roles: ['admin', 'staff', 'teacher'],
+  },
+  {
+    key: 'exams',
+    labelKey: 'exams',
+    icon: FileText,
+    roles: ['admin', 'staff', 'teacher'],
+    children: [
+      { href: '/dashboard/exams', labelKey: 'examList', icon: List },
+      { href: '/dashboard/exams/grading', labelKey: 'gradingList', icon: Star },
+    ],
+  },
+  {
+    key: 'results',
+    labelKey: 'results',
+    icon: Trophy,
+    roles: ['admin', 'staff', 'teacher'],
+    children: [
+      { href: '/dashboard/results', labelKey: 'resultList', icon: ClipboardList },
+      { href: '/dashboard/results/entry', labelKey: 'markEntry', icon: FileText },
+      { href: '/dashboard/results/tabulation', labelKey: 'tabulationSheet', icon: Table },
+      { href: '/dashboard/results/reports/exam-summary', labelKey: 'examSummary', icon: BarChart2 },
+      { href: '/dashboard/results/reports/exam-wise', labelKey: 'examWiseResult', icon: BarChart },
+      { href: '/dashboard/results/reports/annual', labelKey: 'annualResult', icon: BookMarked },
+    ],
   },
   {
     key: 'sms',
