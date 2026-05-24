@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const User = require('../models/User');
+const Fee = require('../models/Fee');
+const AcademicClass = require('../models/AcademicClass');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { findOrCreateGuardian, linkStudent, unlinkStudent } = require('../services/guardianService');
@@ -225,6 +227,7 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       religion,
       class: className,
       section,
+      session,
       rollNo,
       monthlyFee,
       admissionDate,
@@ -285,6 +288,7 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       religion: religion ? String(religion).trim() : undefined,
       class: className ? String(className).trim() : undefined,
       section: section ? String(section).trim() : undefined,
+      session: session ? String(session).trim() : undefined,
       rollNo: rollNo != null ? String(rollNo).trim() : undefined,
       monthlyFee:
         monthlyFee !== undefined && monthlyFee !== null && monthlyFee !== ''
@@ -293,6 +297,45 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       admissionDate: admissionDate ? new Date(admissionDate) : undefined,
       status: status && ['active', 'inactive', 'left'].includes(status) ? status : 'active',
     });
+
+    // Auto-create one-time fee records from class fee config
+    if (className) {
+      try {
+        const academicClass = await AcademicClass.findOne({
+          school_id: new mongoose.Types.ObjectId(req.schoolId),
+          name: String(className).trim(),
+          status: 'active',
+        }).lean();
+        if (academicClass) {
+          const feeEntries = [
+            { amount: academicClass.admissionFee, description: 'Admission Fee' },
+            { amount: academicClass.examFee, description: 'Exam Fee' },
+            { amount: academicClass.idCardFee, description: 'ID Card Fee' },
+            { amount: academicClass.sessionFee, description: 'Session Fee' },
+            { amount: academicClass.transcriptFee, description: 'Transcript Fee' },
+          ].filter((e) => e.amount > 0);
+          if (feeEntries.length) {
+            await Fee.insertMany(
+              feeEntries.map((e) => ({
+                school_id: new mongoose.Types.ObjectId(req.schoolId),
+                student_id: student._id,
+                category: 'other',
+                description: e.description,
+                month: '',
+                total_fee: e.amount,
+                paid_amount: 0,
+                due_amount: e.amount,
+                status: 'unpaid',
+              })),
+              { ordered: false }
+            );
+          }
+        }
+      } catch (err) {
+        console.error('[Fees] Auto-create from class config failed:', err.message);
+      }
+    }
+
     // Auto-create guardian if phone provided
     if (guardianPhone) {
       try {
@@ -348,6 +391,7 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       religion,
       class: className,
       section,
+      session,
       rollNo,
       monthlyFee,
       admissionDate,
@@ -400,6 +444,7 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
     if (religion !== undefined) update.religion = religion ? String(religion).trim() : '';
     if (className !== undefined) update.class = String(className).trim();
     if (section !== undefined) update.section = String(section).trim();
+    if (session !== undefined) update.session = String(session).trim();
     if (rollNo !== undefined) update.rollNo = String(rollNo).trim();
     if (monthlyFee !== undefined && monthlyFee !== null && monthlyFee !== '')
       update.monthlyFee = Number(monthlyFee);
