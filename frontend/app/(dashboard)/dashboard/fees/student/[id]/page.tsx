@@ -67,6 +67,7 @@ export default function StudentFeeReportPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [addInvoiceDate, setAddInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [addAmount, setAddAmount] = useState('');
   const [addSubmitting, setAddSubmitting] = useState(false);
 
@@ -289,6 +290,7 @@ export default function StudentFeeReportPage() {
     try {
       await createAdditionalFee(
         { category: addCategory, description: addDescription.trim() || undefined, month: addMonth || undefined, amount, student_id: studentId, for_all_students: false },
+        addInvoiceDate,
         token
       );
       toast.success('Fee added.');
@@ -783,6 +785,10 @@ export default function StudentFeeReportPage() {
             <div className="space-y-2">
               <Label>Month (optional)</Label>
               <Input type="month" value={addMonth} onChange={(e) => setAddMonth(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Invoice Date</Label>
+              <Input type="date" value={addInvoiceDate} onChange={(e) => setAddInvoiceDate(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Amount (৳)</Label>

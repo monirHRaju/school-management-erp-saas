@@ -84,12 +84,16 @@ export default function FeesPage() {
   // Students list (for individual fee)
   const [students, setStudents] = useState<Student[]>([]);
 
+  // Invoice date helper
+  const todayDate = () => new Date().toISOString().split('T')[0];
+
   // Section 1: Generate Monthly Fees
   const [generating, setGenerating] = useState(false);
   const [generateMonthValue, setGenerateMonthValue] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [generateInvoiceDate, setGenerateInvoiceDate] = useState(todayDate);
 
   // Section 2: Batch/Class Wise Fee Generation
   const [batchCategory, setBatchCategory] = useState('');
@@ -100,6 +104,7 @@ export default function FeesPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [batchInvoiceDate, setBatchInvoiceDate] = useState(todayDate);
   const [batchAmount, setBatchAmount] = useState('');
   const [batchDescription, setBatchDescription] = useState('');
   const [batchGenerating, setBatchGenerating] = useState(false);
@@ -112,6 +117,7 @@ export default function FeesPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [indivInvoiceDate, setIndivInvoiceDate] = useState(todayDate);
   const [indivAmount, setIndivAmount] = useState('');
   const [indivSubmitting, setIndivSubmitting] = useState(false);
 
@@ -241,7 +247,7 @@ export default function FeesPage() {
     if (!token) return;
     setGenerating(true);
     try {
-      const res = await generateMonth(generateMonthValue, token);
+      const res = await generateMonth(generateMonthValue, generateInvoiceDate, token);
       toast.success(`Generated: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated for ${generateMonthValue}.`);
       fetchFees(page);
     } catch (e) {
@@ -264,6 +270,7 @@ export default function FeesPage() {
     try {
       const res = await batchGenerateFee(
         { category: batchCategory, description: batchDescription.trim() || undefined, month: batchMonth || undefined, amount, class: batchClass, section: batchSection || undefined, shift: batchShift || undefined },
+        batchInvoiceDate,
         token
       );
       toast.success(`Generated ${res.data?.created ?? 0} fee(s) for ${batchClass}${batchSection ? ' / ' + batchSection : ''}${batchShift ? ' / ' + batchShift : ''}.`);
@@ -290,6 +297,7 @@ export default function FeesPage() {
     try {
       await createAdditionalFee(
         { category: indivCategory, description: indivDescription.trim() || undefined, month: indivMonth || undefined, amount, student_id: indivStudentId, for_all_students: false },
+        indivInvoiceDate,
         token
       );
       toast.success('Fee added for student.');
@@ -438,6 +446,16 @@ export default function FeesPage() {
                 className="max-w-[180px]"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="generate-invoice-date">Invoice Date</Label>
+              <Input
+                id="generate-invoice-date"
+                type="date"
+                value={generateInvoiceDate}
+                onChange={(e) => setGenerateInvoiceDate(e.target.value)}
+                className="max-w-[180px]"
+              />
+            </div>
             <Button
               onClick={handleGenerateMonth}
               disabled={generating}
@@ -495,6 +513,10 @@ export default function FeesPage() {
               <div className="space-y-2">
                 <Label>{t('month')}</Label>
                 <Input type="month" value={batchMonth} onChange={(e) => setBatchMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Invoice Date</Label>
+                <Input type="date" value={batchInvoiceDate} onChange={(e) => setBatchInvoiceDate(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>{t('amount')} *</Label>
@@ -568,6 +590,10 @@ export default function FeesPage() {
               <div className="space-y-2">
                 <Label>{t('monthOptional')}</Label>
                 <Input type="month" value={indivMonth} onChange={(e) => setIndivMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Invoice Date</Label>
+                <Input type="date" value={indivInvoiceDate} onChange={(e) => setIndivInvoiceDate(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>{t('amount')} *</Label>
