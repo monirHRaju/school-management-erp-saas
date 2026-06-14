@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Download,
   FileText,
@@ -86,6 +87,7 @@ const emptyIncomeForm = (): CreateManualIncomePayload => ({
 });
 
 export default function IncomeExpensePage() {
+  const t = useTranslations('incomeExpense');
   const { token, school } = useAuth();
   const [rows, setRows] = useState<LedgerRowWithBalance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,7 +294,7 @@ export default function IncomeExpensePage() {
     </div>`;
 
   const handlePrint = () => {
-    if (rows.length === 0) { toast.error('No data to print'); return; }
+    if (rows.length === 0) { toast.error(t('noData')); return; }
     const win = window.open('', '', 'height=1200,width=900');
     if (!win) { toast.error('Popup blocked — allow popups and try again.'); return; }
     win.document.open();
@@ -307,9 +309,9 @@ export default function IncomeExpensePage() {
   };
 
   const handleExportPdf = async () => {
-    if (rows.length === 0) { toast.error('No data to export'); return; }
+    if (rows.length === 0) { toast.error(t('noDataExport')); return; }
     setExporting(true);
-    const toastId = toast.loading('Generating PDF…');
+    const toastId = toast.loading(t('generatingPdf'));
     try {
       const container = document.createElement('div');
       container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px;background:#fff;padding:40px;font-family:Arial,sans-serif;font-size:13px;color:#111;';
@@ -354,7 +356,7 @@ export default function IncomeExpensePage() {
   };
 
   const handleExportCsv = () => {
-    if (rows.length === 0) { toast.error('No data to export'); return; }
+    if (rows.length === 0) { toast.error(t('noDataExport')); return; }
     const header = ['SL', 'Date', 'Title', 'Category', 'Type', 'Income (BDT)', 'Expense (BDT)', 'Balance (BDT)'];
     const csvRows = rows.map((r) => [
       r.sl,
@@ -385,19 +387,19 @@ export default function IncomeExpensePage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Income / Expense</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
           <p className="mt-1 text-muted-foreground">
-            Combined ledger of all income and expenses with running balance.
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint} disabled={exporting}>
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            {t('print')}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={exporting}>
             <FileText className="mr-2 h-4 w-4" />
-            Export CSV
+            {t('exportCsv')}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting}>
             {exporting ? (
@@ -405,18 +407,18 @@ export default function IncomeExpensePage() {
             ) : (
               <Download className="mr-2 h-4 w-4" />
             )}
-            Export PDF
+            {t('exportPdf')}
           </Button>
           <Button
             variant="outline"
             onClick={() => { setIncomeForm(emptyIncomeForm()); setIncomeModalOpen(true); }}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add Income
+            {t('addIncome')}
           </Button>
           <Button onClick={() => { setExpenseForm(emptyExpenseForm()); setExpenseModalOpen(true); }}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add Expense
+            {t('addExpense')}
           </Button>
         </div>
       </div>
@@ -426,16 +428,16 @@ export default function IncomeExpensePage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-4 items-end">
             <div className="space-y-2">
-              <Label htmlFor="le-from">From date</Label>
+              <Label htmlFor="le-from">{t('fromDate')}</Label>
               <Input id="le-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="le-to">To date</Label>
+              <Label htmlFor="le-to">{t('toDate')}</Label>
               <Input id="le-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
-            <Button variant="secondary" onClick={fetchLedger}>Apply</Button>
+            <Button variant="secondary" onClick={fetchLedger}>{t('apply')}</Button>
             {(from || to) && (
-              <Button variant="ghost" onClick={() => { setFrom(''); setTo(''); }}>Clear</Button>
+              <Button variant="ghost" onClick={() => { setFrom(''); setTo(''); }}>{t('clear')}</Button>
             )}
           </div>
         </CardContent>
@@ -450,7 +452,7 @@ export default function IncomeExpensePage() {
                 <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Income</p>
+                <p className="text-xs text-muted-foreground">{t('totalIncome')}</p>
                 <p className="text-xl font-bold text-green-600 dark:text-green-400">৳ {totalIncome.toLocaleString()}</p>
               </div>
             </div>
@@ -463,7 +465,7 @@ export default function IncomeExpensePage() {
                 <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Expense</p>
+                <p className="text-xs text-muted-foreground">{t('totalExpense')}</p>
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">৳ {totalExpense.toLocaleString()}</p>
               </div>
             </div>
@@ -476,7 +478,7 @@ export default function IncomeExpensePage() {
                 <Wallet className={cn('h-5 w-5', netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400')} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Net Balance</p>
+                <p className="text-xs text-muted-foreground">{t('netBalance')}</p>
                 <p className={cn('text-xl font-bold', netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400')}>
                   ৳ {netBalance.toLocaleString()}
                 </p>
@@ -489,7 +491,7 @@ export default function IncomeExpensePage() {
       {/* Ledger Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Ledger</CardTitle>
+          <CardTitle className="text-base">{t('ledger')}</CardTitle>
         </CardHeader>
         <CardContent>
           {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
@@ -499,20 +501,20 @@ export default function IncomeExpensePage() {
             </div>
           ) : rows.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">
-              No records found. Collect fee payments or add income / expenses to get started.
+              {t('noRecords')}
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12 text-center">SL</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Income / Expense Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right text-green-600">Income (৳)</TableHead>
-                    <TableHead className="text-right text-red-600">Expense (৳)</TableHead>
-                    <TableHead className="text-right">Balance (৳)</TableHead>
+                    <TableHead className="w-12 text-center">{t('sl')}</TableHead>
+                    <TableHead>{t('date')}</TableHead>
+                    <TableHead>{t('ledgerTitle')}</TableHead>
+                    <TableHead>{t('category')}</TableHead>
+                    <TableHead className="text-right text-green-600">{t('income')}</TableHead>
+                    <TableHead className="text-right text-red-600">{t('expense')}</TableHead>
+                    <TableHead className="text-right">{t('balance')}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -587,19 +589,19 @@ export default function IncomeExpensePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {pendingDelete?.source === 'manual_income' ? 'Income' : 'Expense'}
+              {pendingDelete?.source === 'manual_income' ? t('deleteIncome') : t('deleteExpense')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this {pendingDelete?.source === 'manual_income' ? 'income' : 'expense'} entry? This action cannot be undone.
+              {t('deleteConfirm', { type: pendingDelete?.source === 'manual_income' ? t('incomeType') : t('expenseType') })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -609,11 +611,11 @@ export default function IncomeExpensePage() {
       <Dialog open={incomeModalOpen} onOpenChange={setIncomeModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Income</DialogTitle>
+            <DialogTitle>{t('addIncome')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="inc-date">Date</Label>
+              <Label htmlFor="inc-date">{t('date')}</Label>
               <Input
                 id="inc-date"
                 type="date"
@@ -622,17 +624,17 @@ export default function IncomeExpensePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inc-title">Title</Label>
+              <Label htmlFor="inc-title">{t('title2')}</Label>
               <Input
                 id="inc-title"
                 type="text"
-                placeholder="e.g. Land Sale"
+                placeholder={t('titlePlaceholder')}
                 value={incomeForm.title}
                 onChange={(e) => handleIncomeFormChange('title', e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inc-category">Category</Label>
+              <Label htmlFor="inc-category">{t('category')}</Label>
               <select
                 id="inc-category"
                 value={incomeForm.category}
@@ -647,7 +649,7 @@ export default function IncomeExpensePage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inc-amount">Amount (৳)</Label>
+              <Label htmlFor="inc-amount">{t('amount')}</Label>
               <Input
                 id="inc-amount"
                 type="number"
@@ -658,13 +660,11 @@ export default function IncomeExpensePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inc-note">
-                Note <span className="text-muted-foreground">(optional)</span>
-              </Label>
+              <Label htmlFor="inc-note">{t('noteLabel')}</Label>
               <Input
                 id="inc-note"
                 type="text"
-                placeholder="Any additional details"
+                placeholder={t('additionalDetails')}
                 value={incomeForm.note || ''}
                 onChange={(e) => handleIncomeFormChange('note', e.target.value)}
               />
@@ -672,11 +672,11 @@ export default function IncomeExpensePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIncomeModalOpen(false)} disabled={incomeSubmitting}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleSubmitIncome} disabled={incomeSubmitting}>
               {incomeSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Income
+              {t('addIncome')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -686,11 +686,11 @@ export default function IncomeExpensePage() {
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Expense</DialogTitle>
+            <DialogTitle>{t('addExpense')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="exp-date">Date</Label>
+              <Label htmlFor="exp-date">{t('date')}</Label>
               <Input
                 id="exp-date"
                 type="date"
@@ -699,17 +699,17 @@ export default function IncomeExpensePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="exp-title">Title</Label>
+              <Label htmlFor="exp-title">{t('title2')}</Label>
               <Input
                 id="exp-title"
                 type="text"
-                placeholder="e.g. Electricity Bill"
+                placeholder={t('expensePlaceholder')}
                 value={expenseForm.title}
                 onChange={(e) => handleExpenseFormChange('title', e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="exp-category">Category</Label>
+              <Label htmlFor="exp-category">{t('category')}</Label>
               <select
                 id="exp-category"
                 value={expenseForm.category}
@@ -724,7 +724,7 @@ export default function IncomeExpensePage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="exp-amount">Amount (৳)</Label>
+              <Label htmlFor="exp-amount">{t('amount')}</Label>
               <Input
                 id="exp-amount"
                 type="number"
@@ -735,13 +735,11 @@ export default function IncomeExpensePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="exp-note">
-                Note <span className="text-muted-foreground">(optional)</span>
-              </Label>
+              <Label htmlFor="exp-note">{t('noteLabel')}</Label>
               <Input
                 id="exp-note"
                 type="text"
-                placeholder="Any additional details"
+                placeholder={t('additionalDetails')}
                 value={expenseForm.note || ''}
                 onChange={(e) => handleExpenseFormChange('note', e.target.value)}
               />
@@ -749,11 +747,11 @@ export default function IncomeExpensePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpenseModalOpen(false)} disabled={expenseSubmitting}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleSubmitExpense} disabled={expenseSubmitting}>
               {expenseSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Expense
+              {t('addExpense')}
             </Button>
           </DialogFooter>
         </DialogContent>

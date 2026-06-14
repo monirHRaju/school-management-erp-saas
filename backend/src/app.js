@@ -18,11 +18,16 @@ const guardianRoutes     = require('./routes/guardian');
 const usersRoutes        = require('./routes/users');
 const schoolNoticeRoutes = require('./routes/schoolNotice');
 const academicConfigRoutes = require('./routes/academicConfig');
+const academicRoutes = require('./routes/academic');
 const homeworkRoutes = require('./routes/homework');
 const holidayRoutes = require('./routes/holiday');
 const settingsRoutes = require('./routes/settings');
 const profileRoutes = require('./routes/profile');
 const demoRoutes = require('./routes/demo');
+const examRoutes = require('./routes/exams');
+const gradingRoutes = require('./routes/grading');
+const resultsRoutes = require('./routes/results');
+const resultSettingsRoutes = require('./routes/resultSettings');
 
 const app = express();
 
@@ -56,10 +61,15 @@ app.use('/api/guardian',   guardianRoutes);
 app.use('/api/users',      usersRoutes);
 app.use('/api/school-notices', schoolNoticeRoutes);
 app.use('/api/academic-config', academicConfigRoutes);
+app.use('/api/academic', academicRoutes);
 app.use('/api/homework', homeworkRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/demo', demoRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/grading', gradingRoutes);
+app.use('/api/results', resultsRoutes);
+app.use('/api/result-settings', resultSettingsRoutes);
 
 module.exports = app;

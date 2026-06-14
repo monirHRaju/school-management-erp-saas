@@ -27,6 +27,7 @@ export interface Student {
   religion?: string;
   class?: string;
   section?: string;
+  session?: string;
   rollNo?: string;
   monthlyFee?: number;
   admissionDate?: string;
@@ -62,6 +63,7 @@ export interface StudentFormData {
   religion?: string;
   class?: string;
   section?: string;
+  session?: string;
   rollNo?: string;
   monthlyFee?: string;
   admissionDate?: string;

@@ -13,7 +13,7 @@ const mongoose = require('mongoose');
 const router = express.Router();
 
 // GET /api/dashboard — dashboard stats for current school
-router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant'), async (req, res) => {
+router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
 

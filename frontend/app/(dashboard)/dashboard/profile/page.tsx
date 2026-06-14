@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { User, BookOpen, Camera, Loader2, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -35,6 +36,7 @@ function toInputDate(iso?: string) {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations('profile');
   const { token } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,9 +171,9 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">My Profile</h1>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Update your personal and academic information.
+          {t('subtitle')}
         </p>
       </div>
 
@@ -181,7 +183,7 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <User className="h-4 w-4" />
-              Personal Information
+              {t('personalInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -201,8 +203,8 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium">Profile Photo</p>
-                <p className="text-xs text-muted-foreground">Click to upload. Max 2 MB.</p>
+                <p className="text-sm font-medium">{t('profilePhoto')}</p>
+                <p className="text-xs text-muted-foreground">{t('clickToUpload')}</p>
                 <Button
                   type="button"
                   variant="outline"
@@ -210,7 +212,7 @@ export default function ProfilePage() {
                   className="mt-1.5"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Choose Photo
+                  {t('choosePhoto')}
                 </Button>
               </div>
               <input
@@ -224,7 +226,7 @@ export default function ProfilePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pName">Full Name <span className="text-destructive">*</span></Label>
+                <Label htmlFor="pName">{t('fullName')} <span className="text-destructive">*</span></Label>
                 <Input
                   id="pName"
                   value={name}
@@ -234,7 +236,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pPhone">Phone</Label>
+                <Label htmlFor="pPhone">{t('phone')}</Label>
                 <Input
                   id="pPhone"
                   type="tel"
@@ -246,19 +248,19 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="pEmail">Email</Label>
+              <Label htmlFor="pEmail">{t('email')}</Label>
               <Input
                 id="pEmail"
                 value={profile?.email ?? ''}
                 readOnly
                 className="bg-muted text-muted-foreground cursor-not-allowed"
               />
-              <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
+              <p className="text-xs text-muted-foreground">{t('emailNote')}</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pDob">Date of Birth</Label>
+                <Label htmlFor="pDob">{t('dateOfBirth')}</Label>
                 <Input
                   id="pDob"
                   type="date"
@@ -267,24 +269,24 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pGender">Gender</Label>
+                <Label htmlFor="pGender">{t('gender')}</Label>
                 <select
                   id="pGender"
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
+                  <option value="">{t('selectGender')}</option>
+                  <option value="male">{t('male')}</option>
+                  <option value="female">{t('female')}</option>
+                  <option value="other">{t('other')}</option>
                 </select>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pReligion">Religion</Label>
+                <Label htmlFor="pReligion">{t('religion')}</Label>
                 <Input
                   id="pReligion"
                   value={religion}
@@ -295,12 +297,12 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="pAddress">Address</Label>
+              <Label htmlFor="pAddress">{t('address')}</Label>
               <textarea
                 id="pAddress"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Your full address"
+                placeholder={t('yourAddress')}
                 rows={3}
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
@@ -313,13 +315,13 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BookOpen className="h-4 w-4" />
-              Academic Information
+              {t('academicInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pDesignation">Designation</Label>
+                <Label htmlFor="pDesignation">{t('designation')}</Label>
                 <Input
                   id="pDesignation"
                   value={designation}
@@ -328,7 +330,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pQualification">Qualification</Label>
+                <Label htmlFor="pQualification">{t('qualification')}</Label>
                 <Input
                   id="pQualification"
                   value={qualification}
@@ -340,7 +342,7 @@ export default function ProfilePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pExperience">Experience</Label>
+                <Label htmlFor="pExperience">{t('experience')}</Label>
                 <Input
                   id="pExperience"
                   value={experience}
@@ -349,7 +351,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pJoining">Joining Date</Label>
+                <Label htmlFor="pJoining">{t('joiningDate')}</Label>
                 <Input
                   id="pJoining"
                   type="date"
@@ -361,13 +363,13 @@ export default function ProfilePage() {
 
             {/* Subjects */}
             <div className="space-y-1.5">
-              <Label>Subjects</Label>
+              <Label>{t('subjects')}</Label>
               <div className="flex gap-2">
                 <Input
                   value={subjectInput}
                   onChange={(e) => setSubjectInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubject(); } }}
-                  placeholder="Type a subject and press Enter"
+                  placeholder={t('subjectPlaceholder')}
                 />
                 <Button type="button" variant="outline" size="icon" onClick={addSubject}>
                   <Plus className="h-4 w-4" />
@@ -398,7 +400,7 @@ export default function ProfilePage() {
 
         <Button type="submit" disabled={saving} className="w-full sm:w-auto">
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Profile
+          {t('saveProfile')}
         </Button>
       </form>
     </div>

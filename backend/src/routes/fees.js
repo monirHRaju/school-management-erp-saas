@@ -110,11 +110,12 @@ router.get('/', async (req, res) => {
 router.post('/generate-month', requireFeature('bulkFeeGeneration'), requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const { month } = req.body;
+    const { month, invoiceDate } = req.body;
     if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month.trim())) {
       return res.status(400).json({ success: false, error: 'month required (YYYY-MM)' });
     }
     const monthStr = month.trim();
+    const createdAtDate = invoiceDate ? new Date(invoiceDate) : undefined;
 
     const students = await Student.find(
       { school_id: schoolId, status: 'active' },
@@ -151,7 +152,7 @@ router.post('/generate-month', requireFeature('bulkFeeGeneration'), requireRole(
         updated += 1;
       } else {
         const due = Math.max(0, totalFee);
-        await Fee.create({
+        const feeData = {
           school_id: schoolId,
           student_id: stu._id,
           category: 'student_fee',
@@ -161,7 +162,9 @@ router.post('/generate-month', requireFeature('bulkFeeGeneration'), requireRole(
           paid_amount: 0,
           due_amount: due,
           status: due <= 0 ? 'paid' : 'unpaid',
-        });
+        };
+        if (createdAtDate) feeData.createdAt = createdAtDate;
+        await Fee.create(feeData);
         created += 1;
       }
     }
@@ -243,7 +246,7 @@ router.post('/generate-year', requireFeature('bulkFeeGeneration'), requireRole('
 router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const { category, description, month, amount, class: classFilter, section, shift } = req.body;
+    const { category, description, month, amount, class: classFilter, section, shift, invoiceDate } = req.body;
 
     if (!category || typeof category !== 'string' || !category.trim()) {
       return res.status(400).json({ success: false, error: 'category is required' });
@@ -255,6 +258,8 @@ router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 
     if (isNaN(numAmount) || numAmount <= 0) {
       return res.status(400).json({ success: false, error: 'amount must be a positive number' });
     }
+
+    const createdAtDate = invoiceDate ? new Date(invoiceDate) : undefined;
 
     const studentFilter = { school_id: schoolId, status: 'active', class: classFilter.trim() };
     if (section && typeof section === 'string' && section.trim()) studentFilter.section = section.trim();
@@ -273,7 +278,7 @@ router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 
 
     const created = [];
     for (const stu of students) {
-      const fee = await Fee.create({
+      const feeData = {
         school_id: schoolId,
         student_id: stu._id,
         category: cat,
@@ -283,7 +288,9 @@ router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 
         paid_amount: 0,
         due_amount: numAmount,
         status: 'unpaid',
-      });
+      };
+      if (createdAtDate) feeData.createdAt = createdAtDate;
+      const fee = await Fee.create(feeData);
       created.push(fee._id);
     }
 
@@ -300,7 +307,7 @@ router.post('/batch', requireFeature('bulkFeeGeneration'), requireRole('admin', 
 router.post('/additional', requireRole('admin', 'accountant'), async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
-    const { category, description, month, amount, student_id: studentIdParam, for_all_students } = req.body;
+    const { category, description, month, amount, student_id: studentIdParam, for_all_students, invoiceDate } = req.body;
 
     if (!category || typeof category !== 'string' || !category.trim()) {
       return res.status(400).json({ success: false, error: 'category is required' });
@@ -312,6 +319,7 @@ router.post('/additional', requireRole('admin', 'accountant'), async (req, res) 
 
     const monthStr = typeof month === 'string' ? month.trim() : '';
     const descStr = typeof description === 'string' ? description.trim() : (monthStr ? `${monthStr} ${category}` : category);
+    const createdAtDate = invoiceDate ? new Date(invoiceDate) : undefined;
 
     let students;
     if (for_all_students) {
@@ -330,7 +338,7 @@ router.post('/additional', requireRole('admin', 'accountant'), async (req, res) 
 
     const created = [];
     for (const stu of students) {
-      const fee = await Fee.create({
+      const feeData = {
         school_id: schoolId,
         student_id: stu._id,
         category,
@@ -340,7 +348,9 @@ router.post('/additional', requireRole('admin', 'accountant'), async (req, res) 
         paid_amount: 0,
         due_amount: numAmount,
         status: 'unpaid',
-      });
+      };
+      if (createdAtDate) feeData.createdAt = createdAtDate;
+      const fee = await Fee.create(feeData);
       created.push(fee._id);
     }
 

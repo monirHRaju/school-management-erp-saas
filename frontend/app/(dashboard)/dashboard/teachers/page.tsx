@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import {
   GraduationCap, Plus, Pencil, Trash2, Eye, Loader2, Mail, Phone, X,
@@ -51,6 +52,7 @@ function fmt(v?: string | null) { return v || '—'; }
 function fmtDate(d?: string) { return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'; }
 
 export default function TeachersPage() {
+  const t = useTranslations('teachers');
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -98,15 +100,15 @@ export default function TeachersPage() {
     setShowForm(true);
   }
 
-  function openEdit(t: Teacher) {
-    setEditTarget(t);
+  function openEdit(tchr: Teacher) {
+    setEditTarget(tchr);
     setForm({
-      name: t.name,
-      email: t.email || '',
-      phone: t.phone || '',
+      name: tchr.name,
+      email: tchr.email || '',
+      phone: tchr.phone || '',
       password: '',
-      status: t.status || 'active',
-      joiningDate: t.joiningDate ? t.joiningDate.slice(0, 10) : '',
+      status: tchr.status || 'active',
+      joiningDate: tchr.joiningDate ? tchr.joiningDate.slice(0, 10) : '',
     });
     setFormError('');
     setShowForm(true);
@@ -195,9 +197,9 @@ export default function TeachersPage() {
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-            Teachers
+            {t('title')}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{total} teacher{total !== 1 ? 's' : ''} found</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('subtitle', { count: total })}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -205,12 +207,12 @@ export default function TeachersPage() {
             onChange={(e) => setFilterStatus(e.target.value as 'active' | 'inactive' | '')}
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="">All</option>
+            <option value="active">{t('active')}</option>
+            <option value="inactive">{t('inactive')}</option>
+            <option value="">{t('all')}</option>
           </select>
           <Button onClick={openCreate} size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" /> Add Teacher
+            <Plus className="h-4 w-4" /> {t('addTeacher')}
           </Button>
         </div>
       </div>
@@ -225,10 +227,10 @@ export default function TeachersPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
             <GraduationCap className="h-12 w-12 text-muted-foreground/20" />
             <p className="text-muted-foreground">
-              {filterStatus ? `No ${filterStatus} teachers found.` : 'No teachers yet.'}
+              {t('noTeachers')}
             </p>
             <Button onClick={openCreate} size="sm" variant="outline" className="gap-1.5">
-              <Plus className="h-4 w-4" /> Add Teacher
+              <Plus className="h-4 w-4" /> {t('addTeacher')}
             </Button>
           </CardContent>
         </Card>
@@ -237,55 +239,55 @@ export default function TeachersPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 text-left font-medium w-8">#</th>
-                <th className="px-4 py-3 text-left font-medium">Photo</th>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Designation</th>
-                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Subjects</th>
-                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Joining Date</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
+                <th className="px-4 py-3 text-left font-medium w-8">{t('sl')}</th>
+                <th className="px-4 py-3 text-left font-medium">{t('photo')}</th>
+                <th className="px-4 py-3 text-left font-medium">{t('name')}</th>
+                <th className="px-4 py-3 text-left font-medium hidden md:table-cell">{t('designation')}</th>
+                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">{t('subjects')}</th>
+                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">{t('joiningDate')}</th>
+                <th className="px-4 py-3 text-left font-medium">{t('status')}</th>
+                <th className="px-4 py-3 text-right font-medium">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {teachers.map((t, idx) => (
-                <tr key={t._id} className="bg-card hover:bg-muted/30 transition-colors">
+              {teachers.map((tchr, idx) => (
+                <tr key={tchr._id} className="bg-card hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
                   <td className="px-4 py-3">
-                    {t.photoUrl ? (
+                    {tchr.photoUrl ? (
                       <div className="relative h-9 w-9 rounded-full overflow-hidden">
-                        <Image src={t.photoUrl} alt={t.name} fill className="object-cover" />
+                        <Image src={tchr.photoUrl} alt={tchr.name} fill className="object-cover" />
                       </div>
                     ) : (
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold text-sm">
-                        {t.name.charAt(0).toUpperCase()}
+                        {tchr.name.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-foreground">{t.name}</div>
-                    {t.email && (
+                    <div className="font-medium text-foreground">{tchr.name}</div>
+                    {tchr.email && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <Mail className="h-3 w-3" /> {t.email}
+                        <Mail className="h-3 w-3" /> {tchr.email}
                       </div>
                     )}
-                    {t.phone && (
+                    {tchr.phone && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3" /> {t.phone}
+                        <Phone className="h-3 w-3" /> {tchr.phone}
                       </div>
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                    {t.designation || '—'}
+                    {tchr.designation || '—'}
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    {t.subjects && t.subjects.length > 0 ? (
+                    {tchr.subjects && tchr.subjects.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {t.subjects.slice(0, 3).map((s) => (
+                        {tchr.subjects.slice(0, 3).map((s) => (
                           <span key={s} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{s}</span>
                         ))}
-                        {t.subjects.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{t.subjects.length - 3}</span>
+                        {tchr.subjects.length > 3 && (
+                          <span className="text-xs text-muted-foreground">+{tchr.subjects.length - 3}</span>
                         )}
                       </div>
                     ) : (
@@ -293,29 +295,29 @@ export default function TeachersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
-                    {fmtDate(t.joiningDate)}
+                    {fmtDate(tchr.joiningDate)}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      t.status === 'active'
+                      tchr.status === 'active'
                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : 'bg-destructive/10 text-destructive'
                     }`}>
-                      {t.status === 'active' ? 'Active' : 'Inactive'}
+                      {tchr.status === 'active' ? t('active') : t('inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => setDetailsTeacher(t)} title="View details">
+                        onClick={() => setDetailsTeacher(tchr)} title="View details">
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={() => openEdit(t)} title="Edit">
+                        onClick={() => openEdit(tchr)} title="Edit">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(t)} title="Remove">
+                        onClick={() => setDeleteTarget(tchr)} title="Remove">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -331,24 +333,24 @@ export default function TeachersPage() {
       <Dialog open={showForm} onOpenChange={(o) => !saving && setShowForm(o)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Teacher' : 'Add Teacher'}</DialogTitle>
+            <DialogTitle>{editTarget ? t('editTeacher') : t('addTeacher')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="tName">Full Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="tName">{t('fullName')} <span className="text-destructive">*</span></Label>
               <Input id="tName" value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Teacher full name" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="tEmail">Email {!editTarget && <span className="text-destructive">*</span>}</Label>
+                <Label htmlFor="tEmail">{t('email')} {!editTarget && <span className="text-destructive">*</span>}</Label>
                 <Input id="tEmail" type="email" value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="teacher@school.com" required={!editTarget} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tPhone">Phone</Label>
+                <Label htmlFor="tPhone">{t('phone')}</Label>
                 <Input id="tPhone" type="tel" value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="01XXXXXXXXX" />
@@ -356,39 +358,39 @@ export default function TeachersPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="tJoining">Joining Date</Label>
+                <Label htmlFor="tJoining">{t('joiningDate')}</Label>
                 <Input id="tJoining" type="date" value={form.joiningDate}
                   onChange={(e) => setForm((f) => ({ ...f, joiningDate: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tStatus">Status</Label>
+                <Label htmlFor="tStatus">{t('status')}</Label>
                 <select id="tStatus" value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">{t('active')}</option>
+                  <option value="inactive">{t('inactive')}</option>
                 </select>
               </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tPassword">
-                {editTarget ? 'New Password' : 'Password'}{' '}
+                {editTarget ? t('newPassword') : t('password')}{' '}
                 {editTarget
-                  ? <span className="text-muted-foreground text-xs">(leave blank to keep)</span>
+                  ? <span className="text-muted-foreground text-xs">{t('keepBlank')}</span>
                   : <span className="text-destructive">*</span>}
               </Label>
               <Input id="tPassword" type="password" value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder="Min. 4 characters" required={!editTarget} minLength={4} />
+                placeholder={t('minChars')} required={!editTarget} minLength={4} />
             </div>
 
             {formError && <p className="text-sm text-destructive">{formError}</p>}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)} disabled={saving}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setShowForm(false)} disabled={saving}>{t('cancel')}</Button>
               <Button type="submit" disabled={saving}>
                 {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                {editTarget ? 'Update' : 'Add Teacher'}
+                {editTarget ? t('update') : t('addTeacher')}
               </Button>
             </DialogFooter>
           </form>
@@ -399,7 +401,7 @@ export default function TeachersPage() {
       <Dialog open={!!detailsTeacher} onOpenChange={(o) => !o && setDetailsTeacher(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Teacher Details</DialogTitle>
+            <DialogTitle>{t('teacherDetails')}</DialogTitle>
           </DialogHeader>
           {detailsTeacher && (
             <div className="space-y-5 py-1">
@@ -422,24 +424,24 @@ export default function TeachersPage() {
                       ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                       : 'bg-destructive/10 text-destructive'
                   }`}>
-                    {detailsTeacher.status === 'active' ? 'Active' : 'Inactive'}
+                    {detailsTeacher.status === 'active' ? t('active') : t('inactive')}
                   </span>
                 </div>
               </div>
 
               {/* Personal Info */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('personal')}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <InfoRow label="Email" value={detailsTeacher.email} />
-                  <InfoRow label="Phone" value={detailsTeacher.phone} />
-                  <InfoRow label="Gender" value={detailsTeacher.gender} capitalize />
-                  <InfoRow label="Date of Birth" value={fmtDate(detailsTeacher.dateOfBirth)} />
-                  <InfoRow label="Religion" value={detailsTeacher.religion} />
+                  <InfoRow label={t('email2')} value={detailsTeacher.email} />
+                  <InfoRow label={t('phone2')} value={detailsTeacher.phone} />
+                  <InfoRow label={t('gender')} value={detailsTeacher.gender} capitalize />
+                  <InfoRow label={t('dateOfBirth')} value={fmtDate(detailsTeacher.dateOfBirth)} />
+                  <InfoRow label={t('religion')} value={detailsTeacher.religion} />
                 </div>
                 {detailsTeacher.address && (
                   <div className="mt-2 space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Address</p>
+                    <p className="text-xs text-muted-foreground">{t('address')}</p>
                     <p className="text-sm">{detailsTeacher.address}</p>
                   </div>
                 )}
@@ -447,16 +449,16 @@ export default function TeachersPage() {
 
               {/* Academic Info */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Academic</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('academic')}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <InfoRow label="Designation" value={detailsTeacher.designation} />
-                  <InfoRow label="Qualification" value={detailsTeacher.qualification} />
-                  <InfoRow label="Experience" value={detailsTeacher.experience} />
-                  <InfoRow label="Joining Date" value={fmtDate(detailsTeacher.joiningDate)} />
+                  <InfoRow label={t('designation')} value={detailsTeacher.designation} />
+                  <InfoRow label={t('qualification')} value={detailsTeacher.qualification} />
+                  <InfoRow label={t('experience')} value={detailsTeacher.experience} />
+                  <InfoRow label={t('joiningDate')} value={fmtDate(detailsTeacher.joiningDate)} />
                 </div>
                 {detailsTeacher.subjects && detailsTeacher.subjects.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    <p className="text-xs text-muted-foreground">Subjects</p>
+                    <p className="text-xs text-muted-foreground">{t('subjects')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {detailsTeacher.subjects.map((s) => (
                         <span key={s} className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{s}</span>
@@ -467,12 +469,12 @@ export default function TeachersPage() {
               </div>
 
               <div className="text-xs text-muted-foreground pt-1 border-t">
-                Added {fmtDate(detailsTeacher.createdAt)}
+                {t('added', { date: fmtDate(detailsTeacher.createdAt) })}
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsTeacher(null)}>Close</Button>
+            <Button variant="outline" onClick={() => setDetailsTeacher(null)}>{t('close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -481,17 +483,17 @@ export default function TeachersPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
+            <AlertDialogTitle>{t('removeTeacher')}</AlertDialogTitle>
           </AlertDialogHeader>
           <p className="text-sm text-muted-foreground px-6">
-            <strong>{deleteTarget?.name}</strong> will be removed and lose access to the dashboard.
+            {t('removeConfirm', { name: deleteTarget?.name ?? '' })}
           </p>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              Remove
+              {t('remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

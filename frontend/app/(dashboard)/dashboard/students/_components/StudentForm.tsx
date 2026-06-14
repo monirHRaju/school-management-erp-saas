@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, ArrowRight, ImageIcon, BookOpen, DollarSign, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -53,6 +53,7 @@ const emptyForm: StudentFormData = {
   religion: '',
   class: '',
   section: '',
+  session: '',
   rollNo: '',
   monthlyFee: '',
   admissionDate: todayISO(),
@@ -102,6 +103,7 @@ export default function StudentForm({ student }: StudentFormProps) {
       religion: student.religion ?? '',
       class: student.class ?? '',
       section: student.section ?? '',
+      session: student.session ?? '',
       rollNo: student.rollNo ?? '',
       monthlyFee: student.monthlyFee != null ? String(student.monthlyFee) : '',
       admissionDate: student.admissionDate ? student.admissionDate.slice(0, 10) : todayISO(),
@@ -112,6 +114,38 @@ export default function StudentForm({ student }: StudentFormProps) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Session and class fee config state
+  const [sessions, setSessions] = useState<{ _id: string; name: string; year: string }[]>([]);
+  const [classFeeConfig, setClassFeeConfig] = useState<{ admissionFee: number; examFee: number; idCardFee: number; sessionFee: number; transcriptFee: number; tuitionFee: number } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ success: boolean; data: { _id: string; name: string; year: string }[] }>(
+      '/api/academic/sessions?status=active', { token }
+    ).then((res) => setSessions(res.data)).catch(() => {});
+  }, [token]);
+
+  const handleClassChange = useCallback(async (className: string) => {
+    set('class', className);
+    if (!className || !token) { setClassFeeConfig(null); return; }
+    try {
+      const res = await apiRequest<{ success: boolean; data: { name: string; tuitionFee: number; admissionFee: number; examFee: number; idCardFee: number; sessionFee: number; transcriptFee: number }[] }>(
+        `/api/academic/classes?status=active`, { token }
+      );
+      const cls = res.data.find((c) => c.name === className);
+      if (cls) {
+        setClassFeeConfig(cls);
+        if (cls.tuitionFee > 0) {
+          setForm((f) => ({ ...f, monthlyFee: f.monthlyFee || String(cls.tuitionFee) }));
+        }
+      } else {
+        setClassFeeConfig(null);
+      }
+    } catch (_) {
+      setClassFeeConfig(null);
+    }
+  }, [token]);
 
   const set = <K extends keyof StudentFormData>(key: K, value: StudentFormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -192,6 +226,7 @@ export default function StudentForm({ student }: StudentFormProps) {
         religion: form.religion?.trim() || undefined,
         class: form.class?.trim() || undefined,
         section: form.section?.trim() || undefined,
+        session: form.session?.trim() || undefined,
         rollNo: form.rollNo?.trim() || undefined,
         monthlyFee: form.monthlyFee?.trim() || undefined,
         admissionDate: form.admissionDate?.trim() || undefined,
@@ -418,7 +453,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="class">Class</Label>
-                    <select id="class" value={form.class ?? ''} onChange={(e) => set('class', e.target.value)} className={selectClass} disabled={configLoading}>
+                    <select id="class" value={form.class ?? ''} onChange={(e) => handleClassChange(e.target.value)} className={selectClass} disabled={configLoading}>
                       <option value="">Select class</option>
                       {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -428,6 +463,16 @@ export default function StudentForm({ student }: StudentFormProps) {
                     <select id="section" value={form.section ?? ''} onChange={(e) => set('section', e.target.value)} className={selectClass} disabled={configLoading}>
                       <option value="">Select section</option>
                       {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="session">Academic Session</Label>
+                    <select id="session" value={form.session ?? ''} onChange={(e) => set('session', e.target.value)} className={selectClass}>
+                      <option value="">Select session</option>
+                      {sessions.map((s) => <option key={s._id} value={s.name}>{s.name}{s.year ? ` (${s.year})` : ''}</option>)}
                     </select>
                   </div>
                 </div>
@@ -482,6 +527,20 @@ export default function StudentForm({ student }: StudentFormProps) {
             {/* ─── STEP 3: Fee Information ───────────────────────────── */}
             {step === 3 && (
               <>
+                {classFeeConfig && (form.class) && (
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-sm space-y-2">
+                    <p className="font-semibold text-blue-700 dark:text-blue-300">Class Fee Configuration — {form.class}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                      {classFeeConfig.admissionFee > 0 && <p><span className="text-muted-foreground">Admission:</span> ৳{classFeeConfig.admissionFee.toLocaleString()}</p>}
+                      {classFeeConfig.examFee > 0 && <p><span className="text-muted-foreground">Exam:</span> ৳{classFeeConfig.examFee.toLocaleString()}</p>}
+                      {classFeeConfig.idCardFee > 0 && <p><span className="text-muted-foreground">ID Card:</span> ৳{classFeeConfig.idCardFee.toLocaleString()}</p>}
+                      {classFeeConfig.sessionFee > 0 && <p><span className="text-muted-foreground">Session:</span> ৳{classFeeConfig.sessionFee.toLocaleString()}</p>}
+                      {classFeeConfig.transcriptFee > 0 && <p><span className="text-muted-foreground">Transcript:</span> ৳{classFeeConfig.transcriptFee.toLocaleString()}</p>}
+                      {classFeeConfig.tuitionFee > 0 && <p><span className="text-muted-foreground">Tuition:</span> ৳{classFeeConfig.tuitionFee.toLocaleString()}</p>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">One-time fees will be auto-created as fee records upon admission.</p>
+                  </div>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="monthlyFee">Monthly Fee (৳)</Label>
@@ -504,7 +563,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <div className="rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-1.5 text-sm">
                   <p className="font-semibold text-violet-700 dark:text-violet-300 mb-2">Review</p>
                   <p><span className="font-medium">Name:</span> {form.name || '—'}</p>
-                  <p><span className="font-medium">Class:</span> {form.class || '—'}{form.section ? ` — ${form.section}` : ''}{form.rollNo ? ` · Roll ${form.rollNo}` : ''}</p>
+                  <p><span className="font-medium">Class:</span> {form.class || '—'}{form.section ? ` — ${form.section}` : ''}{form.rollNo ? ` · Roll ${form.rollNo}` : ''}{form.session ? ` · ${form.session}` : ''}</p>
                   <p><span className="font-medium">Father:</span> {form.fatherName || '—'} {form.fatherMobile ? `(${form.fatherMobile})` : ''}</p>
                   <p><span className="font-medium">Monthly Fee:</span> ৳ {form.monthlyFee || '0'}</p>
                 </div>

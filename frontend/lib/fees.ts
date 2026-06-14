@@ -74,18 +74,38 @@ export async function batchGenerateFee(
     section?: string;
     shift?: string;
   },
-  token: string
+  token: string,
+  invoiceDate?: string
 ) {
+  const body = {
+    ...payload,
+    ...(invoiceDate && { invoiceDate }),
+  };
   return apiRequest<{ success: boolean; data: { created: number; class: string; section: string | null; shift: string | null } }>(
     '/api/fees/batch',
-    { method: 'POST', body: JSON.stringify(payload), token }
+    { method: 'POST', body: JSON.stringify(body), token }
   );
 }
 
-export async function createAdditionalFee(payload: CreateAdditionalPayload, token: string) {
+export async function createAdditionalFee(
+  payload: {
+    category: string;
+    description?: string;
+    month?: string;
+    amount: number;
+    student_id?: string;
+    for_all_students?: boolean;
+  },
+  token: string,
+  invoiceDate?: string
+) {
+  const body = {
+    ...payload,
+    ...(invoiceDate && { invoiceDate }),
+  };
   return apiRequest<{ success: boolean; data: import('@/types/fee').Fee[]; count: number }>(
     '/api/fees/additional',
-    { method: 'POST', body: JSON.stringify(payload), token }
+    { method: 'POST', body: JSON.stringify(body), token }
   );
 }
 
