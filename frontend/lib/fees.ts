@@ -41,7 +41,7 @@ export async function getFees(
   );
 }
 
-export async function generateMonth(month: string, invoiceDate?: string, token: string) {
+export async function generateMonth(month: string, token: string, invoiceDate?: string) {
   const body: { month: string; invoiceDate?: string } = { month };
   if (invoiceDate) body.invoiceDate = invoiceDate;
   return apiRequest<{ success: boolean; data: { month: string; created: number; updated: number; totalStudents: number } }>(

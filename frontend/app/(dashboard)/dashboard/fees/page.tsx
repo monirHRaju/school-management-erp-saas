@@ -247,7 +247,7 @@ export default function FeesPage() {
     if (!token) return;
     setGenerating(true);
     try {
-      const res = await generateMonth(generateMonthValue, generateInvoiceDate, token);
+      const res = await generateMonth(generateMonthValue, token, generateInvoiceDate);
       toast.success(`Generated: ${res.data?.created ?? 0} created, ${res.data?.updated ?? 0} updated for ${generateMonthValue}.`);
       fetchFees(page);
     } catch (e) {
