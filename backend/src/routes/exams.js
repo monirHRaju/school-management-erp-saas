@@ -4,8 +4,8 @@ const Exam = require('../models/Exam');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 
-const canRead = requireRole(['admin', 'staff', 'teacher']);
-const canWrite = requireRole(['admin', 'staff']);
+const canRead = requireRole('admin', 'staff', 'teacher');
+const canWrite = requireRole('admin', 'staff');
 
 // GET /api/exams
 router.get('/', authMiddleware, canRead, async (req, res) => {
@@ -67,7 +67,7 @@ router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
 });
 
 // DELETE /api/exams/:id
-router.delete('/:id', authMiddleware, requireRole(['admin']), async (req, res) => {
+router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const exam = await Exam.findOneAndDelete({ _id: req.params.id, school_id: req.user.school_id });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });

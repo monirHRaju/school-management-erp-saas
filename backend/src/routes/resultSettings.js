@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 
 // GET /api/result-settings
-router.get('/', authMiddleware, requireRole(['admin', 'staff', 'teacher']), async (req, res) => {
+router.get('/', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     let settings = await ResultSettings.findOne({ school_id: req.user.school_id });
     if (!settings) {
@@ -18,7 +18,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'staff', 'teacher']), asyn
 });
 
 // PUT /api/result-settings
-router.put('/', authMiddleware, requireRole(['admin']), async (req, res) => {
+router.put('/', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const {
       finalResultMethod,

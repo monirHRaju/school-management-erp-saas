@@ -1,5 +1,5 @@
-# EduCore - School Management SaaS — Project Roadmap
-> An **intermediate-level**, multi-tenant School Management SaaS for small private schools in Bangladesh.  
+# Amaar School - Complete School Management Application — Project Roadmap
+> An **intermediate-level**, multi-tenant School Management SaaS for schools, kg schools, madrasha and coaching centers.  
 > **Stack:** Next.js (App Router) + TypeScript | Express.js + MongoDB | JWT | Vercel + Render/Railway
 
 - Live Link: https://my-school-software.vercel.app/

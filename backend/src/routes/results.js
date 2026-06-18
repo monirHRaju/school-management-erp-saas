@@ -8,8 +8,8 @@ const { calcGrade } = require('../utils/gradeCalc');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 
-const canRead = requireRole(['admin', 'staff', 'teacher']);
-const canWrite = requireRole(['admin', 'staff']);
+const canRead = requireRole('admin', 'staff', 'teacher');
+const canWrite = requireRole('admin', 'staff');
 
 async function getGrades(school_id) {
   const scale = await GradeScale.findOne({ school_id });
@@ -120,7 +120,7 @@ router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
 });
 
 // DELETE /api/results/:id
-router.delete('/:id', authMiddleware, requireRole(['admin']), async (req, res) => {
+router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const record = await ExamResult.findOneAndDelete({ _id: req.params.id, school_id: req.user.school_id });
     if (!record) return res.status(404).json({ success: false, message: 'Result not found' });
