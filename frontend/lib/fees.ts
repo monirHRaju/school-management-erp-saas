@@ -74,8 +74,8 @@ export async function batchGenerateFee(
     section?: string;
     shift?: string;
   },
-  invoiceDate?: string,
-  token: string
+  token: string,
+  invoiceDate?: string
 ) {
   const body = {
     ...payload,
@@ -96,8 +96,8 @@ export async function createAdditionalFee(
     student_id?: string;
     for_all_students?: boolean;
   },
-  invoiceDate?: string,
-  token: string
+  token: string,
+  invoiceDate?: string
 ) {
   const body = {
     ...payload,
