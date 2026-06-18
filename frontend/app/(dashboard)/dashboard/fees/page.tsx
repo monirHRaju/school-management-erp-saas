@@ -270,8 +270,8 @@ export default function FeesPage() {
     try {
       const res = await batchGenerateFee(
         { category: batchCategory, description: batchDescription.trim() || undefined, month: batchMonth || undefined, amount, class: batchClass, section: batchSection || undefined, shift: batchShift || undefined },
-        batchInvoiceDate,
-        token
+        token,
+        batchInvoiceDate
       );
       toast.success(`Generated ${res.data?.created ?? 0} fee(s) for ${batchClass}${batchSection ? ' / ' + batchSection : ''}${batchShift ? ' / ' + batchShift : ''}.`);
       setBatchAmount('');
@@ -297,8 +297,8 @@ export default function FeesPage() {
     try {
       await createAdditionalFee(
         { category: indivCategory, description: indivDescription.trim() || undefined, month: indivMonth || undefined, amount, student_id: indivStudentId, for_all_students: false },
-        indivInvoiceDate,
-        token
+        token,
+        indivInvoiceDate
       );
       toast.success('Fee added for student.');
       setIndivAmount('');
