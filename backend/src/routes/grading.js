@@ -15,7 +15,7 @@ const DEFAULT_GRADES = [
 ];
 
 // GET /api/grading — return school's gradeScale, seed defaults if none
-router.get('/', authMiddleware, requireRole(['admin', 'staff', 'teacher']), async (req, res) => {
+router.get('/', authMiddleware, requireRole('admin', 'staff', 'teacher'), async (req, res) => {
   try {
     let scale = await GradeScale.findOne({ school_id: req.user.school_id });
     if (!scale) {
@@ -31,7 +31,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'staff', 'teacher']), asyn
 });
 
 // PUT /api/grading — replace grades array
-router.put('/', authMiddleware, requireRole(['admin']), async (req, res) => {
+router.put('/', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const { grades } = req.body;
     if (!Array.isArray(grades) || grades.length === 0) {
