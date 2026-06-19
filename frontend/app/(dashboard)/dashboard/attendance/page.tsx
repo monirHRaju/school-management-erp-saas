@@ -1310,7 +1310,7 @@ export default function AttendancePage() {
         <p className="text-sm text-muted-foreground mt-0.5">Mark daily attendance, view monthly records, and reports.</p>
       </div>
 
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+      <div className="flex flex-wrap gap-1 bg-muted/40 rounded-xl p-1 w-full">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
