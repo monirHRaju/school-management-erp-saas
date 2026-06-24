@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +61,9 @@ export default function MarkEntryPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [sessions, setSessions] = useState<string[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const { classes, sections, loading: configLoading } = useAcademicConfig();
 
   useEffect(() => {
     if (!token) return;
@@ -70,6 +74,21 @@ export default function MarkEntryPage() {
       setExams(examRes.data);
       setSubjects(subRes.data);
     }).catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchSessions = async () => {
+      try {
+        const res = await apiRequest<{ success: boolean; data: { session: string }[] }>('/api/academic/sessions', { token });
+        setSessions(res.data.map(item => item.session));
+      } catch (e) {
+        console.error('Failed to fetch sessions', e);
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+    fetchSessions();
   }, [token]);
 
   const handleSubjectChange = (name: string) => {
@@ -166,15 +185,27 @@ export default function MarkEntryPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="space-y-1">
             <Label className="text-xs">Session</Label>
-            <Input placeholder="e.g. 2024-2025" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} />
+            <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
+              <option value="">Select session</option>
+              {sessions.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Class <span className="text-destructive">*</span></Label>
-            <Input placeholder="e.g. Class 10" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} />
+            <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+              <option value="">Select class</option>
+              {classes.map((c) => (<option key={c} value={c}>{c}</option>))}
+            </select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Section</Label>
-            <Input placeholder="e.g. A" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} />
+            <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+              <option value="">Select section</option>
+              {sections.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Exam <span className="text-destructive">*</span></Label>

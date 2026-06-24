@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,9 +49,41 @@ export default function ResultListPage() {
   const [subjectFilter, setSubjectFilter] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
   const [searched, setSearched] = useState(false);
+  const [sessions, setSessions] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+  const { classes, sections, loading: configLoading } = useAcademicConfig();
 
   const [editTarget, setEditTarget] = useState<ResultRecord | null>(null);
   const [editMarks, setEditMarks] = useState({ writtenMark: 0, mcqMark: 0, practicalMark: 0 });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      // Fetch sessions
+      try {
+        const res = await apiRequest<{ success: boolean; data: { session: string }[] }>('/api/academic/sessions', { token });
+        setSessions(res.data.map(item => item.session));
+      } catch (e) {
+        console.error('Failed to fetch sessions', e);
+        setSessions([]);
+      } finally {
+        setSessionsLoading(false);
+      }
+      // Fetch subjects
+      try {
+        const res = await apiRequest<{ success: boolean; data: { name: string }[] }>('/api/academic/subjects', { token });
+        setSubjects(res.data.map(item => item.name));
+      } catch (e) {
+        console.error('Failed to fetch subjects', e);
+        setSubjects([]);
+      } finally {
+      setSubjectsLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ResultRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -137,10 +170,26 @@ export default function ResultListPage() {
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); fetchItems(); }} className="flex flex-wrap gap-2">
-        <Input className="w-36" placeholder="Session" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} />
-        <Input className="w-28" placeholder="Class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} />
-        <Input className="w-28" placeholder="Section" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} />
-        <Input className="w-40" placeholder="Subject" value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} />
+        <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}
+          className="h-10 w-36 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
+          <option value="">Session</option>
+          {sessions.map((s) => (<option key={s} value={s}>{s}</option>))}
+        </select>
+        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
+          className="h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+          <option value="">Class</option>
+          {classes.map((c) => (<option key={c} value={c}>{c}</option>))}
+        </select>
+        <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}
+          className="h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+          <option value="">Section</option>
+          {sections.map((s) => (<option key={s} value={s}>{s}</option>))}
+        </select>
+        <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}
+          className="h-10 w-40 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={subjectsLoading}>
+          <option value="">Subject</option>
+          {subjects.map((s) => (<option key={s} value={s}>{s}</option>))}
+        </select>
         <Input className="w-24" placeholder="Grade" value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)} />
         <Button type="submit" variant="outline" className="gap-2">
           <Search className="h-4 w-4" />

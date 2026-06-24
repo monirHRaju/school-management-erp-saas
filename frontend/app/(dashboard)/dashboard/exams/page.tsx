@@ -41,12 +41,15 @@ export default function ExamsPage() {
   const [sessionFilter, setSessionFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sessions, setSessions] = useState<string[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Exam | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { classes, sections, loading: configLoading } = useAcademicConfig();
 
   const fetchItems = useCallback(async () => {
     if (!token) return;
@@ -67,6 +70,24 @@ export default function ExamsPage() {
   }, [token, search, sessionFilter, classFilter, statusFilter]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchSessions = async () => {
+      setSessionsLoading(true);
+      try {
+        const res = await apiRequest<{ success: boolean; data: { session: string }[] }>('/api/academic/sessions', { token });
+        const data = res.data.map(item => item.session);
+        setSessions(data);
+      } catch (e) {
+        console.error('Failed to fetch sessions', e);
+        setSessions([]); // fallback
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+    fetchSessions();
+  }, [token]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Exam) => {
@@ -225,11 +246,23 @@ export default function ExamsPage() {
             </div>
             <div className="space-y-2">
               <Label>Session</Label>
-              <Input placeholder="e.g. 2024-2025" value={form.session} onChange={(e) => f('session', e.target.value)} />
+              <select value={form.session} onChange={(e) => f('session', e.target.value)}>
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
+                  <option value="">Select session</option>
+                  {sessions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
             </div>
             <div className="space-y-2">
               <Label>Class</Label>
-              <Input placeholder="e.g. Class 10" value={form.class} onChange={(e) => f('class', e.target.value)} />
+              <select value={form.class} onChange={(e) => f('class', e.target.value)}>
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+                  <option value="">Select class</option>
+                  {classes.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
             </div>
             <div className="space-y-2">
               <Label>Term</Label>
