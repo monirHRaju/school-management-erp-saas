@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { useAcademicConfig } from '@/lib/useAcademicConfig';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -246,8 +247,7 @@ export default function ExamsPage() {
             </div>
             <div className="space-y-2">
               <Label>Session</Label>
-              <select value={form.session} onChange={(e) => f('session', e.target.value)}>
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
+              <select value={form.session} onChange={(e) => f('session', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
                   <option value="">Select session</option>
                   {sessions.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -256,8 +256,7 @@ export default function ExamsPage() {
             </div>
             <div className="space-y-2">
               <Label>Class</Label>
-              <select value={form.class} onChange={(e) => f('class', e.target.value)}>
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+              <select value={form.class} onChange={(e) => f('class', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
                   <option value="">Select class</option>
                   {classes.map((c) => (
                     <option key={c} value={c}>{c}</option>
