@@ -79,8 +79,8 @@ function StatCard({ label, value, icon: Icon, gradient, iconColor, loading }: St
 }
 
 export default function DashboardPage() {
-  const { token, loading: authLoading } = useAuth();
-  const t = useTranslations('dashboard');
+  const { token, user, loading: authLoading } = useAuth();
+  const isTeacher = user?.role === 'teacher';  const t = useTranslations('dashboard');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +188,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stat cards — 8 colored tiles */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      { !isTeacher && (      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard label={t('totalStudents')} value={String(totalStudentsAll)} icon={Users} gradient="bg-linear-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-violet-900/20" iconColor="text-violet-600 dark:text-violet-300" loading={loading} />
         <StatCard label={t('runningStudents')} value={String(runningStudents)} icon={GraduationCap} gradient="bg-linear-to-br from-fuchsia-100 to-fuchsia-50 dark:from-fuchsia-950/40 dark:to-fuchsia-900/20" iconColor="text-fuchsia-600 dark:text-fuchsia-300" loading={loading} />
         <StatCard label={t('teachers')} value={String(totalTeachers)} icon={UserCheck} gradient="bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-950/40 dark:to-indigo-900/20" iconColor="text-indigo-600 dark:text-indigo-300" loading={loading} />
@@ -198,7 +198,7 @@ export default function DashboardPage() {
         <StatCard label={t('totalExpense')} value={`৳ ${totalExpense.toLocaleString()}`} icon={TrendingDown} gradient="bg-linear-to-br from-rose-100 to-rose-50 dark:from-rose-950/40 dark:to-rose-900/20" iconColor="text-rose-600 dark:text-rose-300" loading={loading} />
         <StatCard label={t('todayExpense')} value={`৳ ${todayExpense.toLocaleString()}`} icon={Wallet} gradient="bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-950/40 dark:to-amber-900/20" iconColor="text-amber-600 dark:text-amber-300" loading={loading} />
       </div>
-
+       )}
       {/* Secondary stat row */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
         <StatCard label={t('todayAttendance')} value={`${todayAttendancePercent.toFixed(0)}%`} icon={CalendarCheck} gradient="bg-linear-to-br from-cyan-100 to-cyan-50 dark:from-cyan-950/40 dark:to-cyan-900/20" iconColor="text-cyan-600 dark:text-cyan-300" loading={loading} />
@@ -208,7 +208,7 @@ export default function DashboardPage() {
 
       {/* Charts row 1 — Monthly Finance + Fee Status */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        { !isTeacher && (        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t('monthlyFinance')}</CardTitle>
           </CardHeader>
@@ -357,8 +357,7 @@ export default function DashboardPage() {
                     </ul>
                   </div>
                 )}
-                {stats.recentTransactions.length > 0 && (
-                  <div>
+                { !isTeacher && stats.recentTransactions.length > 0 && (                  <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                       Transactions
                     </p>
@@ -423,3 +422,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+         )}
