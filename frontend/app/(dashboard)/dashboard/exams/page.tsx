@@ -77,8 +77,8 @@ export default function ExamsPage() {
     const fetchSessions = async () => {
       setSessionsLoading(true);
       try {
-        const res = await apiRequest<{ success: boolean; data: { session: string }[] }>('/api/academic/sessions', { token });
-        const data = res.data.map(item => item.session);
+        const res = await apiRequest<{ success: boolean; data: { name: string; year: string }[] }>('/api/academic/sessions', { token });
+        const data = res.data.map(item => item.name);
         setSessions(data);
       } catch (e) {
         console.error('Failed to fetch sessions', e);
@@ -172,8 +172,16 @@ export default function ExamsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search exams..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <Input className="w-36" placeholder="Session" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} />
-        <Input className="w-28" placeholder="Class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} />
+        <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}
+          className="h-10 w-36 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={sessionsLoading}>
+          <option value="">Session</option>
+          {sessions.map((s) => (<option key={s} value={s}>{s}</option>))}
+        </select>
+        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
+          className="h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={configLoading}>
+          <option value="">Class</option>
+          {classes.map((c) => (<option key={c} value={c}>{c}</option>))}
+        </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm">
           <option value="">All Status</option>

@@ -80,7 +80,7 @@ function StatCard({ label, value, icon: Icon, gradient, iconColor, loading }: St
 
 export default function DashboardPage() {
   const { token, user, loading: authLoading } = useAuth();
-  const isTeacher = user?.role === 'teacher';  const t = useTranslations('dashboard');
+  const isTeacher = user?.role === 'teacher'; const t = useTranslations('dashboard');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,11 +169,10 @@ export default function DashboardPage() {
             <Link
               key={a.key}
               href={a.href}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                isActive
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${isActive
                   ? 'bg-linear-to-r from-violet-600 to-violet-500 text-white shadow-violet-300/40 dark:shadow-violet-900/40'
                   : 'bg-card border border-border text-foreground hover:border-violet-300 hover:text-violet-600 dark:hover:border-violet-800 dark:hover:text-violet-400'
-              }`}
+                }`}
             >
               {a.label}
             </Link>
@@ -188,7 +187,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stat cards — 8 colored tiles */}
-      { !isTeacher && (      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      {!isTeacher && (<div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard label={t('totalStudents')} value={String(totalStudentsAll)} icon={Users} gradient="bg-linear-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-violet-900/20" iconColor="text-violet-600 dark:text-violet-300" loading={loading} />
         <StatCard label={t('runningStudents')} value={String(runningStudents)} icon={GraduationCap} gradient="bg-linear-to-br from-fuchsia-100 to-fuchsia-50 dark:from-fuchsia-950/40 dark:to-fuchsia-900/20" iconColor="text-fuchsia-600 dark:text-fuchsia-300" loading={loading} />
         <StatCard label={t('teachers')} value={String(totalTeachers)} icon={UserCheck} gradient="bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-950/40 dark:to-indigo-900/20" iconColor="text-indigo-600 dark:text-indigo-300" loading={loading} />
@@ -198,17 +197,19 @@ export default function DashboardPage() {
         <StatCard label={t('totalExpense')} value={`৳ ${totalExpense.toLocaleString()}`} icon={TrendingDown} gradient="bg-linear-to-br from-rose-100 to-rose-50 dark:from-rose-950/40 dark:to-rose-900/20" iconColor="text-rose-600 dark:text-rose-300" loading={loading} />
         <StatCard label={t('todayExpense')} value={`৳ ${todayExpense.toLocaleString()}`} icon={Wallet} gradient="bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-950/40 dark:to-amber-900/20" iconColor="text-amber-600 dark:text-amber-300" loading={loading} />
       </div>
-       )}
+      )}
       {/* Secondary stat row */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
         <StatCard label={t('todayAttendance')} value={`${todayAttendancePercent.toFixed(0)}%`} icon={CalendarCheck} gradient="bg-linear-to-br from-cyan-100 to-cyan-50 dark:from-cyan-950/40 dark:to-cyan-900/20" iconColor="text-cyan-600 dark:text-cyan-300" loading={loading} />
+        {!isTeacher && (
         <StatCard label={t('dueFees')} value={`৳ ${totalDueFees.toLocaleString()}`} icon={AlertCircle} gradient="bg-linear-to-br from-orange-100 to-orange-50 dark:from-orange-950/40 dark:to-orange-900/20" iconColor="text-orange-600 dark:text-orange-300" loading={loading} />
+        )}
         <StatCard label={t('netBalance')} value={`৳ ${netBalance.toLocaleString()}`} icon={Wallet} gradient={netPositive ? 'bg-linear-to-br from-purple-100 to-purple-50 dark:from-purple-950/40 dark:to-purple-900/20' : 'bg-linear-to-br from-red-100 to-red-50 dark:from-red-950/40 dark:to-red-900/20'} iconColor={netPositive ? 'text-purple-600 dark:text-purple-300' : 'text-red-600 dark:text-red-300'} loading={loading} />
       </div>
 
       {/* Charts row 1 — Monthly Finance + Fee Status */}
       <div className="grid gap-6 lg:grid-cols-3">
-        { !isTeacher && (        <Card className="lg:col-span-2">
+        {!isTeacher && (<Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t('monthlyFinance')}</CardTitle>
           </CardHeader>
@@ -230,8 +231,9 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
-        <Card>
+        {!isTeacher && (<Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t('feeStatus')}</CardTitle>
           </CardHeader>
@@ -262,6 +264,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Charts row 2 — Students by Class + Attendance Gauge */}
@@ -336,7 +339,7 @@ export default function DashboardPage() {
 
             {!loading && !error && stats && (stats.recentPayments.length > 0 || stats.recentTransactions.length > 0) ? (
               <div className="space-y-5">
-                {stats.recentPayments.length > 0 && (
+                {!isTeacher && stats.recentPayments.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                       Fee Payments
@@ -357,25 +360,25 @@ export default function DashboardPage() {
                     </ul>
                   </div>
                 )}
-                { !isTeacher && stats.recentTransactions.length > 0 && (                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Transactions
-                    </p>
-                    <ul className="space-y-2">
-                      {stats.recentTransactions.slice(0, 5).map((t) => (
-                        <li key={t._id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`h-2 w-2 shrink-0 rounded-full ${t.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                            <span className="truncate">{t.category ?? ''}</span>
-                            {t.date && <span className="text-xs text-muted-foreground shrink-0">({new Date(t.date).toLocaleDateString()})</span>}
-                          </div>
-                          <span className={`font-semibold shrink-0 ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                            {t.type === 'income' ? '+' : '-'}৳ {(t.amount ?? 0).toLocaleString()}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {!isTeacher && stats.recentTransactions.length > 0 && (<div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Transactions
+                  </p>
+                  <ul className="space-y-2">
+                    {stats.recentTransactions.slice(0, 5).map((t) => (
+                      <li key={t._id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${t.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          <span className="truncate">{t.category ?? ''}</span>
+                          {t.date && <span className="text-xs text-muted-foreground shrink-0">({new Date(t.date).toLocaleDateString()})</span>}
+                        </div>
+                        <span className={`font-semibold shrink-0 ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          {t.type === 'income' ? '+' : '-'}৳ {(t.amount ?? 0).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 )}
               </div>
             ) : !loading && !error ? (
@@ -422,4 +425,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-         )}

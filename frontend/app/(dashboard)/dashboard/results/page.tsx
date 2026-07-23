@@ -63,8 +63,8 @@ export default function ResultListPage() {
       if (!token) return;
       // Fetch sessions
       try {
-        const res = await apiRequest<{ success: boolean; data: { session: string }[] }>('/api/academic/sessions', { token });
-        setSessions(res.data.map(item => item.session));
+        const res = await apiRequest<{ success: boolean; data: { name: string; year: string }[] }>('/api/academic/sessions', { token });
+        setSessions(res.data.map(item => item.name));
       } catch (e) {
         console.error('Failed to fetch sessions', e);
         setSessions([]);
