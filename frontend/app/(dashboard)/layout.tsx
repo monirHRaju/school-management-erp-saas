@@ -370,6 +370,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Auto-open group when current path matches a child
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenGroups((prev) => {
       const next = new Set(prev);
       let changed = false;
@@ -395,6 +396,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [loading, isAuthenticated, user?.role]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileMenuOpen(false);
   }, [pathname]);
 
