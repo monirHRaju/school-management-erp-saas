@@ -20,6 +20,7 @@ const feeSchema = new mongoose.Schema(
     description: { type: String, trim: true, default: '' },
     total_fee: { type: Number, default: 0 },
     paid_amount: { type: Number, default: 0 },
+    discount_amount: { type: Number, default: 0 },
     due_amount: { type: Number, default: 0 },
     status: { type: String, enum: ['paid', 'partial', 'unpaid'], default: 'unpaid' },
     // Legacy: support old fee_type for backward compatibility when reading
