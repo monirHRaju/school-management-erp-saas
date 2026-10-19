@@ -19,13 +19,13 @@ router.get('/', authMiddleware, requireRole('admin', 'staff', 'accountant', 'tea
 
     const totalStudents = await Student.countDocuments({ school_id: schoolId, status: 'active' });
 
-    // Today's attendance
+    // Today's attendance (late counts as present, matching attendance module)
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
     const presentToday = await Attendance.countDocuments({
       school_id: schoolId,
       date: todayStart,
-      status: 'present',
+      status: { $in: ['present', 'late'] },
     });
     const todayAttendancePercent =
       totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;

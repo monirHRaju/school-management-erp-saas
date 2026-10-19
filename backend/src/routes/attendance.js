@@ -40,8 +40,35 @@ router.post('/mark', authMiddleware, requireRole('admin', 'staff', 'teacher'), a
     if (!date || !cls || !Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ success: false, error: 'date, class, and records[] are required.' });
     }
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+      return res.status(400).json({ success: false, error: 'date must be YYYY-MM-DD.' });
+    }
 
-    const dateObj = new Date(date + 'T00:00:00.000Z');
+    const dateObj = new Date(date.trim() + 'T00:00:00.000Z');
+    if (isNaN(dateObj.getTime())) {
+      return res.status(400).json({ success: false, error: 'Invalid date.' });
+    }
+
+    const uniqueStudentIds = [];
+    const seenIds = new Set();
+    for (const r of records) {
+      if (!r || !mongoose.isValidObjectId(r.student_id)) {
+        return res.status(400).json({ success: false, error: 'Invalid student_id in records.' });
+      }
+      const sid = r.student_id.toString();
+      if (!seenIds.has(sid)) {
+        seenIds.add(sid);
+        uniqueStudentIds.push(new mongoose.Types.ObjectId(sid));
+      }
+    }
+
+    const validCount = await Student.countDocuments({
+      _id: { $in: uniqueStudentIds },
+      school_id: schoolId,
+    });
+    if (validCount !== uniqueStudentIds.length) {
+      return res.status(404).json({ success: false, error: 'One or more students not found in this school.' });
+    }
 
     const ops = records.map((r) => {
       const status = VALID_STATUSES.includes(r.status) ? r.status : 'present';
@@ -83,8 +110,11 @@ router.get('/daily', authMiddleware, requireRole('admin', 'staff', 'teacher'), a
     if (!date || !cls) {
       return res.status(400).json({ success: false, error: 'date and class are required.' });
     }
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+      return res.status(400).json({ success: false, error: 'date must be YYYY-MM-DD.' });
+    }
 
-    const dateObj = new Date(date + 'T00:00:00.000Z');
+    const dateObj = new Date(date.trim() + 'T00:00:00.000Z');
 
     // Detect weekly holiday for this date
     const weeklyHolidayIdx = await getWeeklyHolidayDayIndices(schoolId);
@@ -140,11 +170,11 @@ router.get('/monthly', authMiddleware, requireRole('admin', 'staff', 'teacher'),
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { month, class: cls, section, shift } = req.query;
 
-    if (!month || !cls) {
+    if (!month || !cls || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month.trim())) {
       return res.status(400).json({ success: false, error: 'month (YYYY-MM) and class are required.' });
     }
 
-    const [year, mon] = month.split('-').map(Number);
+    const [year, mon] = month.trim().split('-').map(Number);
     const startDate = new Date(Date.UTC(year, mon - 1, 1));
     const endDate = new Date(Date.UTC(year, mon, 0));
     const daysInMonth = endDate.getUTCDate();

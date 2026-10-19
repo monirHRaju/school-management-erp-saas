@@ -19,17 +19,32 @@ router.get('/', async (req, res) => {
     const match = { school_id: schoolId };
 
     if (from && typeof from === 'string' && from.trim()) {
+      const fromDate = new Date(from.trim());
+      if (isNaN(fromDate.getTime())) {
+        return res.status(400).json({ success: false, error: 'Invalid from date' });
+      }
       match.date = match.date || {};
-      match.date.$gte = new Date(from.trim());
+      match.date.$gte = fromDate;
     }
     if (to && typeof to === 'string' && to.trim()) {
+      const toStr = to.trim();
+      const toDate = new Date(toStr);
+      if (isNaN(toDate.getTime())) {
+        return res.status(400).json({ success: false, error: 'Invalid to date' });
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(toStr)) {
+        toDate.setUTCHours(23, 59, 59, 999);
+      }
       match.date = match.date || {};
-      match.date.$lte = new Date(to.trim());
+      match.date.$lte = toDate;
     }
     if (category && INCOME_CATEGORIES.includes(category)) {
       match.category = category;
     }
-    if (studentIdParam && mongoose.isValidObjectId(studentIdParam)) {
+    if (studentIdParam) {
+      if (!mongoose.isValidObjectId(studentIdParam)) {
+        return res.status(400).json({ success: false, error: 'Invalid student_id' });
+      }
       match.student_id = new mongoose.Types.ObjectId(studentIdParam);
     }
 

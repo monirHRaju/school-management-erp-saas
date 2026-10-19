@@ -48,12 +48,23 @@ router.get('/', async (req, res) => {
 
     const dateFilter = {};
     if (from && typeof from === 'string' && from.trim()) {
-      dateFilter.$gte = new Date(from.trim());
+      const fromDate = new Date(from.trim());
+      if (isNaN(fromDate.getTime())) {
+        return res.status(400).json({ success: false, error: 'Invalid from date' });
+      }
+      dateFilter.$gte = fromDate;
     }
     if (to && typeof to === 'string' && to.trim()) {
-      // Include the full end day
-      const endDate = new Date(to.trim());
-      endDate.setHours(23, 59, 59, 999);
+      const toStr = to.trim();
+      const endDate = new Date(toStr);
+      if (isNaN(endDate.getTime())) {
+        return res.status(400).json({ success: false, error: 'Invalid to date' });
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(toStr)) {
+        endDate.setUTCHours(23, 59, 59, 999);
+      } else {
+        endDate.setHours(23, 59, 59, 999);
+      }
       dateFilter.$lte = endDate;
     }
 
@@ -138,7 +149,7 @@ router.post('/expense', requireFeature('incomeExpenseTracking'), async (req, res
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, title, category, amount, note } = req.body;
 
-    if (!date || !title || !category || amount == null) {
+    if (!date || !title || !String(title).trim() || !category || amount == null) {
       return res.status(400).json({ success: false, error: 'date, title, category, and amount are required' });
     }
     if (!category || typeof category !== 'string' || !category.trim()) {
@@ -212,7 +223,7 @@ router.post('/income', requireFeature('incomeExpenseTracking'), async (req, res)
     const schoolId = new mongoose.Types.ObjectId(req.schoolId);
     const { date, title, category, amount, note } = req.body;
 
-    if (!date || !title || !category || amount == null) {
+    if (!date || !title || !String(title).trim() || !category || amount == null) {
       return res.status(400).json({ success: false, error: 'date, title, category, and amount are required' });
     }
     if (!category || typeof category !== 'string' || !category.trim()) {
