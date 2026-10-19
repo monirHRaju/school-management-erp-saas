@@ -7,6 +7,7 @@ import { SuperAdminProvider } from "@/context/SuperAdminContext";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/context/LocaleContext";
 import { I18nProvider } from "@/components/I18nProvider";
+import { MobileRuntime } from "@/components/MobileRuntime";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
             <ThemeProvider>
               <SuperAdminProvider>
                 <AuthProvider>
+                  <MobileRuntime />
                   {children}
                   <Toaster position="top-right" />
                 </AuthProvider>

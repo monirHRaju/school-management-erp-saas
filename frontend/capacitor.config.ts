@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   server: {
     url: "https://amaar-school-app.vercel.app/login",
     cleartext: true,
+    errorPath: "offline.html",
   },
 };
 
