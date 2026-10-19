@@ -35,8 +35,39 @@ const studentSchema = new mongoose.Schema(
     admissionDate: { type: Date },
     status: { type: String, enum: ['active', 'inactive', 'left'], default: 'active' },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+studentSchema.virtual('rollNumber').get(function () {
+  return this.rollNo;
+});
+
+studentSchema.virtual('admissionId').get(function () {
+  return this.studentId;
+});
+
+studentSchema.virtual('photo').get(function () {
+  return this.photoUrl;
+});
+
+function attachStudentAliases(doc) {
+  if (!doc || typeof doc !== 'object') return;
+  if (doc.rollNo !== undefined && doc.rollNumber === undefined) doc.rollNumber = doc.rollNo;
+  if (doc.studentId !== undefined && doc.admissionId === undefined) doc.admissionId = doc.studentId;
+  if (doc.photoUrl !== undefined && doc.photo === undefined) doc.photo = doc.photoUrl;
+}
+
+studentSchema.post('find', function (docs) {
+  if (Array.isArray(docs)) docs.forEach(attachStudentAliases);
+});
+
+studentSchema.post('findOne', function (doc) {
+  attachStudentAliases(doc);
+});
 
 studentSchema.index({ school_id: 1 });
 studentSchema.index({ school_id: 1, class: 1, section: 1 });

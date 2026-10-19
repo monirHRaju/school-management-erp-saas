@@ -1,19 +1,51 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const ExamResult = require('../models/ExamResult');
 const GradeScale = require('../models/GradeScale');
 const ResultSettings = require('../models/ResultSettings');
 const Exam = require('../models/Exam');
-const { calcGrade } = require('../utils/gradeCalc');
+const Student = require('../models/Student');
+const { calcGrade, DEFAULT_GRADES } = require('../utils/gradeCalc');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 
 const canRead = requireRole('admin', 'staff', 'teacher');
 const canWrite = requireRole('admin', 'staff');
 
+function sendError(res, status, msg) {
+  return res.status(status).json({ success: false, error: msg, message: msg });
+}
+
 async function getGrades(school_id) {
   const scale = await GradeScale.findOne({ school_id });
-  return scale ? scale.grades : [];
+  return scale && Array.isArray(scale.grades) && scale.grades.length > 0
+    ? scale.grades
+    : DEFAULT_GRADES;
+}
+
+function parseMark(val, fieldName) {
+  if (val === undefined || val === null || val === '') return { ok: true, value: 0 };
+  const num = Number(val);
+  if (isNaN(num) || num < 0) {
+    return { ok: false, error: `${fieldName} must be a non-negative number` };
+  }
+  return { ok: true, value: num };
+}
+
+function assignTieAwareRanks(rows) {
+  rows.sort((a, b) => (Number(Boolean(a.hasFail)) - Number(Boolean(b.hasFail))) || (b.total - a.total));
+  rows.forEach((r, i) => {
+    if (
+      i > 0 &&
+      r.total === rows[i - 1].total &&
+      Boolean(r.hasFail) === Boolean(rows[i - 1].hasFail)
+    ) {
+      r.rank = rows[i - 1].rank;
+    } else {
+      r.rank = i + 1;
+    }
+  });
 }
 
 // GET /api/results — list with filters
@@ -24,19 +56,25 @@ router.get('/', authMiddleware, canRead, async (req, res) => {
     if (session) filter.session = session;
     if (cls) filter.class = cls;
     if (section) filter.section = section;
-    if (exam_id) filter.exam_id = exam_id;
+    if (exam_id) {
+      if (!mongoose.isValidObjectId(exam_id)) return sendError(res, 400, 'Invalid exam_id');
+      filter.exam_id = exam_id;
+    }
     if (subject) filter.subject = subject;
-    if (student_id) filter.student_id = student_id;
+    if (student_id) {
+      if (!mongoose.isValidObjectId(student_id)) return sendError(res, 400, 'Invalid student_id');
+      filter.student_id = student_id;
+    }
     if (grade) filter.grade = grade;
 
     const results = await ExamResult.find(filter)
-      .populate('student_id', 'name rollNumber admissionId photo')
+      .populate('student_id', 'name rollNo studentId photoUrl session class')
       .populate('exam_id', 'name term')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: results });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
@@ -45,19 +83,60 @@ router.post('/entry', authMiddleware, canWrite, async (req, res) => {
   try {
     const { exam_id, session, class: cls, section, subject, entries } = req.body;
     if (!exam_id || !subject || !Array.isArray(entries)) {
-      return res.status(400).json({ success: false, message: 'exam_id, subject, and entries[] are required' });
+      return sendError(res, 400, 'exam_id, subject, and entries[] are required');
+    }
+    if (!mongoose.isValidObjectId(exam_id)) {
+      return sendError(res, 400, 'Invalid exam_id');
+    }
+
+    const exam = await Exam.findOne({ _id: exam_id, school_id: req.user.school_id }).lean();
+    if (!exam) {
+      return sendError(res, 404, 'Exam not found');
+    }
+
+    if (entries.length === 0) {
+      return res.json({ success: true, data: { upserted: 0, modified: 0 } });
+    }
+
+    const uniqueStudentIds = [];
+    const seenIds = new Set();
+    for (const e of entries) {
+      if (!e || !mongoose.isValidObjectId(e.student_id)) {
+        return sendError(res, 400, 'Invalid student_id in entries');
+      }
+      const sid = e.student_id.toString();
+      if (!seenIds.has(sid)) {
+        seenIds.add(sid);
+        uniqueStudentIds.push(new mongoose.Types.ObjectId(sid));
+      }
+    }
+
+    const validStudentCount = await Student.countDocuments({
+      _id: { $in: uniqueStudentIds },
+      school_id: req.user.school_id,
+    });
+    if (validStudentCount !== uniqueStudentIds.length) {
+      return sendError(res, 404, 'One or more students not found in this school');
     }
 
     const grades = await getGrades(req.user.school_id);
+    const ops = [];
 
-    const ops = entries.map((e) => {
-      const written = Number(e.writtenMark) || 0;
-      const mcq = Number(e.mcqMark) || 0;
-      const practical = Number(e.practicalMark) || 0;
+    for (const e of entries) {
+      const wRes = parseMark(e.writtenMark, 'writtenMark');
+      if (!wRes.ok) return sendError(res, 400, wRes.error);
+      const mRes = parseMark(e.mcqMark, 'mcqMark');
+      if (!mRes.ok) return sendError(res, 400, mRes.error);
+      const pRes = parseMark(e.practicalMark, 'practicalMark');
+      if (!pRes.ok) return sendError(res, 400, pRes.error);
+
+      const written = wRes.value;
+      const mcq = mRes.value;
+      const practical = pRes.value;
       const total = written + mcq + practical;
       const { grade, gradePoint, isFail } = calcGrade(total, grades);
 
-      return {
+      ops.push({
         updateOne: {
           filter: {
             school_id: req.user.school_id,
@@ -85,26 +164,41 @@ router.post('/entry', authMiddleware, canWrite, async (req, res) => {
           },
           upsert: true,
         },
-      };
-    });
+      });
+    }
 
     const result = await ExamResult.bulkWrite(ops);
     res.json({ success: true, data: { upserted: result.upsertedCount, modified: result.modifiedCount } });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
 // PATCH /api/results/:id — update single mark record
 router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return sendError(res, 400, 'Invalid result id');
+    }
     const record = await ExamResult.findOne({ _id: req.params.id, school_id: req.user.school_id });
-    if (!record) return res.status(404).json({ success: false, message: 'Result not found' });
+    if (!record) return sendError(res, 404, 'Result not found');
 
     const grades = await getGrades(req.user.school_id);
-    if (req.body.writtenMark !== undefined) record.writtenMark = Number(req.body.writtenMark) || 0;
-    if (req.body.mcqMark !== undefined) record.mcqMark = Number(req.body.mcqMark) || 0;
-    if (req.body.practicalMark !== undefined) record.practicalMark = Number(req.body.practicalMark) || 0;
+    if (req.body.writtenMark !== undefined) {
+      const wRes = parseMark(req.body.writtenMark, 'writtenMark');
+      if (!wRes.ok) return sendError(res, 400, wRes.error);
+      record.writtenMark = wRes.value;
+    }
+    if (req.body.mcqMark !== undefined) {
+      const mRes = parseMark(req.body.mcqMark, 'mcqMark');
+      if (!mRes.ok) return sendError(res, 400, mRes.error);
+      record.mcqMark = mRes.value;
+    }
+    if (req.body.practicalMark !== undefined) {
+      const pRes = parseMark(req.body.practicalMark, 'practicalMark');
+      if (!pRes.ok) return sendError(res, 400, pRes.error);
+      record.practicalMark = pRes.value;
+    }
 
     record.totalMark = record.writtenMark + record.mcqMark + record.practicalMark;
     const { grade, gradePoint, isFail } = calcGrade(record.totalMark, grades);
@@ -115,18 +209,21 @@ router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
     await record.save();
     res.json({ success: true, data: record });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
 // DELETE /api/results/:id
 router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return sendError(res, 400, 'Invalid result id');
+    }
     const record = await ExamResult.findOneAndDelete({ _id: req.params.id, school_id: req.user.school_id });
-    if (!record) return res.status(404).json({ success: false, message: 'Result not found' });
+    if (!record) return sendError(res, 404, 'Result not found');
     res.json({ success: true, message: 'Result deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
@@ -138,10 +235,13 @@ router.get('/tabulation', authMiddleware, canRead, async (req, res) => {
     if (session) filter.session = session;
     if (cls) filter.class = cls;
     if (section) filter.section = section;
-    if (exam_id) filter.exam_id = exam_id;
+    if (exam_id) {
+      if (!mongoose.isValidObjectId(exam_id)) return sendError(res, 400, 'Invalid exam_id');
+      filter.exam_id = exam_id;
+    }
 
     const results = await ExamResult.find(filter)
-      .populate('student_id', 'name rollNumber admissionId')
+      .populate('student_id', 'name rollNo studentId photoUrl session class')
       .sort({ subject: 1 });
 
     // Pivot: { studentId: { student, subjects: { [subjectName]: result } } }
@@ -153,7 +253,13 @@ router.get('/tabulation', authMiddleware, canRead, async (req, res) => {
       if (!sid) continue;
       subjectSet.add(r.subject);
       if (!studentMap[sid]) {
-        studentMap[sid] = { student: r.student_id, subjects: {}, total: 0, gradePoints: [] };
+        studentMap[sid] = {
+          student: r.student_id,
+          subjects: {},
+          total: 0,
+          gradePoints: [],
+          hasFail: false,
+        };
       }
       studentMap[sid].subjects[r.subject] = {
         writtenMark: r.writtenMark,
@@ -166,6 +272,7 @@ router.get('/tabulation', authMiddleware, canRead, async (req, res) => {
       };
       studentMap[sid].total += r.totalMark;
       studentMap[sid].gradePoints.push(r.gradePoint);
+      if (r.isFail) studentMap[sid].hasFail = true;
     }
 
     const subjects = [...subjectSet].sort();
@@ -173,16 +280,19 @@ router.get('/tabulation', authMiddleware, canRead, async (req, res) => {
       student: s.student,
       subjects: s.subjects,
       total: s.total,
-      gpa: s.gradePoints.length ? (s.gradePoints.reduce((a, b) => a + b, 0) / s.gradePoints.length).toFixed(2) : '0.00',
+      hasFail: s.hasFail,
+      result: s.hasFail ? 'FAIL' : 'PASS',
+      gpa:
+        s.hasFail || !s.gradePoints.length
+          ? '0.00'
+          : (s.gradePoints.reduce((a, b) => a + b, 0) / s.gradePoints.length).toFixed(2),
     }));
 
-    // Rank by total desc
-    rows.sort((a, b) => b.total - a.total);
-    rows.forEach((r, i) => { r.rank = i + 1; });
+    assignTieAwareRanks(rows);
 
     res.json({ success: true, data: { subjects, rows } });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
@@ -194,7 +304,10 @@ router.get('/report/summary', authMiddleware, canRead, async (req, res) => {
     if (session) filter.session = session;
     if (cls) filter.class = cls;
     if (section) filter.section = section;
-    if (exam_id) filter.exam_id = exam_id;
+    if (exam_id) {
+      if (!mongoose.isValidObjectId(exam_id)) return sendError(res, 400, 'Invalid exam_id');
+      filter.exam_id = exam_id;
+    }
 
     const results = await ExamResult.find(filter);
 
@@ -227,7 +340,7 @@ router.get('/report/summary', authMiddleware, canRead, async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
@@ -239,10 +352,13 @@ router.get('/report/exam-wise', authMiddleware, canRead, async (req, res) => {
     if (session) filter.session = session;
     if (cls) filter.class = cls;
     if (section) filter.section = section;
-    if (exam_id) filter.exam_id = exam_id;
+    if (exam_id) {
+      if (!mongoose.isValidObjectId(exam_id)) return sendError(res, 400, 'Invalid exam_id');
+      filter.exam_id = exam_id;
+    }
 
     const results = await ExamResult.find(filter)
-      .populate('student_id', 'name rollNumber admissionId');
+      .populate('student_id', 'name rollNo studentId photoUrl session class');
 
     const studentMap = {};
     for (const r of results) {
@@ -255,13 +371,14 @@ router.get('/report/exam-wise', authMiddleware, canRead, async (req, res) => {
       if (r.isFail) studentMap[sid].hasFail = true;
     }
 
-    const rows = Object.values(studentMap).sort((a, b) => b.total - a.total);
-    const highest = rows.length ? rows[0].total : 0;
-    rows.forEach((r, i) => { r.rank = i + 1; r.highestMark = highest; });
+    const rows = Object.values(studentMap);
+    assignTieAwareRanks(rows);
+    const highest = rows.length ? Math.max(...rows.map((r) => r.total)) : 0;
+    rows.forEach((r) => { r.highestMark = highest; });
 
     res.json({ success: true, data: rows });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
@@ -276,7 +393,6 @@ router.get('/report/annual', authMiddleware, canRead, async (req, res) => {
 
     const settings = await ResultSettings.findOne({ school_id: req.user.school_id });
     const method = settings?.finalResultMethod || 'average_all';
-    const includeOptional = settings?.includeOptionalSubjects || false;
     const finalExamName = settings?.finalExamName || 'Final';
 
     // Get all exams for the school matching session/class
@@ -288,7 +404,7 @@ router.get('/report/annual', authMiddleware, canRead, async (req, res) => {
     for (const e of exams) examMap[e._id.toString()] = e;
 
     const results = await ExamResult.find(filter)
-      .populate('student_id', 'name rollNumber admissionId session class');
+      .populate('student_id', 'name rollNo studentId photoUrl session class');
 
     const studentMap = {};
     for (const r of results) {
@@ -318,44 +434,68 @@ router.get('/report/annual', authMiddleware, canRead, async (req, res) => {
 
       if (method === 'final_only') {
         examList = examList.filter((e) => e.examName === finalExamName);
-      } else if (method === 'weighted' && settings?.examWeights?.length) {
-        // Use weights
       }
 
       const allSubjects = examList.flatMap((e) => e.subjects);
-      const gpa = allSubjects.length
-        ? (allSubjects.reduce((acc, sub) => acc + sub.gradePoint, 0) / allSubjects.length).toFixed(2)
-        : '0.00';
-      const total = allSubjects.reduce((acc, sub) => acc + sub.totalMark, 0);
+      const hasFail = allSubjects.length ? allSubjects.some((sub) => sub.isFail) : s.hasFail;
+
+      let gpa = '0.00';
+      let total = allSubjects.reduce((acc, sub) => acc + sub.totalMark, 0);
+
+      if (!hasFail && allSubjects.length > 0) {
+        if (method === 'weighted' && settings?.examWeights?.length) {
+          const weightMap = new Map(settings.examWeights.map((w) => [w.examName, Number(w.weight) || 0]));
+          let weightedGpaSum = 0;
+          let totalWeight = 0;
+          for (const ex of examList) {
+            const w = weightMap.get(ex.examName) || 0;
+            if (w > 0 && ex.subjects.length > 0) {
+              const exGpa = ex.subjects.reduce((a, b) => a + b.gradePoint, 0) / ex.subjects.length;
+              weightedGpaSum += exGpa * w;
+              totalWeight += w;
+            }
+          }
+          gpa = totalWeight > 0
+            ? (weightedGpaSum / totalWeight).toFixed(2)
+            : (allSubjects.reduce((acc, sub) => acc + sub.gradePoint, 0) / allSubjects.length).toFixed(2);
+        } else {
+          gpa = (allSubjects.reduce((acc, sub) => acc + sub.gradePoint, 0) / allSubjects.length).toFixed(2);
+        }
+      }
 
       return {
         student: s.student,
         total,
         gpa,
-        hasFail: s.hasFail,
-        result: s.hasFail ? 'FAIL' : 'PASS',
+        hasFail,
+        result: hasFail ? 'FAIL' : 'PASS',
       };
     });
 
-    rows.sort((a, b) => b.total - a.total);
-    rows.forEach((r, i) => { r.rank = i + 1; });
+    assignTieAwareRanks(rows);
 
     res.json({ success: true, data: rows });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
 // GET /api/results/student/:studentId?session=&examId=
 router.get('/student/:studentId', authMiddleware, canRead, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return sendError(res, 400, 'Invalid studentId');
+    }
     const { session, examId } = req.query;
     const filter = {
       school_id: req.user.school_id,
       student_id: req.params.studentId,
     };
     if (session) filter.session = session;
-    if (examId) filter.exam_id = examId;
+    if (examId) {
+      if (!mongoose.isValidObjectId(examId)) return sendError(res, 400, 'Invalid examId');
+      filter.exam_id = examId;
+    }
 
     const results = await ExamResult.find(filter)
       .populate('exam_id', 'name term examDate')
@@ -363,7 +503,7 @@ router.get('/student/:studentId', authMiddleware, canRead, async (req, res) => {
 
     res.json({ success: true, data: results });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, 500, err.message);
   }
 });
 
