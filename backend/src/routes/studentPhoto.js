@@ -5,6 +5,8 @@ const cloudinary = require('../utils/cloudinary');
 
 const router = express.Router();
 
+const MAX_PHOTO_SIZE = 200 * 1024; // 200 KB
+
 router.use(authMiddleware);
 router.use(requireRole('admin', 'staff'));
 
@@ -12,9 +14,17 @@ router.use(requireRole('admin', 'staff'));
 router.post('/', async (req, res) => {
   try {
     const { image } = req.body;
-    if (!image) {
+    if (!image || typeof image !== 'string') {
       return res.status(400).json({ success: false, error: 'Image is required' });
     }
+
+    // Validate base64 image size (max 200KB)
+    const base64Part = image.includes(',') ? image.split(',')[1] : image;
+    const byteLength = Buffer.byteLength(base64Part, 'base64');
+    if (byteLength > MAX_PHOTO_SIZE) {
+      return res.status(400).json({ success: false, error: 'Image size must not exceed 200KB' });
+    }
+
     if (!process.env.CLOUDINARY_URL) {
       return res
         .status(500)
@@ -42,4 +52,3 @@ router.post('/', async (req, res) => {
 });
 
 module.exports = router;
-

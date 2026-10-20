@@ -24,6 +24,9 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const RELIGION_OPTIONS = ['Islam', 'Hinduism', 'Christian', 'Other'];
 
+const MAX_PHOTO_SIZE = 200 * 1024; // 200 KB
+const PHONE_REGEX = /^\d{11}$/;
+
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm: StudentFormData = {
@@ -150,9 +153,81 @@ export default function StudentForm({ student }: StudentFormProps) {
   const set = <K extends keyof StudentFormData>(key: K, value: StudentFormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setPhotoFile(null);
+      return;
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      toast.error('Image size must not exceed 200KB.');
+      e.target.value = '';
+      setPhotoFile(null);
+      return;
+    }
+    setPhotoFile(file);
+  };
+
   const validateStep1 = () => {
+    if (isAdmin && form.studentId?.trim() && !/^\d{6}$/.test(form.studentId.trim())) {
+      toast.error('Student ID must be exactly 6 digits.');
+      return false;
+    }
+    if (photoFile && photoFile.size > MAX_PHOTO_SIZE) {
+      toast.error('Image size must not exceed 200KB.');
+      return false;
+    }
     if (!form.name.trim()) {
       toast.error('Student Name is required.');
+      return false;
+    }
+    const guardianPhone = form.guardianPhone?.trim() || '';
+    if (!guardianPhone) {
+      toast.error('Phone Number is required.');
+      return false;
+    }
+    if (!PHONE_REGEX.test(guardianPhone)) {
+      toast.error('Phone Number must be exactly 11 digits.');
+      return false;
+    }
+    if (form.whatsappNumber?.trim() && !PHONE_REGEX.test(form.whatsappNumber.trim())) {
+      toast.error('WhatsApp Number must be exactly 11 digits.');
+      return false;
+    }
+    if (!form.fatherName?.trim()) {
+      toast.error('Father Name is required.');
+      return false;
+    }
+    if (form.fatherMobile?.trim() && !PHONE_REGEX.test(form.fatherMobile.trim())) {
+      toast.error('Father Mobile must be exactly 11 digits.');
+      return false;
+    }
+    if (form.motherMobile?.trim() && !PHONE_REGEX.test(form.motherMobile.trim())) {
+      toast.error('Mother Mobile must be exactly 11 digits.');
+      return false;
+    }
+    if (!form.dateOfBirth?.trim()) {
+      toast.error('Date of Birth is required.');
+      return false;
+    }
+    if (!form.gender?.trim()) {
+      toast.error('Gender is required.');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (!form.class?.trim()) {
+      toast.error('Class is required.');
+      return false;
+    }
+    if (!form.session?.trim()) {
+      toast.error('Academic Session is required.');
+      return false;
+    }
+    if (!form.admissionDate?.trim()) {
+      toast.error('Admission Date is required.');
       return false;
     }
     return true;
@@ -160,15 +235,21 @@ export default function StudentForm({ student }: StudentFormProps) {
 
   const nextStep = () => {
     if (step === 1 && !validateStep1()) return;
+    if (step === 2 && !validateStep2()) return;
     setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s));
   };
   const prevStep = () => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step !== 3) return;
     if (!token) return;
-    if (isAdmin && form.studentId?.trim() && !/^\d{6}$/.test(form.studentId.trim())) {
-      toast.error('Student ID must be exactly 6 digits.');
+    if (!validateStep1()) {
+      setStep(1);
+      return;
+    }
+    if (!validateStep2()) {
+      setStep(2);
       return;
     }
     setSaving(true);
@@ -176,6 +257,9 @@ export default function StudentForm({ student }: StudentFormProps) {
       let photoUrl = form.photoUrl?.trim() || undefined;
 
       if (photoFile) {
+        if (photoFile.size > MAX_PHOTO_SIZE) {
+          throw new Error('Image size must not exceed 200KB.');
+        }
         const toBase64 = (file: File) =>
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -290,7 +374,13 @@ export default function StudentForm({ student }: StudentFormProps) {
                 key={num}
                 type="button"
                 onClick={() => {
-                  if (num < step || (num === 2 && validateStep1()) || num === 1) setStep(num);
+                  if (num < step) {
+                    setStep(num);
+                  } else if (num === 2 && validateStep1()) {
+                    setStep(2);
+                  } else if (num === 3 && validateStep1() && validateStep2()) {
+                    setStep(3);
+                  }
                 }}
                 className={cn(
                   'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
@@ -309,7 +399,16 @@ export default function StudentForm({ student }: StudentFormProps) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA' && step < 3) {
+            e.preventDefault();
+            nextStep();
+          }
+        }}
+      >
         <Card>
           <CardContent className="p-5 sm:p-8 space-y-5">
             {/* ─── STEP 1: Student's Information ─────────────────────── */}
@@ -331,12 +430,14 @@ export default function StudentForm({ student }: StudentFormProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="photo">Photo</Label>
+                    <Label htmlFor="photo">
+                      Photo <span className="text-xs text-muted-foreground">(Max 200KB)</span>
+                    </Label>
                     <Input
                       id="photo"
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                      onChange={handlePhotoChange}
                     />
                   </div>
                 </div>
@@ -354,23 +455,45 @@ export default function StudentForm({ student }: StudentFormProps) {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="guardianPhone">Phone Number</Label>
-                    <Input id="guardianPhone" value={form.guardianPhone ?? ''} onChange={(e) => set('guardianPhone', e.target.value)} placeholder="01XXXXXXXXX" />
+                    <Label htmlFor="guardianPhone">Phone Number <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="guardianPhone"
+                      inputMode="numeric"
+                      maxLength={11}
+                      value={form.guardianPhone ?? ''}
+                      onChange={(e) => set('guardianPhone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      required
+                      placeholder="01XXXXXXXXX"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
-                    <Input id="whatsappNumber" value={form.whatsappNumber ?? ''} onChange={(e) => set('whatsappNumber', e.target.value)} placeholder="01XXXXXXXXX" />
+                    <Input
+                      id="whatsappNumber"
+                      inputMode="numeric"
+                      maxLength={11}
+                      value={form.whatsappNumber ?? ''}
+                      onChange={(e) => set('whatsappNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      placeholder="01XXXXXXXXX"
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="fatherName">Father Name <span className="text-destructive">*</span></Label>
-                    <Input id="fatherName" value={form.fatherName ?? ''} onChange={(e) => set('fatherName', e.target.value)} placeholder="Father Name" />
+                    <Input id="fatherName" value={form.fatherName ?? ''} onChange={(e) => set('fatherName', e.target.value)} required placeholder="Father Name" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="fatherMobile">Father Mobile</Label>
-                    <Input id="fatherMobile" value={form.fatherMobile ?? ''} onChange={(e) => set('fatherMobile', e.target.value)} placeholder="01XXXXXXXXX" />
+                    <Input
+                      id="fatherMobile"
+                      inputMode="numeric"
+                      maxLength={11}
+                      value={form.fatherMobile ?? ''}
+                      onChange={(e) => set('fatherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      placeholder="01XXXXXXXXX"
+                    />
                   </div>
                 </div>
 
@@ -381,7 +504,14 @@ export default function StudentForm({ student }: StudentFormProps) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="motherMobile">Mother Mobile</Label>
-                    <Input id="motherMobile" value={form.motherMobile ?? ''} onChange={(e) => set('motherMobile', e.target.value)} placeholder="01XXXXXXXXX" />
+                    <Input
+                      id="motherMobile"
+                      inputMode="numeric"
+                      maxLength={11}
+                      value={form.motherMobile ?? ''}
+                      onChange={(e) => set('motherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      placeholder="01XXXXXXXXX"
+                    />
                   </div>
                 </div>
 
@@ -399,7 +529,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
-                    <Input id="dateOfBirth" type="date" value={form.dateOfBirth ?? ''} onChange={(e) => set('dateOfBirth', e.target.value)} />
+                    <Input id="dateOfBirth" type="date" value={form.dateOfBirth ?? ''} onChange={(e) => set('dateOfBirth', e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="birthRegNo">Birth Registration No</Label>
@@ -410,7 +540,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender <span className="text-destructive">*</span></Label>
-                    <select id="gender" value={form.gender ?? ''} onChange={(e) => set('gender', e.target.value)} className={selectClass}>
+                    <select id="gender" value={form.gender ?? ''} onChange={(e) => set('gender', e.target.value)} required className={selectClass}>
                       <option value="">Select Gender</option>
                       {GENDER_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
                     </select>
@@ -452,8 +582,8 @@ export default function StudentForm({ student }: StudentFormProps) {
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="class">Class</Label>
-                    <select id="class" value={form.class ?? ''} onChange={(e) => handleClassChange(e.target.value)} className={selectClass} disabled={configLoading}>
+                    <Label htmlFor="class">Class <span className="text-destructive">*</span></Label>
+                    <select id="class" value={form.class ?? ''} onChange={(e) => handleClassChange(e.target.value)} required className={selectClass} disabled={configLoading}>
                       <option value="">Select class</option>
                       {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -469,8 +599,8 @@ export default function StudentForm({ student }: StudentFormProps) {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="session">Academic Session</Label>
-                    <select id="session" value={form.session ?? ''} onChange={(e) => set('session', e.target.value)} className={selectClass}>
+                    <Label htmlFor="session">Academic Session <span className="text-destructive">*</span></Label>
+                    <select id="session" value={form.session ?? ''} onChange={(e) => set('session', e.target.value)} required className={selectClass}>
                       <option value="">Select session</option>
                       {sessions.map((s) => <option key={s._id} value={s.name}>{s.name}{s.year ? ` (${s.year})` : ''}</option>)}
                     </select>
@@ -500,8 +630,8 @@ export default function StudentForm({ student }: StudentFormProps) {
                     <Input id="rollNo" value={form.rollNo ?? ''} onChange={(e) => set('rollNo', e.target.value)} placeholder="Roll number" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="admissionDate">Admission Date</Label>
-                    <Input id="admissionDate" type="date" value={form.admissionDate ?? ''} onChange={(e) => set('admissionDate', e.target.value)} />
+                    <Label htmlFor="admissionDate">Admission Date <span className="text-destructive">*</span></Label>
+                    <Input id="admissionDate" type="date" value={form.admissionDate ?? ''} onChange={(e) => set('admissionDate', e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
@@ -584,6 +714,7 @@ export default function StudentForm({ student }: StudentFormProps) {
 
               {step < 3 ? (
                 <Button
+                  key="next-btn"
                   type="button"
                   onClick={nextStep}
                   className="gap-2 bg-linear-to-r from-violet-600 to-violet-500 hover:opacity-95 text-white"
@@ -592,6 +723,7 @@ export default function StudentForm({ student }: StudentFormProps) {
                 </Button>
               ) : (
                 <Button
+                  key="submit-btn"
                   type="submit"
                   disabled={saving}
                   className="gap-2 bg-linear-to-r from-violet-600 to-violet-500 hover:opacity-95 text-white"

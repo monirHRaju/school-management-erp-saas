@@ -15,6 +15,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 const STUDENT_ID_REGEX = /^\d{6}$/;
+const PHONE_REGEX = /^\d{11}$/;
 
 // Generate a unique 6-digit numeric student ID for the given school.
 // Retries on collision up to 50 attempts; throws if the school's ID space is exhausted.
@@ -234,8 +235,42 @@ router.post('/', requireRole('admin', 'staff'), async (req, res) => {
       status,
     } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, error: 'Name is required' });
+      return res.status(400).json({ success: false, error: 'Student Name is required' });
     }
+    if (!guardianPhone || !String(guardianPhone).trim()) {
+      return res.status(400).json({ success: false, error: 'Phone Number is required' });
+    }
+    if (!PHONE_REGEX.test(String(guardianPhone).trim())) {
+      return res.status(400).json({ success: false, error: 'Phone Number must be exactly 11 digits' });
+    }
+    if (whatsappNumber && String(whatsappNumber).trim() && !PHONE_REGEX.test(String(whatsappNumber).trim())) {
+      return res.status(400).json({ success: false, error: 'WhatsApp Number must be exactly 11 digits' });
+    }
+    if (!fatherName || !String(fatherName).trim()) {
+      return res.status(400).json({ success: false, error: 'Father Name is required' });
+    }
+    if (fatherMobile && String(fatherMobile).trim() && !PHONE_REGEX.test(String(fatherMobile).trim())) {
+      return res.status(400).json({ success: false, error: 'Father Mobile must be exactly 11 digits' });
+    }
+    if (motherMobile && String(motherMobile).trim() && !PHONE_REGEX.test(String(motherMobile).trim())) {
+      return res.status(400).json({ success: false, error: 'Mother Mobile must be exactly 11 digits' });
+    }
+    if (!dateOfBirth || !String(dateOfBirth).trim()) {
+      return res.status(400).json({ success: false, error: 'Date of Birth is required' });
+    }
+    if (!gender || !String(gender).trim()) {
+      return res.status(400).json({ success: false, error: 'Gender is required' });
+    }
+    if (!className || !String(className).trim()) {
+      return res.status(400).json({ success: false, error: 'Class is required' });
+    }
+    if (!session || !String(session).trim()) {
+      return res.status(400).json({ success: false, error: 'Academic Session is required' });
+    }
+    if (!admissionDate || !String(admissionDate).trim()) {
+      return res.status(400).json({ success: false, error: 'Admission Date is required' });
+    }
+
     const limitCheck = await checkStudentLimit(req.schoolId, 1);
     if (!limitCheck.allowed) {
       return res.status(403).json({ success: false, error: limitCheck.error });
@@ -415,6 +450,19 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
       });
       if (dup) return res.status(400).json({ success: false, error: 'Student ID already in use' });
       update.studentId = trimmed;
+    }
+
+    if (guardianPhone !== undefined && String(guardianPhone).trim() && !PHONE_REGEX.test(String(guardianPhone).trim())) {
+      return res.status(400).json({ success: false, error: 'Phone Number must be exactly 11 digits' });
+    }
+    if (whatsappNumber !== undefined && String(whatsappNumber).trim() && !PHONE_REGEX.test(String(whatsappNumber).trim())) {
+      return res.status(400).json({ success: false, error: 'WhatsApp Number must be exactly 11 digits' });
+    }
+    if (fatherMobile !== undefined && String(fatherMobile).trim() && !PHONE_REGEX.test(String(fatherMobile).trim())) {
+      return res.status(400).json({ success: false, error: 'Father Mobile must be exactly 11 digits' });
+    }
+    if (motherMobile !== undefined && String(motherMobile).trim() && !PHONE_REGEX.test(String(motherMobile).trim())) {
+      return res.status(400).json({ success: false, error: 'Mother Mobile must be exactly 11 digits' });
     }
 
     if (name !== undefined) update.name = name.trim();
