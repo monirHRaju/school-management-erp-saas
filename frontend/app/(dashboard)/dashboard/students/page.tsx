@@ -89,6 +89,7 @@ export default function StudentsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const LIMIT = 20;
   const [schoolSettings, setSchoolSettings] = useState<{ logoUrl?: string; contact?: string; address?: string; nameBn?: string } | null>(null);
+  const [hoveredPhoto, setHoveredPhoto] = useState<{ url: string; name: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -743,14 +744,33 @@ export default function StudentsPage() {
                         <TableCell className="font-mono text-xs">{s.studentId || '—'}</TableCell>
                         <TableCell>
                           {s.photoUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={s.photoUrl}
-                              alt={s.name}
-                              className="h-8 w-8 rounded-full object-cover"
-                            />
+                            <div
+                              className="relative inline-flex"
+                              onMouseEnter={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const previewHeight = 180;
+                                const clampedY = Math.min(
+                                  Math.max(rect.top + rect.height / 2, previewHeight / 2 + 12),
+                                  window.innerHeight - previewHeight / 2 - 12
+                                );
+                                setHoveredPhoto({
+                                  url: s.photoUrl!,
+                                  name: s.name,
+                                  x: rect.right + 14,
+                                  y: clampedY,
+                                });
+                              }}
+                              onMouseLeave={() => setHoveredPhoto(null)}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={s.photoUrl}
+                                alt={s.name}
+                                className="h-10 w-10 rounded-full object-cover ring-1 ring-border cursor-zoom-in transition-all duration-200 ease-out hover:scale-125 hover:ring-2 hover:ring-violet-500 shadow-xs"
+                              />
+                            </div>
                           ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200 ring-1 ring-border/60">
                               {s.name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -822,40 +842,51 @@ export default function StudentsPage() {
                   <Card key={s._id}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="flex items-center gap-2 font-medium">
-                            {s.photoUrl && (
-                              <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                            )}
-                            {s.name}
-                          </p>
-                          {s.studentId && (
-                            <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
+                        <div className="flex items-start gap-3">
+                          {s.photoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s.photoUrl}
+                              alt={s.name}
+                              className="h-11 w-11 rounded-full object-cover ring-1 ring-border shrink-0 transition-transform duration-200 active:scale-[2.2] hover:scale-[2.2] z-10"
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                              {s.name.charAt(0).toUpperCase()}
+                            </div>
                           )}
-                          <p className="text-sm text-muted-foreground">
-                            {s.guardianName || t('noGuardian')}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                            {s.class && (
-                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
-                                Class {s.class}
-                              </span>
+                          <div>
+                            <p className="flex items-center gap-2 font-medium">
+                              {s.name}
+                            </p>
+                            {s.studentId && (
+                              <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
                             )}
-                            {s.rollNo && <span>Roll {s.rollNo}</span>}
-                            {s.monthlyFee != null && (
-                              <span>Fee ৳ {s.monthlyFee.toLocaleString()}</span>
-                            )}
-                            {s.guardianPhone && <span>📞 {s.guardianPhone}</span>}
-                            <span
-                              className={cn(
-                                'rounded-full px-2 py-0.5 text-xs font-medium',
-                                s.status === 'active' && 'bg-primary/10 text-primary',
-                                s.status === 'inactive' && 'bg-muted text-muted-foreground',
-                                s.status === 'left' && 'bg-destructive/10 text-destructive'
+                            <p className="text-sm text-muted-foreground">
+                              {s.guardianName || t('noGuardian')}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                              {s.class && (
+                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                                  Class {s.class}
+                                </span>
                               )}
-                            >
-                              {t(s.status === 'active' ? 'active' : s.status === 'inactive' ? 'inactive' : 'left')}
-                            </span>
+                              {s.rollNo && <span>Roll {s.rollNo}</span>}
+                              {s.monthlyFee != null && (
+                                <span>Fee ৳ {s.monthlyFee.toLocaleString()}</span>
+                              )}
+                              {s.guardianPhone && <span>📞 {s.guardianPhone}</span>}
+                              <span
+                                className={cn(
+                                  'rounded-full px-2 py-0.5 text-xs font-medium',
+                                  s.status === 'active' && 'bg-primary/10 text-primary',
+                                  s.status === 'inactive' && 'bg-muted text-muted-foreground',
+                                  s.status === 'left' && 'bg-destructive/10 text-destructive'
+                                )}
+                              >
+                                {t(s.status === 'active' ? 'active' : s.status === 'inactive' ? 'inactive' : 'left')}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-1">
@@ -913,6 +944,28 @@ export default function StudentsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Floating Hover Zoom Photo Preview */}
+      {hoveredPhoto && (
+        <div
+          className="fixed z-50 pointer-events-none rounded-2xl border border-border bg-card p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          style={{
+            left: `${hoveredPhoto.x}px`,
+            top: `${hoveredPhoto.y}px`,
+            transform: 'translateY(-50%)',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={hoveredPhoto.url}
+            alt={hoveredPhoto.name}
+            className="h-36 w-36 rounded-xl object-cover"
+          />
+          <p className="mt-1.5 max-w-[144px] truncate text-center text-xs font-medium text-foreground">
+            {hoveredPhoto.name}
+          </p>
+        </div>
+      )}
 
       {/* View details modal */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
