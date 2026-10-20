@@ -7,8 +7,11 @@ const superAdminAuth = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ success: false, error: 'No token provided' });
     }
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
     const decoded = jwt.verify(token, process.env.JWT_SUPER_ADMIN_SECRET || process.env.JWT_SECRET);
+    if (!decoded.superAdminId || decoded.role !== 'super_admin') {
+      return res.status(401).json({ success: false, error: 'Invalid super admin token' });
+    }
     const admin = await SuperAdmin.findById(decoded.superAdminId);
     if (!admin) {
       return res.status(401).json({ success: false, error: 'Super admin not found' });

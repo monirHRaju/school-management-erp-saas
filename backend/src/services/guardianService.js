@@ -2,12 +2,13 @@
 
 const User = require('../models/User');
 const School = require('../models/School');
-const { sendSMS } = require('./sms');
+const { sendSMS, normalizeBdPhone } = require('./sms');
+const { canSendSMS, deductSmsBalance } = require('./notifications');
 
 /**
  * Find or create a guardian user by phone number within a school.
  * If a guardian already exists for that phone+school, returns them.
- * Otherwise creates a new guardian and SMS their credentials.
+ * Otherwise creates a new guardian and SMS their credentials if the school has SMS enabled & balance.
  *
  * @returns {{ user: Object, created: boolean, password?: string }}
  */
@@ -36,9 +37,22 @@ async function findOrCreateGuardian(schoolId, phone, name) {
     passwordHash: normalizedPhone, // pre-save hook will hash it
   });
 
-  // SMS credentials to guardian
-  const msg = `আপনার অভিভাবক অ্যাকাউন্ট তৈরি হয়েছে। ফোন: ${normalizedPhone}, পাসওয়ার্ড: আপনার ফোন নম্বর — ${schoolName}`;
-  sendSMS(normalizedPhone, msg).catch(() => {}); // fire-and-forget
+  // SMS credentials to guardian only if school plan allows SMS and has balance
+  (async () => {
+    try {
+      if (await canSendSMS(schoolId)) {
+        if (await deductSmsBalance(schoolId, 1)) {
+          const msg = `আপনার অভিভাবক অ্যাকাউন্ট তৈরি হয়েছে। ফোন: ${normalizedPhone}, পাসওয়ার্ড: আপনার ফোন নম্বর — ${schoolName}`;
+          const res = await sendSMS(normalizedPhone, msg);
+          if (!res.success) {
+            await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
+          }
+        }
+      }
+    } catch (_) {
+      // fire-and-forget
+    }
+  })();
 
   return { user, created: true };
 }
@@ -67,13 +81,7 @@ async function unlinkStudent(guardianUserId, studentId) {
  * Returns: 01712345678 (local format) or null if invalid.
  */
 function normalizePhone(phone) {
-  if (!phone) return null;
-  let p = String(phone).replace(/[\s\-()]/g, '');
-  if (p.startsWith('+880')) p = '0' + p.slice(4);
-  else if (p.startsWith('880')) p = '0' + p.slice(3);
-  // Must be 11 digits starting with 01
-  if (/^01\d{9}$/.test(p)) return p;
-  return null;
+  return normalizeBdPhone(phone);
 }
 
 module.exports = {

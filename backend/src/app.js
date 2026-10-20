@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const studentsRoutes = require('./routes/students');
 const dashboardRoutes = require('./routes/dashboard');
@@ -30,10 +32,32 @@ const resultSettingsRoutes = require('./routes/resultSettings');
 
 const app = express();
 
+// Security headers
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
 // In development, allow common dev origins so "Failed to fetch" from CORS is avoided
 const corsOrigin = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? false : true);
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
+
+// Rate limiters for sensitive auth & OTP endpoints (disabled in test env unless X-Test-Rate-Limit header is set)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-test-rate-limit'],
+  message: { success: false, error: 'Too many authentication attempts, please try again later.' },
+});
+
+const demoOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-test-rate-limit'],
+  message: { success: false, error: 'Too many OTP requests, please try again later.' },
+});
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -41,6 +65,12 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/super-admin/login', authLimiter);
+app.use('/api/demo/request', demoOtpLimiter);
+app.use('/api/demo/verify', demoOtpLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);

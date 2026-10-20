@@ -138,6 +138,7 @@ router.post('/classes', requireRole('admin'), async (req, res) => {
 
 router.patch('/classes/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { name, admissionFee, examFee, idCardFee, sessionFee, transcriptFee, tuitionFee, status } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
@@ -163,6 +164,7 @@ router.patch('/classes/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/classes/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicClass.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });
@@ -206,6 +208,7 @@ router.post('/sessions', requireRole('admin'), async (req, res) => {
 
 router.patch('/sessions/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { name, year, status } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
@@ -226,6 +229,7 @@ router.patch('/sessions/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/sessions/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicSession.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });
@@ -255,10 +259,23 @@ router.post('/sections', requireRole('admin'), async (req, res) => {
   try {
     const { name, session, status } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, error: 'Name is required' });
+
+    let validSessionId = null;
+    if (session) {
+      if (!mongoose.isValidObjectId(session)) {
+        return res.status(400).json({ success: false, error: 'Invalid session id' });
+      }
+      const ownsSession = await AcademicSession.exists({ _id: session, school_id: schoolObjId(req) });
+      if (!ownsSession) {
+        return res.status(404).json({ success: false, error: 'Session not found in this school' });
+      }
+      validSessionId = session;
+    }
+
     const doc = await AcademicSection.create({
       school_id: schoolObjId(req),
       name: name.trim(),
-      session: session && mongoose.isValidObjectId(session) ? session : null,
+      session: validSessionId,
       status: status || 'active',
     });
     const populated = await AcademicSection.findById(doc._id).populate('session', 'name year').lean();
@@ -271,10 +288,24 @@ router.post('/sections', requireRole('admin'), async (req, res) => {
 
 router.patch('/sections/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { name, session, status } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
-    if (session !== undefined) update.session = session && mongoose.isValidObjectId(session) ? session : null;
+    if (session !== undefined) {
+      if (session === null || session === '') {
+        update.session = null;
+      } else {
+        if (!mongoose.isValidObjectId(session)) {
+          return res.status(400).json({ success: false, error: 'Invalid session id' });
+        }
+        const ownsSession = await AcademicSession.exists({ _id: session, school_id: schoolObjId(req) });
+        if (!ownsSession) {
+          return res.status(404).json({ success: false, error: 'Session not found in this school' });
+        }
+        update.session = session;
+      }
+    }
     if (status !== undefined) update.status = status;
     const doc = await AcademicSection.findOneAndUpdate(
       { _id: req.params.id, school_id: schoolObjId(req) },
@@ -291,6 +322,7 @@ router.patch('/sections/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/sections/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicSection.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });
@@ -340,6 +372,7 @@ router.post('/subjects', requireRole('admin'), async (req, res) => {
 
 router.patch('/subjects/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { classes, name, code, writtenMark, mcqMark, otherMark, practicalMark, type, status } = req.body;
     const update = {};
     if (classes !== undefined) update.classes = Array.isArray(classes) ? classes.map((c) => String(c).trim()).filter(Boolean) : [];
@@ -365,6 +398,7 @@ router.patch('/subjects/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/subjects/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicSubject.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });
@@ -404,6 +438,7 @@ router.post('/shifts', requireRole('admin'), async (req, res) => {
 
 router.patch('/shifts/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { name, status } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
@@ -423,6 +458,7 @@ router.patch('/shifts/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/shifts/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicShift.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });
@@ -462,6 +498,7 @@ router.post('/groups', requireRole('admin'), async (req, res) => {
 
 router.patch('/groups/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { name, status } = req.body;
     const update = {};
     if (name !== undefined) update.name = name.trim();
@@ -481,6 +518,7 @@ router.patch('/groups/:id', requireRole('admin'), async (req, res) => {
 
 router.delete('/groups/:id', requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, error: 'Invalid id' });
     const doc = await AcademicGroup.findOneAndDelete({ _id: req.params.id, school_id: schoolObjId(req) });
     if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true });

@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Exam = require('../models/Exam');
 const authMiddleware = require('../middleware/auth');
@@ -49,6 +50,9 @@ router.post('/', authMiddleware, canWrite, async (req, res) => {
 // PATCH /api/exams/:id
 router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid exam id' });
+    }
     const exam = await Exam.findOne({ _id: req.params.id, school_id: req.user.school_id });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
@@ -69,6 +73,9 @@ router.patch('/:id', authMiddleware, canWrite, async (req, res) => {
 // DELETE /api/exams/:id
 router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid exam id' });
+    }
     const exam = await Exam.findOneAndDelete({ _id: req.params.id, school_id: req.user.school_id });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     res.json({ success: true, message: 'Exam deleted' });

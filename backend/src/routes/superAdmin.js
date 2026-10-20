@@ -134,6 +134,9 @@ router.get('/schools', superAdminAuth, async (req, res) => {
 // GET /api/super-admin/schools/:id — school detail with users
 router.get('/schools/:id', superAdminAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
     const school = await School.findById(req.params.id).lean();
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
 
@@ -151,6 +154,9 @@ router.get('/schools/:id', superAdminAuth, async (req, res) => {
 // PUT /api/super-admin/schools/:id — update subscription plan / expiry / name / contact
 router.put('/schools/:id', superAdminAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
     const { name, contact, plan_slug, subscription_expiry, settings } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
@@ -170,6 +176,9 @@ router.put('/schools/:id', superAdminAuth, async (req, res) => {
 // POST /api/super-admin/schools/:id/reset-password — reset a user's password
 router.post('/schools/:id/reset-password', superAdminAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
     const { userId, newPassword } = req.body;
     if (!userId || !newPassword) {
       return res.status(400).json({ success: false, error: 'userId and newPassword required' });
@@ -228,6 +237,9 @@ router.post('/schools', superAdminAuth, async (req, res) => {
 // DELETE /api/super-admin/schools/:id — permanently delete school and all data
 router.delete('/schools/:id', superAdminAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
     const school = await School.findById(req.params.id);
     if (!school) return res.status(404).json({ success: false, error: 'School not found' });
 
@@ -404,17 +416,24 @@ router.get('/sms-orders', superAdminAuth, async (req, res) => {
   }
 });
 
-// PUT /api/super-admin/sms-orders/:id/approve
+// PUT /api/super-admin/sms-orders/:id/approve (atomic pending -> approved transition)
 router.put('/sms-orders/:id/approve', superAdminAuth, async (req, res) => {
   try {
-    const order = await SmsOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
-    if (order.status !== 'pending') {
-      return res.status(400).json({ success: false, error: `Order is already ${order.status}` });
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid order id' });
     }
 
-    order.status = 'approved';
-    await order.save();
+    const order = await SmsOrder.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending' },
+      { $set: { status: 'approved' } },
+      { new: true }
+    );
+
+    if (!order) {
+      const existing = await SmsOrder.findById(req.params.id).select('status').lean();
+      if (!existing) return res.status(404).json({ success: false, error: 'Order not found' });
+      return res.status(400).json({ success: false, error: `Order is already ${existing.status}` });
+    }
 
     await School.findByIdAndUpdate(order.school_id, { $inc: { sms_balance: order.sms_count } });
 
@@ -432,19 +451,25 @@ router.put('/sms-orders/:id/approve', superAdminAuth, async (req, res) => {
   }
 });
 
-// PUT /api/super-admin/sms-orders/:id/reject
+// PUT /api/super-admin/sms-orders/:id/reject (atomic pending -> rejected transition)
 router.put('/sms-orders/:id/reject', superAdminAuth, async (req, res) => {
   try {
-    const { reason } = req.body;
-    const order = await SmsOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
-    if (order.status !== 'pending') {
-      return res.status(400).json({ success: false, error: `Order is already ${order.status}` });
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid order id' });
     }
 
-    order.status = 'rejected';
-    order.reject_reason = reason || null;
-    await order.save();
+    const { reason } = req.body;
+    const order = await SmsOrder.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending' },
+      { $set: { status: 'rejected', reject_reason: reason || null } },
+      { new: true }
+    );
+
+    if (!order) {
+      const existing = await SmsOrder.findById(req.params.id).select('status').lean();
+      if (!existing) return res.status(404).json({ success: false, error: 'Order not found' });
+      return res.status(400).json({ success: false, error: `Order is already ${existing.status}` });
+    }
 
     await Notice.create({
       title: 'SMS অর্ডার প্রত্যাখ্যাত',
@@ -463,6 +488,9 @@ router.put('/sms-orders/:id/reject', superAdminAuth, async (req, res) => {
 // POST /api/super-admin/schools/:id/sms-balance — manually add SMS balance
 router.post('/schools/:id/sms-balance', superAdminAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
     const { count } = req.body;
     const smsCount = parseInt(count);
     if (!smsCount || smsCount <= 0) {

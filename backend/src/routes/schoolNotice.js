@@ -106,7 +106,7 @@ router.post('/', requireRole('admin', 'staff', 'accountant'), async (req, res) =
     };
 
     if (target_type === 'role') {
-      const validRoles = ['admin', 'staff', 'accountant', 'guardian'];
+      const validRoles = ['admin', 'staff', 'accountant', 'guardian', 'teacher'];
       const roles = (target_roles || []).filter((r) => validRoles.includes(r));
       if (roles.length === 0) {
         return res.status(400).json({ success: false, error: 'At least one valid role is required' });
@@ -156,10 +156,14 @@ router.post('/:id/read', async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid notice id' });
     }
-    await SchoolNotice.findOneAndUpdate(
+    const updated = await SchoolNotice.findOneAndUpdate(
       { _id: req.params.id, school_id: new mongoose.Types.ObjectId(req.schoolId) },
-      { $addToSet: { read_by: req.user._id } }
+      { $addToSet: { read_by: req.user._id } },
+      { new: true }
     );
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Notice not found' });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

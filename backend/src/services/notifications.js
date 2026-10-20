@@ -1,7 +1,7 @@
 'use strict';
 
 const mongoose = require('mongoose');
-const { sendSMS, sendBulkSMS } = require('./sms');
+const { sendSMS, normalizeBdPhone } = require('./sms');
 const School = require('../models/School');
 const Student = require('../models/Student');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
@@ -49,19 +49,22 @@ async function notifyAbsentStudents(schoolId, absentStudentIds, date, className)
   if (!absentStudentIds.length) return { sent: 0 };
   if (!(await canSendSMS(schoolId))) return { sent: 0, skipped: 'plan' };
 
-  const school = await School.findById(schoolId).select('name').lean();
-  const schoolName = school?.name || 'School';
-
-  const students = await Student.find({
+  const schoolObjId = new mongoose.Types.ObjectId(schoolId);
+  const rawStudents = await Student.find({
+    school_id: schoolObjId,
     _id: { $in: absentStudentIds.map((id) => new mongoose.Types.ObjectId(id)) },
     guardianPhone: { $exists: true, $ne: '' },
   })
     .select('name guardianPhone guardianName rollNo')
     .lean();
 
+  const students = rawStudents
+    .map((s) => ({ ...s, guardianPhone: normalizeBdPhone(s.guardianPhone) }))
+    .filter((s) => Boolean(s.guardianPhone));
+
   if (!students.length) return { sent: 0, skipped: 'no_phones' };
 
-  // Deduct balance for all students upfront
+  // Deduct balance for all valid-phone students upfront
   const deducted = await deductSmsBalance(schoolId, students.length);
   if (!deducted) return { sent: 0, skipped: 'no_balance' };
 
@@ -93,21 +96,19 @@ async function notifyAbsentStudents(schoolId, absentStudentIds, date, className)
 async function notifyFeeGenerated(schoolId, studentId, amount, month, description) {
   if (!(await canSendSMS(schoolId))) return { sent: 0 };
 
-  const student = await Student.findById(studentId).select('name guardianPhone guardianName class').lean();
-  if (!student?.guardianPhone) return { sent: 0 };
-
-  const school = await School.findById(schoolId).select('name').lean();
-  const schoolName = school?.name || 'School';
+  const student = await Student.findOne({ _id: studentId, school_id: schoolId }).select('name guardianPhone guardianName class').lean();
+  const phone = normalizeBdPhone(student?.guardianPhone);
+  if (!phone) return { sent: 0 };
 
   if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
 
   const msg = `আপনার সন্তান ${student.name} এর ${month ? ` ${month}` : ''} ফি ${amount} টাকা নির্ধারণ করা হয়েছে। ${description ? `বিবরণ: ${description}.` : ''} `;
-  const result = await sendSMS(student.guardianPhone, msg);
+  const result = await sendSMS(phone, msg);
 
   // Restore if failed
   if (!result.success) await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
 
-  await logSMS(schoolId, 'fee_generated', 1, msg, result, student.guardianPhone);
+  await logSMS(schoolId, 'fee_generated', 1, msg, result, phone);
   return result;
 }
 
@@ -115,9 +116,6 @@ async function notifyFeeGenerated(schoolId, studentId, amount, month, descriptio
 async function notifyBulkFeesGenerated(schoolId, month, studentCount) {
   if (!(await canSendSMS(schoolId))) return { sent: 0 };
 
-  // For bulk, we don't SMS every student — just log it.
-  // Individual SMS for bulk generation would be too expensive.
-  // Instead, schools can use the manual "Send Due Reminder" feature.
   return { sent: 0, note: 'bulk_fees_logged_only' };
 }
 
@@ -125,20 +123,18 @@ async function notifyBulkFeesGenerated(schoolId, month, studentCount) {
 async function notifyFeeDue(schoolId, studentId, amount, dueAmount, month, description) {
   if (!(await canSendSMS(schoolId))) return { sent: 0 };
 
-  const student = await Student.findById(studentId).select('name guardianPhone guardianName class').lean();
-  if (!student?.guardianPhone) return { sent: 0 };
-
-  const school = await School.findById(schoolId).select('name').lean();
-  const schoolName = school?.name || 'School';
+  const student = await Student.findOne({ _id: studentId, school_id: schoolId }).select('name guardianPhone guardianName class').lean();
+  const phone = normalizeBdPhone(student?.guardianPhone);
+  if (!phone) return { sent: 0 };
 
   if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
 
   const msg = `আপনার সন্তান ${student.name} (${student.class}) এর${month ? ` ${month}` : ''} ফি ${dueAmount} টাকা বাকী।`;
-  const result = await sendSMS(student.guardianPhone, msg);
+  const result = await sendSMS(phone, msg);
 
   if (!result.success) await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
 
-  await logSMS(schoolId, 'fee_due_reminder', 1, msg, result, student.guardianPhone);
+  await logSMS(schoolId, 'fee_due_reminder', 1, msg, result, phone);
   return result;
 }
 
@@ -146,8 +142,9 @@ async function notifyFeeDue(schoolId, studentId, amount, dueAmount, month, descr
 async function notifyPaymentReceived(schoolId, studentId, amount, trxId, feeCategory) {
   if (!(await canSendSMS(schoolId))) return { sent: 0 };
 
-  const student = await Student.findById(studentId).select('name guardianPhone guardianName class').lean();
-  if (!student?.guardianPhone) return { sent: 0 };
+  const student = await Student.findOne({ _id: studentId, school_id: schoolId }).select('name guardianPhone guardianName class').lean();
+  const phone = normalizeBdPhone(student?.guardianPhone);
+  if (!phone) return { sent: 0 };
 
   const school = await School.findById(schoolId).select('name').lean();
   const schoolName = school?.name || 'School';
@@ -155,11 +152,11 @@ async function notifyPaymentReceived(schoolId, studentId, amount, trxId, feeCate
   if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
 
   const msg = `পেমেন্ট গ্রহণ করা হয়েছে ${amount} টাকা — ${student.name} (${student.class})।${trxId ? ` TrxID: ${trxId}` : ''} ধন্যবাদ! - ${schoolName}`;
-  const result = await sendSMS(student.guardianPhone, msg);
+  const result = await sendSMS(phone, msg);
 
   if (!result.success) await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
 
-  await logSMS(schoolId, 'payment_received', 1, msg, result, student.guardianPhone);
+  await logSMS(schoolId, 'payment_received', 1, msg, result, phone);
   return result;
 }
 

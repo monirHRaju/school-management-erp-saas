@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authMiddleware = require('../middleware/auth');
-const { sendSMS, getBalance } = require('../services/sms');
+const { sendSMS, normalizeBdPhone } = require('../services/sms');
 const { canSendSMS, deductSmsBalance, notifyFeeDue } = require('../services/notifications');
 const SmsLog = require('../models/SmsLog');
 const Student = require('../models/Student');
@@ -14,12 +14,13 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(requireRole('admin'));
 
-// ─── GET /api/sms/balance — check SMS provider account balance + school balance ─
+// ─── GET /api/sms/balance — check this school's SMS credit balance ───────────
+// Never expose platform-wide provider balance to school tenants.
 router.get('/balance', async (req, res) => {
   try {
-    const result = await getBalance();
     const school = await School.findById(req.schoolId).select('sms_balance').lean();
-    res.json({ success: true, data: { ...result, sms_balance: school?.sms_balance || 0 } });
+    const smsBalance = school?.sms_balance || 0;
+    res.json({ success: true, data: { sms_balance: smsBalance } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -82,15 +83,23 @@ router.post('/send', async (req, res) => {
     }
 
     const { to, message } = req.body;
-    if (!to || !message) {
+    if (!to || !message || !String(message).trim()) {
       return res.status(400).json({ success: false, error: 'to and message are required.' });
+    }
+
+    const normalizedTo = normalizeBdPhone(to);
+    if (!normalizedTo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Bangladeshi mobile number. Use format 01XXXXXXXXX or +8801XXXXXXXXX.',
+      });
     }
 
     if (!(await deductSmsBalance(req.schoolId, 1))) {
       return res.status(400).json({ success: false, error: 'SMS ব্যালেন্স নেই। SMS কিনুন।' });
     }
 
-    const result = await sendSMS(to, message);
+    const result = await sendSMS(normalizedTo, String(message).trim());
 
     // Restore if failed
     if (!result.success) await School.findByIdAndUpdate(req.schoolId, { $inc: { sms_balance: 1 } });
@@ -99,8 +108,8 @@ router.post('/send', async (req, res) => {
       school_id: schoolId,
       type: 'manual',
       recipients: 1,
-      to,
-      message,
+      to: normalizedTo,
+      message: String(message).trim(),
       sent: result.success ? 1 : 0,
       failed: result.success ? 0 : 1,
     });
@@ -137,7 +146,7 @@ router.post('/send-due-reminders', async (req, res) => {
       const result = await notifyFeeDue(
         schoolId, fee.student_id, fee.total_fee, fee.due_amount, fee.month, fee.description
       );
-      if (result.sent > 0) sent++;
+      if (result.sent > 0 || result.success) sent++;
       else failed++;
     }
 
@@ -166,8 +175,15 @@ router.post('/resend/:id', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Cannot resend — missing phone number or message.' });
     }
 
-    // If multiple phones (attendance bulk), send to all
-    const phones = log.to.split(',').map((p) => p.trim()).filter(Boolean);
+    // If multiple phones (attendance bulk), normalize and filter valid numbers
+    const phones = log.to
+      .split(',')
+      .map((p) => normalizeBdPhone(p.trim()))
+      .filter(Boolean);
+
+    if (!phones.length) {
+      return res.status(400).json({ success: false, error: 'No valid Bangladeshi phone numbers to resend.' });
+    }
 
     if (!(await deductSmsBalance(req.schoolId, phones.length))) {
       return res.status(400).json({ success: false, error: `SMS ব্যালেন্স নেই। ${phones.length} SMS প্রয়োজন।` });
@@ -190,7 +206,7 @@ router.post('/resend/:id', async (req, res) => {
       school_id: schoolId,
       type: log.type,
       recipients: phones.length,
-      to: log.to,
+      to: phones.join(','),
       message: log.message,
       sent: totalSent,
       failed: totalFailed,

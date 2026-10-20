@@ -36,8 +36,29 @@ router.post('/create-manual', async (req, res) => {
     if (!count || count < MIN_COUNT) {
       return res.status(400).json({ success: false, error: `Minimum ${MIN_COUNT} SMS required.` });
     }
-    if (!sender_last4 || !trxid) {
+
+    const cleanLast4 = sender_last4 ? String(sender_last4).trim() : '';
+    const cleanTrxId = trxid ? String(trxid).trim() : '';
+
+    if (!cleanLast4 || !cleanTrxId) {
       return res.status(400).json({ success: false, error: 'Last 4 digits and TrxID are required.' });
+    }
+    if (!/^\d{4}$/.test(cleanLast4)) {
+      return res.status(400).json({ success: false, error: 'Sender last 4 digits must be 4 numeric digits.' });
+    }
+
+    // Reject duplicate TrxID if an order is already pending or approved (allow re-submission if rejected)
+    const escapedTrx = cleanTrxId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const duplicate = await SmsOrder.findOne({
+      manual_trxid: new RegExp(`^${escapedTrx}$`, 'i'),
+      status: { $in: ['pending', 'approved'] },
+    }).lean();
+
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        error: 'This Transaction ID (TrxID) has already been submitted.',
+      });
     }
 
     const amount = calcAmount(count);
@@ -46,8 +67,8 @@ router.post('/create-manual', async (req, res) => {
       sms_count: count,
       amount,
       payment_method: 'manual',
-      sender_last4: String(sender_last4).trim(),
-      manual_trxid: String(trxid).trim(),
+      sender_last4: cleanLast4,
+      manual_trxid: cleanTrxId,
     });
 
     res.status(201).json({ success: true, data: order });

@@ -1,7 +1,12 @@
 'use strict';
 
+process.env.NODE_ENV = 'test';
+
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
+// Never hit the real SMS gateway during automated tests unless explicitly stubbed
+process.env.SMS_TOKEN = '';
 
 const mongoose = require('mongoose');
 const app = require('../src/app');
@@ -109,8 +114,8 @@ async function teardownTestEnvironment() {
   }
 }
 
-async function api(method, endpoint, body = null, token = null) {
-  const headers = { 'Content-Type': 'application/json' };
+async function api(method, endpoint, body = null, token = null, extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${baseUrl}${endpoint}`, {
     method,
@@ -118,7 +123,7 @@ async function api(method, endpoint, body = null, token = null) {
     body: body !== null ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  return { status: res.status, body: data };
+  return { status: res.status, body: data, headers: res.headers };
 }
 
 let schoolCounter = 0;

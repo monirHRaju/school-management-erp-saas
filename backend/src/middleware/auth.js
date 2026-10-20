@@ -10,9 +10,15 @@ const authMiddleware = async (req, res, next) => {
     let token = authHeader.replace('Bearer ', '');
     token = token.trim();
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded.userId) {
+      return res.status(401).json({ success: false, error: 'Invalid user token' });
+    }
     const user = await User.findById(decoded.userId).select('-passwordHash');
     if (!user) {
       return res.status(401).json({ success: false, error: 'User not found' });
+    }
+    if (user.status === 'inactive') {
+      return res.status(401).json({ success: false, error: 'Account is inactive' });
     }
     req.user = user;
     req.schoolId = user.school_id.toString();

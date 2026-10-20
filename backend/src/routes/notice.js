@@ -61,11 +61,14 @@ router.get('/unread-count', async (req, res) => {
 // ─── POST /api/notices/:id/read — mark notice as read ───────────────────────
 router.post('/:id/read', async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid notice id' });
+    }
     const schoolId = req.schoolId;
     const oid = new mongoose.Types.ObjectId(schoolId);
 
-    const notice = await Notice.findByIdAndUpdate(
-      req.params.id,
+    const notice = await Notice.findOneAndUpdate(
+      { _id: req.params.id, target: { $in: ['all', schoolId] } },
       { $addToSet: { read_by: oid } },
       { new: true }
     );
