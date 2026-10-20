@@ -1,8 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, ArrowRight, ImageIcon, BookOpen, DollarSign, Check } from 'lucide-react';
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  ImageIcon,
+  BookOpen,
+  Eye,
+  Check,
+  X,
+  User as UserIcon,
+  Pencil,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -71,11 +82,22 @@ interface StudentFormProps {
   student?: Student;
 }
 
+function ReviewItem({ label, value }: { label: string; value?: string | number | null }) {
+  const display = value !== undefined && value !== null && String(value).trim() !== '' ? String(value) : '—';
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium break-words">{display}</p>
+    </div>
+  );
+}
+
 export default function StudentForm({ student }: StudentFormProps) {
   const router = useRouter();
   const { token, user } = useAuth();
   const { classes, sections, shifts, groups, loading: configLoading } = useAcademicConfig();
   const isAdmin = user?.role === 'admin';
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<StudentFormData>(() => {
     if (!student) return emptyForm;
@@ -115,8 +137,22 @@ export default function StudentForm({ student }: StudentFormProps) {
   });
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Manage object URL for selected photo file
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(photoFile);
+    setPhotoPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [photoFile]);
+
+  const activePhotoUrl = photoPreview || form.photoUrl?.trim() || null;
 
   // Session and class fee config state
   const [sessions, setSessions] = useState<{ _id: string; name: string; year: string }[]>([]);
@@ -166,6 +202,13 @@ export default function StudentForm({ student }: StudentFormProps) {
       return;
     }
     setPhotoFile(file);
+  };
+
+  const clearSelectedPhoto = () => {
+    setPhotoFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const validateStep1 = () => {
@@ -348,7 +391,7 @@ export default function StudentForm({ student }: StudentFormProps) {
   const STEPS = [
     { num: 1 as const, label: "Student's Information", icon: ImageIcon },
     { num: 2 as const, label: 'Admission Details', icon: BookOpen },
-    { num: 3 as const, label: 'Fee Information', icon: DollarSign },
+    { num: 3 as const, label: 'Review & Preview', icon: Eye },
   ];
 
   return (
@@ -414,7 +457,7 @@ export default function StudentForm({ student }: StudentFormProps) {
             {/* ─── STEP 1: Student's Information ─────────────────────── */}
             {step === 1 && (
               <>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 items-start">
                   <div className="space-y-2">
                     <Label htmlFor="studentId">Student ID {!student && <span className="text-xs text-muted-foreground">(auto)</span>}</Label>
                     <Input
@@ -434,11 +477,38 @@ export default function StudentForm({ student }: StudentFormProps) {
                       Photo <span className="text-xs text-muted-foreground">(Max 200KB)</span>
                     </Label>
                     <Input
+                      ref={fileInputRef}
                       id="photo"
                       type="file"
                       accept="image/*"
                       onChange={handlePhotoChange}
                     />
+                    {activePhotoUrl && (
+                      <div className="flex items-center gap-3 pt-1">
+                        <img
+                          src={activePhotoUrl}
+                          alt="Student photo preview"
+                          className="h-16 w-16 rounded-lg object-cover border border-border shadow-xs"
+                        />
+                        <div className="flex-1 min-w-0 text-xs text-muted-foreground space-y-1">
+                          {photoFile ? (
+                            <>
+                              <p className="font-medium text-foreground truncate">{photoFile.name}</p>
+                              <p>{(photoFile.size / 1024).toFixed(1)} KB</p>
+                              <button
+                                type="button"
+                                onClick={clearSelectedPhoto}
+                                className="inline-flex items-center gap-1 text-destructive hover:underline font-medium"
+                              >
+                                <X className="h-3 w-3" /> Remove photo
+                              </button>
+                            </>
+                          ) : (
+                            <p>Current uploaded photo</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -479,39 +549,63 @@ export default function StudentForm({ student }: StudentFormProps) {
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="fatherName">Father Name <span className="text-destructive">*</span></Label>
-                    <Input id="fatherName" value={form.fatherName ?? ''} onChange={(e) => set('fatherName', e.target.value)} required placeholder="Father Name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fatherMobile">Father Mobile</Label>
-                    <Input
-                      id="fatherMobile"
-                      inputMode="numeric"
-                      maxLength={11}
-                      value={form.fatherMobile ?? ''}
-                      onChange={(e) => set('fatherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
-                      placeholder="01XXXXXXXXX"
-                    />
+                {/* Father's Details */}
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Father&apos;s Information</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="fatherName">Father Name <span className="text-destructive">*</span></Label>
+                      <Input id="fatherName" value={form.fatherName ?? ''} onChange={(e) => set('fatherName', e.target.value)} required placeholder="Father Name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fatherMobile">Father Mobile</Label>
+                      <Input
+                        id="fatherMobile"
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={form.fatherMobile ?? ''}
+                        onChange={(e) => set('fatherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                        placeholder="01XXXXXXXXX"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fatherProfession">Father Profession</Label>
+                      <Input id="fatherProfession" value={form.fatherProfession ?? ''} onChange={(e) => set('fatherProfession', e.target.value)} placeholder="e.g. Farmer, Teacher" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fatherMonthlyIncome">Father Monthly Income (৳)</Label>
+                      <Input id="fatherMonthlyIncome" type="number" min="0" value={form.fatherMonthlyIncome ?? ''} onChange={(e) => set('fatherMonthlyIncome', e.target.value)} placeholder="e.g. 25000" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="motherName">Mother Name</Label>
-                    <Input id="motherName" value={form.motherName ?? ''} onChange={(e) => set('motherName', e.target.value)} placeholder="Mother Name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="motherMobile">Mother Mobile</Label>
-                    <Input
-                      id="motherMobile"
-                      inputMode="numeric"
-                      maxLength={11}
-                      value={form.motherMobile ?? ''}
-                      onChange={(e) => set('motherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
-                      placeholder="01XXXXXXXXX"
-                    />
+                {/* Mother's Details */}
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mother&apos;s Information</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="motherName">Mother Name</Label>
+                      <Input id="motherName" value={form.motherName ?? ''} onChange={(e) => set('motherName', e.target.value)} placeholder="Mother Name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="motherMobile">Mother Mobile</Label>
+                      <Input
+                        id="motherMobile"
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={form.motherMobile ?? ''}
+                        onChange={(e) => set('motherMobile', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                        placeholder="01XXXXXXXXX"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="motherProfession">Mother Profession</Label>
+                      <Input id="motherProfession" value={form.motherProfession ?? ''} onChange={(e) => set('motherProfession', e.target.value)} placeholder="e.g. Homemaker, Doctor" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="motherMonthlyIncome">Mother Monthly Income (৳)</Label>
+                      <Input id="motherMonthlyIncome" type="number" min="0" value={form.motherMonthlyIncome ?? ''} onChange={(e) => set('motherMonthlyIncome', e.target.value)} placeholder="e.g. 0" />
+                    </div>
                   </div>
                 </div>
 
@@ -597,6 +691,21 @@ export default function StudentForm({ student }: StudentFormProps) {
                   </div>
                 </div>
 
+                {classFeeConfig && form.class && (
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-sm space-y-2">
+                    <p className="font-semibold text-blue-700 dark:text-blue-300">Class Fee Configuration — {form.class}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                      {classFeeConfig.admissionFee > 0 && <p><span className="text-muted-foreground">Admission:</span> ৳{classFeeConfig.admissionFee.toLocaleString()}</p>}
+                      {classFeeConfig.examFee > 0 && <p><span className="text-muted-foreground">Exam:</span> ৳{classFeeConfig.examFee.toLocaleString()}</p>}
+                      {classFeeConfig.idCardFee > 0 && <p><span className="text-muted-foreground">ID Card:</span> ৳{classFeeConfig.idCardFee.toLocaleString()}</p>}
+                      {classFeeConfig.sessionFee > 0 && <p><span className="text-muted-foreground">Session:</span> ৳{classFeeConfig.sessionFee.toLocaleString()}</p>}
+                      {classFeeConfig.transcriptFee > 0 && <p><span className="text-muted-foreground">Transcript:</span> ৳{classFeeConfig.transcriptFee.toLocaleString()}</p>}
+                      {classFeeConfig.tuitionFee > 0 && <p><span className="text-muted-foreground">Tuition:</span> ৳{classFeeConfig.tuitionFee.toLocaleString()}</p>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">One-time fees will be auto-created as fee records upon admission.</p>
+                  </div>
+                )}
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="session">Academic Session <span className="text-destructive">*</span></Label>
@@ -604,6 +713,10 @@ export default function StudentForm({ student }: StudentFormProps) {
                       <option value="">Select session</option>
                       {sessions.map((s) => <option key={s._id} value={s.name}>{s.name}{s.year ? ` (${s.year})` : ''}</option>)}
                     </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="monthlyFee">Monthly Fee (৳)</Label>
+                    <Input id="monthlyFee" type="number" min="0" value={form.monthlyFee ?? ''} onChange={(e) => set('monthlyFee', e.target.value)} placeholder="e.g. 1500" />
                   </div>
                 </div>
 
@@ -640,64 +753,159 @@ export default function StudentForm({ student }: StudentFormProps) {
                     </select>
                   </div>
                 </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="fatherProfession">Father Profession</Label>
-                    <Input id="fatherProfession" value={form.fatherProfession ?? ''} onChange={(e) => set('fatherProfession', e.target.value)} placeholder="e.g. Farmer, Teacher" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="motherProfession">Mother Profession</Label>
-                    <Input id="motherProfession" value={form.motherProfession ?? ''} onChange={(e) => set('motherProfession', e.target.value)} placeholder="e.g. Homemaker, Doctor" />
-                  </div>
-                </div>
               </>
             )}
 
-            {/* ─── STEP 3: Fee Information ───────────────────────────── */}
+            {/* ─── STEP 3: Review & Preview ──────────────────────────── */}
             {step === 3 && (
-              <>
-                {classFeeConfig && (form.class) && (
-                  <div className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-sm space-y-2">
-                    <p className="font-semibold text-blue-700 dark:text-blue-300">Class Fee Configuration — {form.class}</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs">
-                      {classFeeConfig.admissionFee > 0 && <p><span className="text-muted-foreground">Admission:</span> ৳{classFeeConfig.admissionFee.toLocaleString()}</p>}
-                      {classFeeConfig.examFee > 0 && <p><span className="text-muted-foreground">Exam:</span> ৳{classFeeConfig.examFee.toLocaleString()}</p>}
-                      {classFeeConfig.idCardFee > 0 && <p><span className="text-muted-foreground">ID Card:</span> ৳{classFeeConfig.idCardFee.toLocaleString()}</p>}
-                      {classFeeConfig.sessionFee > 0 && <p><span className="text-muted-foreground">Session:</span> ৳{classFeeConfig.sessionFee.toLocaleString()}</p>}
-                      {classFeeConfig.transcriptFee > 0 && <p><span className="text-muted-foreground">Transcript:</span> ৳{classFeeConfig.transcriptFee.toLocaleString()}</p>}
-                      {classFeeConfig.tuitionFee > 0 && <p><span className="text-muted-foreground">Tuition:</span> ৳{classFeeConfig.tuitionFee.toLocaleString()}</p>}
+              <div className="space-y-5">
+                {/* Student Profile Banner */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/50 dark:bg-violet-950/20 p-4">
+                  {activePhotoUrl ? (
+                    <img
+                      src={activePhotoUrl}
+                      alt={form.name || 'Student photo'}
+                      className="h-20 w-20 rounded-xl object-cover border border-violet-300 dark:border-violet-800 shadow-xs shrink-0"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-xl border border-dashed border-violet-300 dark:border-violet-800 bg-background/60 flex items-center justify-center text-muted-foreground shrink-0">
+                      <UserIcon className="h-8 w-8" />
                     </div>
-                    <p className="text-xs text-muted-foreground">One-time fees will be auto-created as fee records upon admission.</p>
-                  </div>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="monthlyFee">Monthly Fee (৳)</Label>
-                    <Input id="monthlyFee" type="number" min="0" value={form.monthlyFee ?? ''} onChange={(e) => set('monthlyFee', e.target.value)} placeholder="e.g. 1500" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fatherMonthlyIncome">Father Monthly Income (৳)</Label>
-                    <Input id="fatherMonthlyIncome" type="number" min="0" value={form.fatherMonthlyIncome ?? ''} onChange={(e) => set('fatherMonthlyIncome', e.target.value)} placeholder="e.g. 25000" />
+                  )}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold text-foreground">{form.name || '—'}</h2>
+                      {form.nameBn && (
+                        <span className="text-sm text-muted-foreground">({form.nameBn})</span>
+                      )}
+                      <span className="inline-flex items-center rounded-full bg-violet-600/10 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300 capitalize">
+                        {form.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Student ID: <span className="font-medium text-foreground">{form.studentId?.trim() || 'Auto-generated upon submission'}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Class: <span className="font-medium text-foreground">{form.class || '—'}</span>
+                      {form.section ? ` · Section ${form.section}` : ''}
+                      {form.rollNo ? ` · Roll ${form.rollNo}` : ''}
+                      {form.session ? ` · Session ${form.session}` : ''}
+                    </p>
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="motherMonthlyIncome">Mother Monthly Income (৳)</Label>
-                    <Input id="motherMonthlyIncome" type="number" min="0" value={form.motherMonthlyIncome ?? ''} onChange={(e) => set('motherMonthlyIncome', e.target.value)} placeholder="e.g. 0" />
+                {/* Personal & Contact Information */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <h3 className="text-sm font-semibold text-foreground">Personal &amp; Contact Information</h3>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep(1)}
+                      className="h-7 px-2 text-xs gap-1 text-violet-600 dark:text-violet-400"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <ReviewItem label="Phone Number" value={form.guardianPhone} />
+                    <ReviewItem label="WhatsApp Number" value={form.whatsappNumber} />
+                    <ReviewItem label="Date of Birth" value={form.dateOfBirth} />
+                    <ReviewItem label="Birth Registration No" value={form.birthRegNo} />
+                    <ReviewItem label="Gender" value={form.gender} />
+                    <ReviewItem label="Religion" value={form.religion} />
+                    <ReviewItem label="Blood Group" value={form.bloodGroup} />
+                    <div className="col-span-2">
+                      <ReviewItem label="Full Address" value={form.address} />
+                    </div>
                   </div>
                 </div>
 
-                {/* Review summary */}
-                <div className="rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-1.5 text-sm">
-                  <p className="font-semibold text-violet-700 dark:text-violet-300 mb-2">Review</p>
-                  <p><span className="font-medium">Name:</span> {form.name || '—'}</p>
-                  <p><span className="font-medium">Class:</span> {form.class || '—'}{form.section ? ` — ${form.section}` : ''}{form.rollNo ? ` · Roll ${form.rollNo}` : ''}{form.session ? ` · ${form.session}` : ''}</p>
-                  <p><span className="font-medium">Father:</span> {form.fatherName || '—'} {form.fatherMobile ? `(${form.fatherMobile})` : ''}</p>
-                  <p><span className="font-medium">Monthly Fee:</span> ৳ {form.monthlyFee || '0'}</p>
+                {/* Parents & Guardian Information */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <h3 className="text-sm font-semibold text-foreground">Parents &amp; Guardian Details</h3>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep(1)}
+                      className="h-7 px-2 text-xs gap-1 text-violet-600 dark:text-violet-400"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <ReviewItem label="Father Name" value={form.fatherName} />
+                    <ReviewItem label="Father Mobile" value={form.fatherMobile} />
+                    <ReviewItem label="Father Profession" value={form.fatherProfession} />
+                    <ReviewItem
+                      label="Father Monthly Income"
+                      value={form.fatherMonthlyIncome ? `৳ ${Number(form.fatherMonthlyIncome).toLocaleString()}` : undefined}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-border/60">
+                    <ReviewItem label="Mother Name" value={form.motherName} />
+                    <ReviewItem label="Mother Mobile" value={form.motherMobile} />
+                    <ReviewItem label="Mother Profession" value={form.motherProfession} />
+                    <ReviewItem
+                      label="Mother Monthly Income"
+                      value={form.motherMonthlyIncome ? `৳ ${Number(form.motherMonthlyIncome).toLocaleString()}` : undefined}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-border/60">
+                    <ReviewItem label="Guardian Name" value={form.guardianName} />
+                    <ReviewItem label="Guardian Relation" value={form.guardianRelation} />
+                    <ReviewItem label="Guardian Phone" value={form.guardianPhone} />
+                  </div>
                 </div>
-              </>
+
+                {/* Admission & Fee Information */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <h3 className="text-sm font-semibold text-foreground">Admission &amp; Fee Details</h3>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep(2)}
+                      className="h-7 px-2 text-xs gap-1 text-violet-600 dark:text-violet-400"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <ReviewItem label="Class" value={form.class} />
+                    <ReviewItem label="Section" value={form.section} />
+                    <ReviewItem label="Academic Session" value={form.session} />
+                    <ReviewItem
+                      label="Monthly Fee"
+                      value={`৳ ${form.monthlyFee ? Number(form.monthlyFee).toLocaleString() : '0'}`}
+                    />
+                    <ReviewItem label="Shift" value={form.shift} />
+                    <ReviewItem label="Group" value={form.group} />
+                    <ReviewItem label="Roll No" value={form.rollNo} />
+                    <ReviewItem label="Admission Date" value={form.admissionDate} />
+                  </div>
+
+                  {classFeeConfig && form.class && (
+                    <div className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3 text-xs space-y-1.5 mt-2">
+                      <p className="font-semibold text-blue-700 dark:text-blue-300">
+                        One-Time Class Fees ({form.class})
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
+                        {classFeeConfig.admissionFee > 0 && <p><span className="text-muted-foreground">Admission:</span> ৳{classFeeConfig.admissionFee.toLocaleString()}</p>}
+                        {classFeeConfig.examFee > 0 && <p><span className="text-muted-foreground">Exam:</span> ৳{classFeeConfig.examFee.toLocaleString()}</p>}
+                        {classFeeConfig.idCardFee > 0 && <p><span className="text-muted-foreground">ID Card:</span> ৳{classFeeConfig.idCardFee.toLocaleString()}</p>}
+                        {classFeeConfig.sessionFee > 0 && <p><span className="text-muted-foreground">Session:</span> ৳{classFeeConfig.sessionFee.toLocaleString()}</p>}
+                        {classFeeConfig.transcriptFee > 0 && <p><span className="text-muted-foreground">Transcript:</span> ৳{classFeeConfig.transcriptFee.toLocaleString()}</p>}
+                        {classFeeConfig.tuitionFee > 0 && <p><span className="text-muted-foreground">Default Tuition:</span> ৳{classFeeConfig.tuitionFee.toLocaleString()}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Navigation */}
