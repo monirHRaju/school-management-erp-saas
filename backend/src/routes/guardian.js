@@ -9,7 +9,6 @@ const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const Notice = require('../models/Notice');
 const User = require('../models/User');
-const PaymentLink = require('../models/PaymentLink');
 const FeePayment = require('../models/FeePayment');
 const School = require('../models/School');
 const bcrypt = require('bcryptjs');
@@ -143,64 +142,6 @@ router.get('/notices', async (req, res) => {
     }));
 
     res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ── POST /api/guardian/pay/:feeId ─────────────────────────────────────────────
-// Initiates bKash payment for a fee belonging to guardian's child
-router.post('/pay/:feeId', async (req, res) => {
-  try {
-    const { feeId } = req.params;
-    if (!mongoose.isValidObjectId(feeId)) {
-      return res.status(400).json({ success: false, error: 'Invalid fee id' });
-    }
-
-    const fee = await Fee.findOne({
-      _id: feeId,
-      school_id: new mongoose.Types.ObjectId(req.schoolId),
-    }).lean();
-
-    if (!fee) return res.status(404).json({ success: false, error: 'Fee not found' });
-    if (!ownsStudent(req, fee.student_id)) {
-      return res.status(403).json({ success: false, error: 'Forbidden' });
-    }
-    if ((fee.due_amount || 0) <= 0) {
-      return res.status(400).json({ success: false, error: 'Fee already paid' });
-    }
-
-    // Generate or reuse payment link
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const crypto = require('crypto');
-
-    let link = await PaymentLink.findOne({
-      fee_id: fee._id,
-      school_id: new mongoose.Types.ObjectId(req.schoolId),
-      status: 'active',
-      expiresAt: { $gt: new Date() },
-    }).lean();
-
-    if (!link) {
-      const token = crypto.randomBytes(16).toString('hex');
-      link = await PaymentLink.create({
-        school_id: new mongoose.Types.ObjectId(req.schoolId),
-        fee_id: fee._id,
-        token,
-        amount: fee.due_amount,
-      });
-      link = link.toObject();
-    }
-
-    res.json({
-      success: true,
-      data: {
-        payUrl: `${FRONTEND_URL}/pay/${link.token}`,
-        token: link.token,
-        amount: link.amount,
-        expiresAt: link.expiresAt,
-      },
-    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

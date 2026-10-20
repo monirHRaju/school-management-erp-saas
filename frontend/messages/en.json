@@ -359,11 +359,6 @@
     "unpaid": "Unpaid",
     "partial": "Partial",
     "paidStatus": "Paid",
-    "linkExpires": "Link expires in 7 days",
-    "copyLink": "Copy Link",
-    "copied": "Copied!",
-    "paymentLink": "Payment Link",
-    "shareLink": "Share this link with the parent/guardian. They can pay directly via bKash.",
     "cancel": "Cancel",
     "remove": "Remove"
   },
@@ -610,7 +605,6 @@
     "upToStudents": "Up to {n} students",
     "unlimitedAdmins": "Unlimited admins",
     "upToAdmins": "Up to {n} admin accounts",
-    "payViaBkash": "Pay ৳{price} via bKash",
     "contactUs": "Contact Us",
     "expiringSoon": "Your subscription expires soon. Contact your administrator to renew.",
     "expired": "Your subscription has expired. Some features may be limited. Contact support to renew.",
@@ -620,7 +614,7 @@
     "perMonth": "/month",
     "perMonthShort": "/mo",
     "freePlan": "Free Plan",
-    "bkashNote": "Pay via bKash and our team will activate your plan within 24 hours. Questions? Contact",
+    "upgradeNote": "Contact us to upgrade or renew your plan and our team will activate it within 24 hours. Questions? Contact",
     "expiredLabel": "Expired",
     "customLimits": "(custom limits applied)",
     "contact": "support@amarschool.app"

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import type { SubscriptionInfo, UsageInfo, SubscriptionPlan } from '@/types/superAdmin';
-import { Check, X, Zap, ArrowUpRight, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { Check, X, Zap, ArrowUpRight, AlertCircle } from 'lucide-react';
 
 const planColors: Record<string, { badge: string; ring: string; glow: string }> = {
   free:     { badge: 'bg-zinc-700/60 text-zinc-300',    ring: 'border-zinc-700',     glow: '' },
@@ -60,8 +60,6 @@ export default function SubscriptionPage() {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bkashPaying, setBkashPaying] = useState(false);
-  const [bkashError, setBkashError] = useState('');
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -81,29 +79,6 @@ export default function SubscriptionPage() {
   }, [token]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  async function payViaBkash(planSlug: string) {
-    setBkashPaying(true);
-    setBkashError('');
-    try {
-      const res = await apiRequest<{ success: boolean; data: { paymentID: string; bkashURL: string } }>(
-        '/api/payment/bkash/create-sub',
-        { method: 'POST', body: JSON.stringify({ plan_slug: planSlug }), token: token! }
-      );
-      if (res.success && res.data.bkashURL) {
-        sessionStorage.setItem('bkash_payment_id', res.data.paymentID);
-        sessionStorage.setItem('bkash_payment_type', 'subscription');
-        window.location.href = res.data.bkashURL;
-      } else {
-        setBkashError('Failed to initiate payment. Please try again.');
-        setBkashPaying(false);
-      }
-    } catch (err: unknown) {
-      const e = err as { message?: string };
-      setBkashError(e.message || 'Failed to initiate payment.');
-      setBkashPaying(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -266,17 +241,7 @@ export default function SubscriptionPage() {
                       </li>
                     ))}
                   </ul>
-                  {!isCurrent && p.price > 0 && (
-                    <button
-                      onClick={() => payViaBkash(p.slug)}
-                      disabled={bkashPaying}
-                      className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-white bg-[#E2136E] hover:bg-[#c0125e] disabled:opacity-60 rounded-xl transition-colors mt-1"
-                    >
-                      {bkashPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      {t('payViaBkash', { price: p.price.toLocaleString() })}
-                    </button>
-                  )}
-                  {!isCurrent && p.price === 0 && (
+                  {!isCurrent && (
                     <a
                       href="mailto:support@amarschool.app"
                       className="inline-flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-colors mt-1"
@@ -288,14 +253,8 @@ export default function SubscriptionPage() {
               );
             })}
           </div>
-          {bkashError && (
-            <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 mt-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-400">{bkashError}</p>
-            </div>
-          )}
           <p className="text-xs text-muted-foreground mt-3 text-center">
-            {t('bkashNote')}{' '}
+            {t('upgradeNote')}{' '}
             <a href="mailto:support@amarschool.app" className="text-indigo-400 hover:underline">{t('contact')}</a>
           </p>
         </div>

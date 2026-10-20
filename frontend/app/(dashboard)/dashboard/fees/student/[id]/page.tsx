@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft, Loader2, CreditCard, TrendingUp, Eye, Plus,
-  Printer, Link2, Copy, Check, CheckSquare, Square, Receipt, Trash2,
+  Printer, CheckSquare, Square, Receipt, Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -76,12 +76,6 @@ export default function StudentFeeReportPage() {
   const [multiCollectOpen, setMultiCollectOpen] = useState(false);
   const [multiItems, setMultiItems] = useState<{ fee_id: string; amount: string; discount: string; note: string; label: string }[]>([]);
   const [multiSubmitting, setMultiSubmitting] = useState(false);
-
-  // Payment link
-  const [linkFee, setLinkFee] = useState<Fee | null>(null);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkLoading, setLinkLoading] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Delete fee
   const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
@@ -177,28 +171,6 @@ export default function StudentFeeReportPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailsFee, student, school, schoolSettings, user]);
-
-  // Payment link
-  async function openPaymentLink(fee: Fee) {
-    setLinkFee(fee);
-    setLinkUrl('');
-    setLinkCopied(false);
-    setLinkLoading(true);
-    try {
-      const res = await apiRequest<{ success: boolean; data: { url: string } }>(
-        '/api/payment/link/generate',
-        { method: 'POST', body: JSON.stringify({ fee_id: fee._id }), token: token! }
-      );
-      if (res.success) setLinkUrl(res.data.url);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate link');
-      setLinkFee(null);
-    } finally { setLinkLoading(false); }
-  }
-  function copyLink() {
-    if (!linkUrl) return;
-    navigator.clipboard.writeText(linkUrl).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); });
-  }
 
   const handleDeleteFee = async () => {
     if (!token || !feeToDelete) return;
@@ -573,23 +545,13 @@ export default function StudentFeeReportPage() {
                             <Eye className="h-4 w-4 mr-1" />View
                           </Button>
                           {isUnpaid && (
-                            <>
-                              <Button
-                                size="sm" variant="outline"
-                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400"
-                                onClick={() => openCollectModal(fee)}
-                              >
-                                Collect
-                              </Button>
-                              <Button
-                                size="sm" variant="ghost"
-                                className="h-8 text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:text-pink-400"
-                                onClick={() => openPaymentLink(fee)}
-                                title="bKash payment link"
-                              >
-                                <Link2 className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Button
+                              size="sm" variant="outline"
+                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400"
+                              onClick={() => openCollectModal(fee)}
+                            >
+                              Collect
+                            </Button>
                           )}
                           <Button
                             size="sm" variant="ghost"
@@ -822,39 +784,6 @@ export default function StudentFeeReportPage() {
                 </Button>
               </DialogFooter>
             </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Payment Link Modal */}
-      <Dialog open={!!linkFee} onOpenChange={(open) => !open && setLinkFee(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-[#E2136E] font-black">bKash</span> Payment Link
-            </DialogTitle>
-          </DialogHeader>
-          {linkFee && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Pay <strong>৳{linkFee.due_amount.toLocaleString()}</strong> via bKash — no login required.
-              </p>
-              {linkLoading ? (
-                <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
-              ) : linkUrl ? (
-                <>
-                  <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                    <p className="flex-1 text-xs font-mono truncate">{linkUrl}</p>
-                    <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2" onClick={copyLink}>
-                      {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                    </Button>
-                  </div>
-                  <Button className="w-full bg-[#E2136E] hover:bg-[#c0125e] text-white" onClick={copyLink}>
-                    {linkCopied ? <><Check className="h-4 w-4 mr-2" />Copied!</> : <><Copy className="h-4 w-4 mr-2" />Copy Link</>}
-                  </Button>
-                </>
-              ) : null}
-            </div>
           )}
         </DialogContent>
       </Dialog>

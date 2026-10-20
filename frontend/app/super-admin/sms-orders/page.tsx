@@ -18,9 +18,8 @@ interface SmsOrderEntry {
   amount: number;
   payment_method: string;
   status: string;
-  bkash_last4?: string;
+  sender_last4?: string;
   manual_trxid?: string;
-  bkash_trxid?: string;
   reject_reason?: string;
   createdAt: string;
 }
@@ -227,12 +226,11 @@ export default function SuperAdminSmsOrdersPage() {
                         <td className="px-4 py-2.5 text-right font-semibold text-zinc-200">{order.sms_count.toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-right text-zinc-300">৳{order.amount.toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-xs text-zinc-400 capitalize">
-                          {order.payment_method === 'bkash' ? 'bKash' : 'Manual'}
+                          Manual
                         </td>
                         <td className="px-4 py-2.5 text-xs text-zinc-500">
-                          {order.bkash_last4 && <span>****{order.bkash_last4}</span>}
+                          {order.sender_last4 && <span>****{order.sender_last4}</span>}
                           {order.manual_trxid && <span className="ml-1">TrxID: {order.manual_trxid}</span>}
-                          {order.bkash_trxid && <span>TrxID: {order.bkash_trxid}</span>}
                         </td>
                         <td className="px-4 py-2.5">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>

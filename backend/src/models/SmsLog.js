@@ -5,7 +5,7 @@ const smsLogSchema = new mongoose.Schema(
     school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
     type: {
       type: String,
-      enum: ['attendance_absent', 'fee_generated', 'fee_due_reminder', 'payment_received', 'payment_link', 'manual'],
+      enum: ['attendance_absent', 'fee_generated', 'fee_due_reminder', 'payment_received', 'manual'],
       required: true,
     },
     recipients: { type: Number, default: 1 },

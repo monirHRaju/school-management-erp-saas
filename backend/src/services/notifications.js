@@ -163,27 +163,6 @@ async function notifyPaymentReceived(schoolId, studentId, amount, trxId, feeCate
   return result;
 }
 
-// ─── Payment Link: send payment link via SMS ─────────────────────────────────
-async function notifyPaymentLink(schoolId, studentId, amount, paymentUrl) {
-  if (!(await canSendSMS(schoolId))) return { sent: 0 };
-
-  const student = await Student.findById(studentId).select('name guardianPhone guardianName class').lean();
-  if (!student?.guardianPhone) return { sent: 0 };
-
-  const school = await School.findById(schoolId).select('name').lean();
-  const schoolName = school?.name || 'School';
-
-  if (!(await deductSmsBalance(schoolId, 1))) return { sent: 0, skipped: 'no_balance' };
-
-  const msg = `${student.name} (${student.class}) এর ${amount} টাকা ফি পরিশোধ করুন এই লিংক থেকে: ${paymentUrl} - ${schoolName}`;
-  const result = await sendSMS(student.guardianPhone, msg);
-
-  if (!result.success) await School.findByIdAndUpdate(schoolId, { $inc: { sms_balance: 1 } });
-
-  await logSMS(schoolId, 'payment_link', 1, msg, result, student.guardianPhone);
-  return result;
-}
-
 module.exports = {
   canSendSMS,
   deductSmsBalance,
@@ -192,5 +171,4 @@ module.exports = {
   notifyBulkFeesGenerated,
   notifyFeeDue,
   notifyPaymentReceived,
-  notifyPaymentLink,
 };

@@ -15,7 +15,6 @@ const TYPE_LABELS: Record<string, string> = {
   fee_generated: 'Fee Created',
   fee_due_reminder: 'Due Reminder',
   payment_received: 'Payment',
-  payment_link: 'Pay Link',
   manual: 'Manual',
 };
 

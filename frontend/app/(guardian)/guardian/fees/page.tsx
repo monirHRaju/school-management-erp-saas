@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Printer } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
@@ -45,15 +44,12 @@ interface InvoicePayload {
 
 export default function GuardianFeesPage() {
   const t = useTranslations('guardian');
-  const searchParams = useSearchParams();
-  const payFeeId = searchParams.get('pay');
 
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [fees, setFees] = useState<Fee[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState<string | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -140,33 +136,6 @@ export default function GuardianFeesPage() {
       setPrintingId(null);
     }
   }, []);
-
-  // Auto-trigger pay if ?pay= is present
-  useEffect(() => {
-    if (payFeeId && fees.length > 0 && !paying) {
-      handlePay(payFeeId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payFeeId, fees]);
-
-  async function handlePay(feeId: string) {
-    const token = getToken();
-    if (!token) return;
-    setPaying(feeId);
-    try {
-      const res = await apiRequest<{ success: boolean; data: { payUrl: string } }>(
-        `/api/guardian/pay/${feeId}`,
-        { method: 'POST', token }
-      );
-      if (res.success && res.data?.payUrl) {
-        window.location.href = res.data.payUrl;
-      }
-    } catch {
-      alert('Failed to initiate payment');
-    } finally {
-      setPaying(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -272,7 +241,6 @@ export default function GuardianFeesPage() {
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">{t('paidCol')}</th>
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">{t('due')}</th>
                   <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('status')}</th>
-                  <th className="px-4 py-2.5 text-center text-muted-foreground font-medium">{t('action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -293,17 +261,6 @@ export default function GuardianFeesPage() {
                       }`}>
                         {fee.status === 'paid' ? t('paidStatus') : fee.status === 'partial' ? t('partialStatus') : t('unpaidStatus')}
                       </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      {fee.status !== 'paid' && (
-                        <button
-                          onClick={() => handlePay(fee._id)}
-                          disabled={paying === fee._id}
-                          className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                        >
-                          {paying === fee._id ? t('processing') : t('payNow')}
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}

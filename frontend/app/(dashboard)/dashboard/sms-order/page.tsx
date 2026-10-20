@@ -6,8 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
-  Loader2, ShoppingCart, CreditCard, Smartphone, History,
-  CheckCircle2, Clock, XCircle, AlertTriangle,
+  Loader2, ShoppingCart, Smartphone, History,
+  CheckCircle2, Clock, XCircle,
 } from 'lucide-react';
 
 interface PricingData {
@@ -22,9 +22,8 @@ interface SmsOrderEntry {
   amount: number;
   payment_method: string;
   status: string;
-  bkash_last4?: string;
+  sender_last4?: string;
   manual_trxid?: string;
-  bkash_trxid?: string;
   reject_reason?: string;
   createdAt: string;
 }
@@ -44,21 +43,15 @@ export default function SmsOrderPage() {
   const [loading, setLoading] = useState(true);
 
   // Manual payment
-  const [bkashLast4, setBkashLast4] = useState('');
+  const [senderLast4, setSenderLast4] = useState('');
   const [trxId, setTrxId] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
-
-  // bKash payment
-  const [bkashSubmitting, setBkashSubmitting] = useState(false);
 
   // Order history
   const [orders, setOrders] = useState<SmsOrderEntry[]>([]);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersTotalPages, setOrdersTotalPages] = useState(1);
   const [ordersLoading, setOrdersLoading] = useState(false);
-
-  // Tab
-  const [payTab, setPayTab] = useState<'bkash' | 'manual'>('bkash');
 
   // Load pricing
   useEffect(() => {
@@ -104,37 +97,10 @@ export default function SmsOrderPage() {
 
   const amount = calcAmount(smsCount);
 
-  // bKash payment
-  const handleBkashPay = async () => {
-    if (!token || !pricing || smsCount < pricing.minCount) return;
-    setBkashSubmitting(true);
-    try {
-      const res = await apiRequest<{
-        success: boolean;
-        data: { paymentID: string; bkashURL: string; amount: number; smsCount: number };
-        error?: string;
-      }>('/api/sms-order/create-bkash', {
-        method: 'POST',
-        body: JSON.stringify({ smsCount }),
-        token,
-      });
-      if (res.success && res.data.bkashURL) {
-        sessionStorage.setItem('bkash_sms_payment_id', res.data.paymentID);
-        window.location.href = res.data.bkashURL;
-      } else {
-        toast.error('Failed to initiate bKash payment.');
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create payment.');
-    } finally {
-      setBkashSubmitting(false);
-    }
-  };
-
   // Manual payment
   const handleManualSubmit = async () => {
     if (!token || !pricing || smsCount < pricing.minCount) return;
-    if (!bkashLast4 || !trxId) {
+    if (!senderLast4 || !trxId) {
       toast.error('Last 4 digits and Transaction ID are required.');
       return;
     }
@@ -142,11 +108,11 @@ export default function SmsOrderPage() {
     try {
       await apiRequest('/api/sms-order/create-manual', {
         method: 'POST',
-        body: JSON.stringify({ smsCount, bkash_last4: bkashLast4, trxid: trxId }),
+        body: JSON.stringify({ smsCount, sender_last4: senderLast4, trxid: trxId }),
         token,
       });
       toast.success('Order submitted! Awaiting approval.');
-      setBkashLast4('');
+      setSenderLast4('');
       setTrxId('');
       loadOrders();
     } catch (err: unknown) {
@@ -228,52 +194,12 @@ export default function SmsOrderPage() {
             </div>
           </div>
 
-          {/* Payment Tabs */}
-          <div className="flex gap-1 bg-muted/40 p-1 rounded-lg">
-            <button
-              onClick={() => setPayTab('bkash')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                payTab === 'bkash' ? 'bg-[#E2136E] text-white' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              bKash Payment
-            </button>
-            <button
-              onClick={() => setPayTab('manual')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                payTab === 'manual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Manual Payment
-            </button>
-          </div>
-
-          {payTab === 'bkash' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Pay instantly with bKash. Your SMS balance will be added automatically after payment.
-              </p>
-              <button
-                onClick={handleBkashPay}
-                disabled={bkashSubmitting || smsCount < (pricing?.minCount || 500)}
-                className="w-full px-4 py-3 rounded-xl bg-[#E2136E] text-white text-sm font-bold hover:bg-[#c91060] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-              >
-                {bkashSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    Pay ৳{amount.toLocaleString()} with bKash
-                  </>
-                )}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
+          {/* Manual payment */}
+          <div className="space-y-4">
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm">
                 <p className="font-semibold text-amber-700 dark:text-amber-400 mb-1">Payment Instructions</p>
                 <p className="text-amber-600 dark:text-amber-500">
-                  bKash Send Money to <span className="font-bold">01917383378</span> — Amount: <span className="font-bold">৳{amount.toLocaleString()}</span>
+                  Send Money to <span className="font-bold">01917383378</span> — Amount: <span className="font-bold">৳{amount.toLocaleString()}</span>
                 </p>
                 <p className="text-amber-600/80 dark:text-amber-500/80 text-xs mt-1">
                   After sending, fill in the details below and submit. Your balance will be added after admin approval.
@@ -282,13 +208,13 @@ export default function SmsOrderPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">bKash Number (Last 4 Digits)</label>
+                  <label className="text-xs font-medium text-muted-foreground">Sender Number (Last 4 Digits)</label>
                   <input
                     type="text"
                     maxLength={4}
                     placeholder="e.g. 3378"
-                    value={bkashLast4}
-                    onChange={(e) => setBkashLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    value={senderLast4}
+                    onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
@@ -296,7 +222,7 @@ export default function SmsOrderPage() {
                   <label className="text-xs font-medium text-muted-foreground">Transaction ID (TrxID)</label>
                   <input
                     type="text"
-                    placeholder="e.g. BK1234ABCD"
+                    placeholder="e.g. TRX1234ABCD"
                     value={trxId}
                     onChange={(e) => setTrxId(e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -306,7 +232,7 @@ export default function SmsOrderPage() {
 
               <button
                 onClick={handleManualSubmit}
-                disabled={manualSubmitting || !bkashLast4 || !trxId || smsCount < (pricing?.minCount || 500)}
+                disabled={manualSubmitting || !senderLast4 || !trxId || smsCount < (pricing?.minCount || 500)}
                 className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
               >
                 {manualSubmitting ? (
@@ -316,7 +242,6 @@ export default function SmsOrderPage() {
                 )}
               </button>
             </div>
-          )}
         </div>
       </div>
 
@@ -357,8 +282,8 @@ export default function SmsOrderPage() {
                         <td className="px-4 py-2.5 text-foreground">৳{order.amount.toLocaleString()}</td>
                         <td className="px-4 py-2.5">
                           <span className="text-xs capitalize text-muted-foreground">
-                            {order.payment_method === 'bkash' ? 'bKash' : 'Manual'}
-                            {order.bkash_last4 && ` (****${order.bkash_last4})`}
+                            Manual
+                            {order.sender_last4 && ` (****${order.sender_last4})`}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
