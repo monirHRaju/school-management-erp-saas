@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Sparkles, Loader2, X } from 'lucide-react';
+import { Search, Sparkles, Loader2, X, CreditCard, User } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -47,7 +47,7 @@ export function QuickStudentSearch() {
     const handle = setTimeout(async () => {
       try {
         const res = await apiRequest<{ success: boolean; data: StudentResult[] }>(
-          `/api/students?q=${encodeURIComponent(query.trim())}&limit=6&page=1`,
+          `/api/students?q=${encodeURIComponent(query.trim())}&status=active&limit=6&page=1`,
           { token }
         );
         setResults(res.data || []);
@@ -91,7 +91,7 @@ export function QuickStudentSearch() {
         )}
       </div>
       <p className="mt-2 text-center text-sm text-muted-foreground">
-        Quickly find a student using Student ID or Phone Number
+        Quickly find a student using Student ID, Name, or Phone Number
       </p>
 
       {/* Dropdown */}
@@ -103,21 +103,32 @@ export function QuickStudentSearch() {
             </div>
           ) : results.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No students found for &quot;{query}&quot;
+              No active students found for &quot;{query}&quot;
             </p>
           ) : (
             <ul className="max-h-96 overflow-y-auto divide-y divide-border">
               {results.map((s) => (
-                <li key={s._id}>
+                <li
+                  key={s._id}
+                  className="flex items-center justify-between gap-2 px-4 py-3 hover:bg-violet-50/70 dark:hover:bg-violet-950/20 transition-colors"
+                >
                   <Link
-                    href={`/dashboard/fees/student/${s._id}`}
+                    href={`/dashboard/students/${s._id}`}
                     onClick={() => setOpen(false)}
-                    className="block px-4 py-3 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors"
+                    className="flex-1 min-w-0"
                   >
-                    <p className="font-semibold text-foreground">{s.name}</p>
+                    <p className="font-semibold text-foreground hover:text-violet-600 dark:hover:text-violet-400">
+                      {s.name}
+                    </p>
                     <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                      {s.studentId && <span><span className="font-medium">ID:</span> {s.studentId}</span>}
-                      <span><span className="font-medium">Roll:</span> {s.rollNo || 'N/A'}</span>
+                      {s.studentId && (
+                        <span>
+                          <span className="font-medium">ID:</span> {s.studentId}
+                        </span>
+                      )}
+                      <span>
+                        <span className="font-medium">Roll:</span> {s.rollNo || 'N/A'}
+                      </span>
                       {s.class && (
                         <span>
                           <span className="font-medium">Class:</span> {s.class}
@@ -125,10 +136,28 @@ export function QuickStudentSearch() {
                         </span>
                       )}
                       {(s.guardianPhone || s.phone) && (
-                        <span><span className="font-medium">Phone:</span> {s.guardianPhone || s.phone}</span>
+                        <span>
+                          <span className="font-medium">Phone:</span> {s.guardianPhone || s.phone}
+                        </span>
                       )}
                     </div>
                   </Link>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Link
+                      href={`/dashboard/students/${s._id}`}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                    >
+                      <User className="h-3.5 w-3.5 text-violet-600" /> Profile
+                    </Link>
+                    <Link
+                      href={`/dashboard/fees/student/${s._id}`}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      <CreditCard className="h-3.5 w-3.5" /> Fees
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

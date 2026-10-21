@@ -40,6 +40,7 @@ import {
   Star,
   Table,
   BarChart,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
@@ -89,6 +90,15 @@ const navItems: NavItem[] = [
     children: [
       { href: '/dashboard/students', labelKey: 'allStudents', icon: List },
       { href: '/dashboard/students/admit-card', labelKey: 'admitCard', icon: IdCard },
+    ],
+  },
+  {
+    key: 'reports',
+    labelKey: 'reports',
+    icon: FileSpreadsheet,
+    roles: ['admin', 'staff'],
+    children: [
+      { href: '/dashboard/reports/students', labelKey: 'studentReport', icon: GraduationCap },
     ],
   },
   {

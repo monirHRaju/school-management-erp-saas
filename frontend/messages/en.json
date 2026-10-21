@@ -37,7 +37,9 @@
     "settings": "Settings",
     "general": "General",
     "academic": "Academic",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "reports": "Report",
+    "studentReport": "Student Report"
   },
   "header": {
     "openMenu": "Open menu",

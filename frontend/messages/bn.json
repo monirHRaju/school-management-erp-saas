@@ -37,7 +37,9 @@
     "settings": "সেটিংস",
     "general": "সাধারণ",
     "academic": "একাডেমিক",
-    "loading": "লোড হচ্ছে..."
+    "loading": "লোড হচ্ছে...",
+    "reports": "প্রতিবেদন",
+    "studentReport": "শিক্ষার্থী প্রতিবেদন"
   },
   "header": {
     "openMenu": "মেনু খুলুন",
