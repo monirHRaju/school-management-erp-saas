@@ -3,11 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Users, Loader2, ArrowUpDown, Image as ImageIcon, Eye, Printer, FileDown, CreditCard, FileSpreadsheet, UserPlus, IdCard } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Users,
+  Loader2,
+  ArrowUpDown,
+  Eye,
+  Printer,
+  FileDown,
+  CreditCard,
+  FileSpreadsheet,
+  UserPlus,
+  IdCard,
+  UserX,
+  UserCheck,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { useAcademicConfig } from '@/lib/useAcademicConfig';
+import { printStudentAdmissionForm } from '@/lib/studentPrint';
 import type { Student } from '@/types/student';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
@@ -70,11 +86,11 @@ export default function StudentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [searchQuery, setSearchQuery] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState(false);
   const [sortField, setSortField] = useState<
     'name' | 'class' | 'section' | 'rollNo' | 'monthlyFee' | 'admissionDate' | 'dateOfBirth'
   >('rollNo');
@@ -106,7 +122,7 @@ export default function StudentsPage() {
       const params = new URLSearchParams();
       if (classFilter) params.set('class', classFilter);
       if (sectionFilter) params.set('section', sectionFilter);
-      if (statusFilter) params.set('status', statusFilter);
+      params.set('status', statusFilter || 'active');
       if (searchQuery) params.set('q', searchQuery);
       params.set('page', String(pageNum));
       params.set('limit', String(LIMIT));
@@ -132,9 +148,9 @@ export default function StudentsPage() {
     fetchStudents(1);
   }, [fetchStudents]);
 
-  const openDeleteConfirm = (s: Student) => {
-    setStudentToDelete(s);
-    setDeleteDialogOpen(true);
+  const openStatusConfirm = (s: Student) => {
+    setStudentToToggle(s);
+    setStatusDialogOpen(true);
   };
 
   const openDetails = (s: Student) => {
@@ -165,342 +181,45 @@ export default function StudentsPage() {
   };
 
   const handlePrintDetails = () => {
-    const s = detailsStudent;
-    if (!s) return;
-    const win = window.open('', '_blank');
-    if (!win) {
-      toast.error('Allow pop-ups to print.');
-      return;
-    }
-    const fmt = (v: string | number | undefined | null) =>
-      v === undefined || v === null || v === '' ? '' : String(v);
-    const fmtDate = (d: string | undefined) =>
-      d ? new Date(d).toLocaleDateString('en-GB') : '';
-    const fmtTk = (n: number | undefined) =>
-      n != null ? '৳ ' + n.toLocaleString() : '';
-    const schoolName = school?.name ?? '';
-    const schoolNameBn = schoolSettings?.nameBn ?? '';
-    const schoolContact = schoolSettings?.contact ?? '';
-    const schoolAddress = schoolSettings?.address ?? '';
-    const schoolLogo = schoolSettings?.logoUrl ?? '';
-    const statusLabel = STATUS_OPTIONS.find((o) => o.value === s.status)?.label ?? s.status;
-    const sid = s.studentId || s._id.slice(-6).toUpperCase();
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Student Information - ${s.name}</title>
-  <style>
-    @page { size: A4; margin: 10mm 12mm; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #111; font-size: 10.5pt; }
-    .page {
-      width: 100%;
-      min-height: 277mm;
-      display: flex;
-      flex-direction: column;
-    }
-    .bn { font-family: 'SolaimanLipi','Kalpurush','Noto Sans Bengali','Segoe UI', sans-serif; }
-
-    /* Header */
-    .header {
-      display: flex; align-items: center; gap: 14px;
-      padding-bottom: 6px;
-    }
-    .header-logo, .header-logo-placeholder {
-      width: 78px; height: 78px; object-fit: contain; flex-shrink: 0;
-    }
-    .header-logo-placeholder {
-      background: #eef; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; font-weight: bold; color: #335;
-    }
-    .header-text { flex: 1; text-align: center; }
-    .header-text h1 { font-size: 20pt; font-weight: 800; line-height: 1.15; letter-spacing: 0.3px; }
-    .header-text h2 { font-size: 16pt; font-weight: 700; line-height: 1.2; margin-top: 2px; color: #222; }
-    .header-text p { font-size: 9.5pt; margin-top: 3px; color: #444; }
-    .divider-thick { border: none; border-top: 2.5px solid #111; margin: 4px 0 8px; }
-
-    .form-title {
-      text-align: center;
-      font-size: 13pt; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 2px;
-      padding: 4px 0;
-      border: 1.5px solid #111;
-      margin: 6px 0 10px;
-    }
-
-    /* ID + photo */
-    .id-photo-row {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      gap: 12px; margin-bottom: 8px;
-    }
-    .id-block { flex: 1; }
-    .id-block .id-line { font-size: 11pt; font-weight: 700; padding: 4px 8px; border: 1px solid #111; display: inline-block; min-width: 200px; background: #f6f6f6; }
-    .id-block .quick {
-      margin-top: 6px; font-size: 9.5pt; color: #333;
-    }
-    .photo-box {
-      width: 30mm; height: 38mm;
-      border: 1px solid #555;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden; flex-shrink: 0; background: #fafafa;
-    }
-    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-placeholder { font-size: 9pt; color: #888; text-align: center; padding: 4px; }
-
-    /* Tables */
-    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-    td { border: 1px solid #444; padding: 4px 7px; vertical-align: middle; }
-    .section-hdr {
-      background: #e8e8e8;
-      font-weight: 800;
-      text-align: center;
-      font-size: 10.5pt;
-      letter-spacing: 1.5px;
-      padding: 5px 7px;
-      text-transform: uppercase;
-    }
-    .lbl { width: 24%; font-weight: 600; white-space: nowrap; background: #fafafa; }
-    .colon { width: 10px; text-align: center; background: #fafafa; }
-    .val { min-height: 18px; }
-    table + table { margin-top: 6px; }
-
-    /* Signatures */
-    .sig-row {
-      margin-top: auto;
-      padding-top: 32mm;
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-    }
-    .sig-box { flex: 1; text-align: center; }
-    .sig-line { border-top: 1px solid #111; padding-top: 4px; font-size: 10pt; font-weight: 700; }
-    .sig-sub { font-size: 9pt; color: #555; }
-
-    .footnote { margin-top: 6mm; font-size: 8.5pt; color: #777; text-align: center; }
-
-    @media print {
-      .toolbar { display: none !important; }
-    }
-    .toolbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; z-index: 10; }
-    .toolbar button { padding: 6px 14px; border: 1px solid #888; background: #fff; cursor: pointer; border-radius: 4px; font-size: 12px; }
-    .toolbar button.primary { background: #111; color: #fff; border-color: #111; }
-  </style>
-</head>
-<body>
-<div class="toolbar">
-  <button onclick="window.print()" class="primary">Print</button>
-  <button onclick="window.close()">Close</button>
-</div>
-
-<div class="page">
-
-  <!-- Header -->
-  <div class="header">
-    ${schoolLogo
-      ? `<img src="${schoolLogo}" class="header-logo" alt="Logo">`
-      : `<div class="header-logo-placeholder">${(schoolName || 'S').charAt(0).toUpperCase()}</div>`
-    }
-    <div class="header-text">
-      <h1>${fmt(schoolName)}</h1>
-      ${schoolNameBn ? `<h2 class="bn">${schoolNameBn}</h2>` : ''}
-      ${schoolAddress ? `<p>${schoolAddress}</p>` : ''}
-      ${schoolContact ? `<p>Mobile: ${schoolContact}</p>` : ''}
-    </div>
-    <div style="width:78px;flex-shrink:0;"></div>
-  </div>
-  <hr class="divider-thick">
-
-  <!-- Title -->
-  <div class="form-title">Student Information</div>
-
-  <!-- ID + Photo row -->
-  <div class="id-photo-row">
-    <div class="id-block">
-      <div class="id-line">Student ID :&nbsp; ${sid}</div>
-      <div class="quick">
-        <strong>Class:</strong> ${fmt(s.class)}
-        &nbsp;·&nbsp; <strong>Section:</strong> ${fmt(s.section)}
-        &nbsp;·&nbsp; <strong>Roll:</strong> ${fmt(s.rollNo)}
-        &nbsp;·&nbsp; <strong>Shift:</strong> ${fmt(s.shift)}
-        &nbsp;·&nbsp; <strong>Group:</strong> ${fmt(s.group)}
-      </div>
-    </div>
-    <div class="photo-box">
-      ${s.photoUrl
-        ? `<img src="${s.photoUrl}" alt="Photo">`
-        : `<div class="photo-placeholder">Student<br>Photo</div>`
-      }
-    </div>
-  </div>
-
-  <!-- Personal Information -->
-  <table>
-    <tr><td colspan="4" class="section-hdr">Personal Information</td></tr>
-
-    <tr>
-      <td class="lbl">Name (English)</td>
-      <td class="colon">:</td>
-      <td class="val" colspan="2">${fmt(s.name)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">নাম (বাংলা)</td>
-      <td class="colon">:</td>
-      <td class="val bn" colspan="2">${fmt(s.nameBn)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Date of Birth</td>
-      <td class="colon">:</td>
-      <td class="val">${fmtDate(s.dateOfBirth)}</td>
-      <td class="val"><strong>Gender:</strong>&nbsp; ${fmt(s.gender)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Birth Reg. No.</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.birthRegNo)}</td>
-      <td class="val"><strong>Blood Group:</strong>&nbsp; ${fmt(s.bloodGroup)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Religion</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.religion)}</td>
-      <td class="val"><strong>Status:</strong>&nbsp; ${statusLabel}</td>
-    </tr>
-  </table>
-
-  <!-- Family Information -->
-  <table>
-    <tr><td colspan="4" class="section-hdr">Family Information</td></tr>
-
-    <tr>
-      <td class="lbl">Father's Name</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.fatherName)}</td>
-      <td class="val"><strong>Mobile:</strong>&nbsp; ${fmt(s.fatherMobile)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Profession</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.fatherProfession)}</td>
-      <td class="val"><strong>Monthly Income:</strong>&nbsp; ${fmtTk(s.fatherMonthlyIncome)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Mother's Name</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.motherName)}</td>
-      <td class="val"><strong>Mobile:</strong>&nbsp; ${fmt(s.motherMobile)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Profession</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.motherProfession)}</td>
-      <td class="val"><strong>Monthly Income:</strong>&nbsp; ${fmtTk(s.motherMonthlyIncome)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Guardian Name</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.guardianName)}</td>
-      <td class="val"><strong>Relation:</strong>&nbsp; ${fmt(s.guardianRelation)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Guardian Phone</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.guardianPhone)}</td>
-      <td class="val"><strong>WhatsApp:</strong>&nbsp; ${fmt(s.whatsappNumber)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Address</td>
-      <td class="colon">:</td>
-      <td class="val" colspan="2">${fmt(s.address)}</td>
-    </tr>
-  </table>
-
-  <!-- Academic Information -->
-  <table>
-    <tr><td colspan="4" class="section-hdr">Academic Information</td></tr>
-
-    <tr>
-      <td class="lbl">Class</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.class)}</td>
-      <td class="val"><strong>Section:</strong>&nbsp; ${fmt(s.section)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Roll No.</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.rollNo)}</td>
-      <td class="val"><strong>Shift:</strong>&nbsp; ${fmt(s.shift)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Group</td>
-      <td class="colon">:</td>
-      <td class="val">${fmt(s.group)}</td>
-      <td class="val"><strong>Monthly Fee:</strong>&nbsp; ${fmtTk(s.monthlyFee)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Admission Date</td>
-      <td class="colon">:</td>
-      <td class="val" colspan="2">${fmtDate(s.admissionDate)}</td>
-    </tr>
-  </table>
-
-  <!-- Signatures -->
-  <div class="sig-row">
-    <div class="sig-box">
-      <div class="sig-line">Student Signature</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">Guardian Signature</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">Principal</div>
-      <div class="sig-sub">${fmt(schoolName)}</div>
-    </div>
-  </div>
-
-  <p class="footnote">Generated on ${new Date().toLocaleString('en-GB')} · ${fmt(schoolName)}</p>
-</div>
-</body>
-</html>`;
-
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+    if (!detailsStudent) return;
+    printStudentAdmissionForm(detailsStudent, school?.name ?? '', schoolSettings);
   };
 
   const handleDownloadPdf = () => {
-    // Use the redesigned print template; the browser print dialog provides
-    // a "Save as PDF" destination on every modern desktop browser.
     setPdfLoading(true);
     try {
-      handlePrintDetails();
-      toast.success('Choose "Save as PDF" in the print dialog to download.');
+      if (detailsStudent && printStudentAdmissionForm(detailsStudent, school?.name ?? '', schoolSettings)) {
+        toast.success('Choose "Save as PDF" in the print dialog to download.');
+      }
     } finally {
       setPdfLoading(false);
     }
   };
 
-  const confirmDelete = async () => {
-    if (!token || !studentToDelete) return;
-    setDeleting(true);
+  const confirmStatusToggle = async () => {
+    if (!token || !studentToToggle) return;
+    const nextStatus: Student['status'] = studentToToggle.status === 'active' ? 'inactive' : 'active';
+    setTogglingStatus(true);
     try {
-      await apiRequest<{ success: boolean }>(`/api/students/${studentToDelete._id}`, {
-        method: 'DELETE',
+      await apiRequest<{ success: boolean }>(`/api/students/${studentToToggle._id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: nextStatus }),
         token,
       });
-      setDeleteDialogOpen(false);
-      setStudentToDelete(null);
-      toast.success('Student deleted successfully.');
+      setStatusDialogOpen(false);
+      setStudentToToggle(null);
+      toast.success(
+        nextStatus === 'inactive'
+          ? 'Student made inactive.'
+          : 'Student activated successfully.'
+      );
       fetchStudents(page);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Delete failed';
+      const msg = e instanceof Error ? e.message : 'Status update failed';
       setError(msg);
       toast.error(msg);
     } finally {
-      setDeleting(false);
+      setTogglingStatus(false);
     }
   };
 
@@ -524,6 +243,8 @@ export default function StudentsPage() {
       return String(av).localeCompare(String(bv)) * dir;
     });
   }, [students, sortDirection, sortField]);
+
+  const isDeactivating = studentToToggle?.status === 'active';
 
   return (
     <div className="space-y-6">
@@ -609,10 +330,10 @@ export default function StudentsPage() {
                   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
-                <option value="">{t('all')}</option>
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
+                <option value="all">{t('all')}</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -633,7 +354,7 @@ export default function StudentsPage() {
               onClick={() => {
                 setClassFilter('');
                 setSectionFilter('');
-                setStatusFilter('');
+                setStatusFilter('active');
                 setSearchQuery('');
               }}
             >
@@ -743,39 +464,48 @@ export default function StudentsPage() {
                         <TableCell>{index + 1}</TableCell>
                         <TableCell className="font-mono text-xs">{s.studentId || '—'}</TableCell>
                         <TableCell>
-                          {s.photoUrl ? (
-                            <div
-                              className="relative inline-flex"
-                              onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const previewHeight = 180;
-                                const clampedY = Math.min(
-                                  Math.max(rect.top + rect.height / 2, previewHeight / 2 + 12),
-                                  window.innerHeight - previewHeight / 2 - 12
-                                );
-                                setHoveredPhoto({
-                                  url: s.photoUrl!,
-                                  name: s.name,
-                                  x: rect.right + 14,
-                                  y: clampedY,
-                                });
-                              }}
-                              onMouseLeave={() => setHoveredPhoto(null)}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={s.photoUrl}
-                                alt={s.name}
-                                className="h-10 w-10 rounded-full object-cover ring-1 ring-border cursor-zoom-in transition-all duration-200 ease-out hover:scale-125 hover:ring-2 hover:ring-violet-500 shadow-xs"
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200 ring-1 ring-border/60">
-                              {s.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <Link href={`/dashboard/students/${s._id}`} className="inline-flex">
+                            {s.photoUrl ? (
+                              <div
+                                className="relative inline-flex"
+                                onMouseEnter={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const previewHeight = 180;
+                                  const clampedY = Math.min(
+                                    Math.max(rect.top + rect.height / 2, previewHeight / 2 + 12),
+                                    window.innerHeight - previewHeight / 2 - 12
+                                  );
+                                  setHoveredPhoto({
+                                    url: s.photoUrl!,
+                                    name: s.name,
+                                    x: rect.right + 14,
+                                    y: clampedY,
+                                  });
+                                }}
+                                onMouseLeave={() => setHoveredPhoto(null)}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={s.photoUrl}
+                                  alt={s.name}
+                                  className="h-10 w-10 rounded-full object-cover ring-1 ring-border cursor-zoom-in transition-all duration-200 ease-out hover:scale-125 hover:ring-2 hover:ring-violet-500 shadow-xs"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200 ring-1 ring-border/60">
+                                {s.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </Link>
                         </TableCell>
-                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/dashboard/students/${s._id}`}
+                            className="text-foreground hover:text-violet-600 dark:hover:text-violet-400 hover:underline transition-colors"
+                          >
+                            {s.name}
+                          </Link>
+                        </TableCell>
                         <TableCell>{s.rollNo || '—'}</TableCell>
                         <TableCell>{s.class || '—'}</TableCell>
                         <TableCell>
@@ -791,12 +521,13 @@ export default function StudentsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1.5">
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => openDetails(s)}
-                              aria-label="View details"
+                              aria-label="Quick view"
+                              title="Quick view"
                               className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/50"
                             >
                               <Eye className="h-4 w-4" />
@@ -808,24 +539,34 @@ export default function StudentsPage() {
                                     variant="ghost"
                                     size="icon"
                                     aria-label="Fee report"
+                                    title="Fee report"
                                     className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                                   >
                                     <CreditCard className="h-4 w-4" />
                                   </Button>
                                 </Link>
                                 <Link href={`/dashboard/students/${s._id}/edit`}>
-                                  <Button variant="ghost" size="icon" aria-label="Edit">
+                                  <Button variant="ghost" size="icon" aria-label="Edit" title="Edit student">
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                 </Link>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openDeleteConfirm(s)}
-                                  aria-label="Delete"
-                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => openStatusConfirm(s)}
+                                  aria-label={s.status === 'active' ? 'Make inactive' : 'Activate'}
+                                  title={s.status === 'active' ? 'Make inactive (soft delete)' : 'Activate student'}
+                                  className={
+                                    s.status === 'active'
+                                      ? 'text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40'
+                                      : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                                  }
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  {s.status === 'active' ? (
+                                    <UserX className="h-4 w-4" />
+                                  ) : (
+                                    <UserCheck className="h-4 w-4" />
+                                  )}
                                 </Button>
                               </>
                             )}
@@ -843,22 +584,27 @@ export default function StudentsPage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-3">
-                          {s.photoUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={s.photoUrl}
-                              alt={s.name}
-                              className="h-11 w-11 rounded-full object-cover ring-1 ring-border shrink-0 transition-transform duration-200 active:scale-[2.2] hover:scale-[2.2] z-10"
-                            />
-                          ) : (
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
-                              {s.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <Link href={`/dashboard/students/${s._id}`} className="shrink-0">
+                            {s.photoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={s.photoUrl}
+                                alt={s.name}
+                                className="h-11 w-11 rounded-full object-cover ring-1 ring-border shrink-0 transition-transform duration-200 active:scale-[2.2] hover:scale-[2.2] z-10"
+                              />
+                            ) : (
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                                {s.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </Link>
                           <div>
-                            <p className="flex items-center gap-2 font-medium">
+                            <Link
+                              href={`/dashboard/students/${s._id}`}
+                              className="flex items-center gap-2 font-medium hover:text-violet-600 dark:hover:text-violet-400 hover:underline"
+                            >
                               {s.name}
-                            </p>
+                            </Link>
                             {s.studentId && (
                               <p className="text-xs font-mono text-muted-foreground">ID: {s.studentId}</p>
                             )}
@@ -894,7 +640,7 @@ export default function StudentsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openDetails(s)}
-                            aria-label="View details"
+                            aria-label="Quick view"
                             className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
                           >
                             <Eye className="h-4 w-4" />
@@ -919,11 +665,19 @@ export default function StudentsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => openDeleteConfirm(s)}
-                                aria-label="Delete"
-                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => openStatusConfirm(s)}
+                                aria-label={s.status === 'active' ? 'Make inactive' : 'Activate'}
+                                className={
+                                  s.status === 'active'
+                                    ? 'text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40'
+                                    : 'text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                                }
                               >
-                                <Trash2 className="h-4 w-4" />
+                                {s.status === 'active' ? (
+                                  <UserX className="h-4 w-4" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4" />
+                                )}
                               </Button>
                             </>
                           )}
@@ -1029,7 +783,14 @@ export default function StudentsPage() {
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2 print:hidden">
+          <DialogFooter className="gap-2 print:hidden flex-wrap">
+            {detailsStudent && (
+              <Link href={`/dashboard/students/${detailsStudent._id}`} className="mr-auto">
+                <Button type="button" variant="secondary" className="gap-2">
+                  <Eye className="h-4 w-4" /> Full Profile
+                </Button>
+              </Link>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -1056,27 +817,35 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Soft Delete (Make Inactive) / Activate Confirmation */}
+      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteStudent')}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isDeactivating ? 'Make Student Inactive?' : 'Activate Student?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('deleteConfirm', { name: studentToDelete?.name ?? '' })}
+              {isDeactivating
+                ? `Are you sure you want to make "${studentToToggle?.name ?? ''}" inactive? Their fee records, attendance, and exam results will be safely preserved, and they will be hidden from active lists. (Permanent deletion is available on the student's profile page.)`
+                : `Make "${studentToToggle?.name ?? ''}" active again so they appear in active student lists, attendance, and fee generation?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{tc('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={togglingStatus}>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                confirmDelete();
+                confirmStatusToggle();
               }}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={togglingStatus}
+              className={
+                isDeactivating
+                  ? 'bg-amber-600 text-white hover:bg-amber-700'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }
             >
-              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {tc('delete')}
+              {togglingStatus && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              {isDeactivating ? 'Make Inactive' : 'Activate'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
