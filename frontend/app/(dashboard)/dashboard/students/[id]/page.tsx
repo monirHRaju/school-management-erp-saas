@@ -24,13 +24,17 @@ import {
   Users,
   ExternalLink,
   Send,
-  User as UserIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { printStudentAdmissionForm, type SchoolPrintSettings } from '@/lib/studentPrint';
-import type { Student, StudentProfileData } from '@/types/student';
+import type {
+  Student,
+  StudentProfileData,
+  StudentProfileFeeRecord,
+  StudentProfileExamGroup,
+} from '@/types/student';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,9 +80,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function StudentProfilePage() {
-  const params = useParams();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const id = typeof params?.id === 'string' ? params.id : '';
   const { token, user, school } = useAuth();
 
   const isAdmin = user?.role === 'admin';
@@ -112,13 +115,129 @@ export default function StudentProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiRequest<{ success: boolean; data: StudentProfileData }>(
-        `/api/students/${id}/profile`,
-        { token }
-      );
-      setProfile(res.data);
-      const s = res.data.student;
-      setSmsPhone(s.guardianPhone || s.fatherMobile || s.motherMobile || '');
+      try {
+        const res = await apiRequest<{ success: boolean; data: StudentProfileData }>(
+          `/api/students/${id}/profile`,
+          { token }
+        );
+        setProfile(res.data);
+        const s = res.data.student;
+        setSmsPhone(s.guardianPhone || s.fatherMobile || s.motherMobile || '');
+        return;
+      } catch (profileErr) {
+        // Fallback if backend has not reloaded the new /:id/profile endpoint yet
+        const [studentRes, feesRes, resultsRes] = await Promise.all([
+          apiRequest<{ success: boolean; data: Student }>(`/api/students/${id}`, { token }),
+          canFinance
+            ? apiRequest<{ success: boolean; data: StudentProfileFeeRecord[] }>(
+                `/api/fees?student_id=${id}&limit=100`,
+                { token }
+              ).catch(() => ({ success: false, data: [] as StudentProfileFeeRecord[] }))
+            : Promise.resolve({ success: true, data: [] as StudentProfileFeeRecord[] }),
+          apiRequest<{
+            success: boolean;
+            data: {
+              _id: string;
+              exam_id?: { _id?: string; name?: string; term?: string; examDate?: string };
+              session?: string;
+              class?: string;
+              subject: string;
+              writtenMark: number;
+              mcqMark: number;
+              practicalMark: number;
+              totalMark: number;
+              grade: string;
+              gradePoint: number;
+              isFail: boolean;
+            }[];
+          }>(`/api/results/student/${id}`, { token }).catch(() => ({
+            success: false,
+            data: [],
+          })),
+        ]);
+
+        if (!studentRes.data) throw profileErr;
+        const s = studentRes.data;
+        const feeRecords = feesRes.data || [];
+        const feeTotals = feeRecords.reduce(
+          (acc, f) => {
+            acc.total += Number(f.total_fee || 0);
+            acc.paid += Number(f.paid_amount || 0);
+            acc.discount += Number(f.discount_amount || 0);
+            if (f.status === 'unpaid' || f.status === 'partial') {
+              acc.due += Number(f.due_amount || 0);
+              acc.unpaidCount += 1;
+            }
+            return acc;
+          },
+          { total: 0, paid: 0, discount: 0, due: 0, unpaidCount: 0 }
+        );
+
+        const examMap = new Map<string, StudentProfileExamGroup>();
+        for (const r of resultsRes.data || []) {
+          const exId = r.exam_id?._id || 'unknown';
+          if (!examMap.has(exId)) {
+            examMap.set(exId, {
+              examId: exId,
+              examName: r.exam_id?.name || 'Exam',
+              term: r.exam_id?.term || '',
+              examDate: r.exam_id?.examDate || null,
+              session: r.session || '',
+              class: r.class || '',
+              subjectsCount: 0,
+              totalMark: 0,
+              gpa: 0,
+              isFail: false,
+              subjects: [],
+            });
+          }
+          const g = examMap.get(exId)!;
+          g.subjects.push({
+            _id: r._id,
+            subject: r.subject,
+            writtenMark: r.writtenMark,
+            mcqMark: r.mcqMark,
+            practicalMark: r.practicalMark,
+            totalMark: r.totalMark,
+            grade: r.grade,
+            gradePoint: r.gradePoint,
+            isFail: r.isFail,
+          });
+          g.subjectsCount = g.subjects.length;
+          g.totalMark += Number(r.totalMark || 0);
+          if (r.isFail) g.isFail = true;
+        }
+        const groupedResults = Array.from(examMap.values()).map((g) => {
+          const sumGp = g.subjects.reduce((sum, sub) => sum + Number(sub.gradePoint || 0), 0);
+          g.gpa = g.isFail ? 0 : g.subjectsCount > 0 ? Number((sumGp / g.subjectsCount).toFixed(2)) : 0;
+          return g;
+        });
+
+        setProfile({
+          student: s,
+          fees: canFinance
+            ? {
+                ...feeTotals,
+                records: feeRecords,
+                payments: [],
+              }
+            : null,
+          attendance: {
+            thisMonth: { present: 0, absent: 0, late: 0, leave: 0, total: 0, pct: 0, records: [] },
+            thisYear: { present: 0, absent: 0, late: 0, leave: 0, total: 0, pct: 0 },
+          },
+          results: groupedResults,
+          guardian: { accounts: [] },
+          siblings: [],
+          counts: {
+            fees: feeRecords.length,
+            payments: 0,
+            attendance: 0,
+            results: (resultsRes.data || []).length,
+          },
+        });
+        setSmsPhone(s.guardianPhone || s.fatherMobile || s.motherMobile || '');
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load student profile';
       setError(msg);
@@ -126,7 +245,7 @@ export default function StudentProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [token, id]);
+  }, [token, id, canFinance]);
 
   useEffect(() => {
     fetchProfile();
@@ -145,11 +264,19 @@ export default function StudentProfilePage() {
     if (!token || !profile) return;
     setTogglingStatus(true);
     try {
-      await apiRequest(`/api/students/${profile.student._id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
-        token,
-      });
+      try {
+        await apiRequest(`/api/students/${profile.student._id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: newStatus }),
+          token,
+        });
+      } catch {
+        await apiRequest(`/api/students/${profile.student._id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: newStatus }),
+          token,
+        });
+      }
       toast.success(
         newStatus === 'active'
           ? 'Student activated.'

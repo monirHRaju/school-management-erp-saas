@@ -201,11 +201,24 @@ export default function StudentsPage() {
     const nextStatus: Student['status'] = studentToToggle.status === 'active' ? 'inactive' : 'active';
     setTogglingStatus(true);
     try {
-      await apiRequest<{ success: boolean }>(`/api/students/${studentToToggle._id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: nextStatus }),
-        token,
-      });
+      try {
+        await apiRequest<{ success: boolean }>(`/api/students/${studentToToggle._id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: nextStatus }),
+          token,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (/not found|404/i.test(msg)) {
+          await apiRequest<{ success: boolean }>(`/api/students/${studentToToggle._id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: nextStatus }),
+            token,
+          });
+        } else {
+          throw err;
+        }
+      }
       setStatusDialogOpen(false);
       setStudentToToggle(null);
       toast.success(

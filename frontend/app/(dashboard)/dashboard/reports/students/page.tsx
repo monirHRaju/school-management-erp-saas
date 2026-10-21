@@ -278,16 +278,51 @@ export default function StudentReportPage() {
       if (bloodGroupFilter) params.set('bloodGroup', bloodGroupFilter);
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
 
-      const res = await apiRequest<{
-        success: boolean;
-        data: StudentReportRow[];
-        total: number;
-        capped: boolean;
-      }>(`/api/reports/students?${params.toString()}`, { token });
+      try {
+        const res = await apiRequest<{
+          success: boolean;
+          data: StudentReportRow[];
+          total: number;
+          capped: boolean;
+        }>(`/api/reports/students?${params.toString()}`, { token });
 
-      setRows(res.data || []);
-      setTotal(res.total ?? 0);
-      setCapped(Boolean(res.capped));
+        setRows(res.data || []);
+        setTotal(res.total ?? 0);
+        setCapped(Boolean(res.capped));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (/not found|404/i.test(msg)) {
+          // Fallback to /api/students if backend server hasn't restarted with /api/reports/students yet
+          const fallbackParams = new URLSearchParams();
+          if (classFilter) fallbackParams.set('class', classFilter);
+          if (sectionFilter) fallbackParams.set('section', sectionFilter);
+          if (groupFilter) fallbackParams.set('group', groupFilter);
+          fallbackParams.set('status', statusFilter || 'active');
+          if (searchQuery.trim()) fallbackParams.set('q', searchQuery.trim());
+          fallbackParams.set('limit', '100');
+
+          const fallbackRes = await apiRequest<{
+            success: boolean;
+            data: StudentReportRow[];
+            total: number;
+          }>(`/api/students?${fallbackParams.toString()}`, { token });
+
+          const filtered = (fallbackRes.data || []).filter((s) => {
+            if (sessionFilter && s.session !== sessionFilter) return false;
+            if (shiftFilter && s.shift !== shiftFilter) return false;
+            if (genderFilter && s.gender !== genderFilter) return false;
+            if (religionFilter && s.religion !== religionFilter) return false;
+            if (bloodGroupFilter && s.bloodGroup !== bloodGroupFilter) return false;
+            return true;
+          });
+
+          setRows(filtered);
+          setTotal(filtered.length);
+          setCapped(false);
+        } else {
+          throw err;
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load student report');
       setRows([]);
