@@ -34,6 +34,8 @@ const studentSchema = new mongoose.Schema(
     monthlyFee: { type: Number, min: 0 },
     admissionDate: { type: Date },
     status: { type: String, enum: ['active', 'inactive', 'left'], default: 'active' },
+    statusChangedAt: { type: Date },
+    statusReason: { type: String, trim: true },
   },
   {
     timestamps: true,

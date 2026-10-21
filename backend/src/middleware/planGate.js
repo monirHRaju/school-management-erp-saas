@@ -54,6 +54,7 @@ function requireFeature(featureKey) {
 }
 
 // Check student count against the plan limit before adding `addCount` new students.
+// Counts only active students so deactivating a student frees a slot.
 // Returns { allowed, error?, used?, max?, remaining? }
 async function checkStudentLimit(schoolId, addCount = 1) {
   const { school, plan } = await getSchoolPlan(schoolId);
@@ -63,7 +64,7 @@ async function checkStudentLimit(schoolId, addCount = 1) {
   }
   const limits = effectiveLimits(school, plan);
   if (limits.maxStudents === -1) return { allowed: true };
-  const currentCount = await Student.countDocuments({ school_id: schoolId, status: { $ne: 'left' } });
+  const currentCount = await Student.countDocuments({ school_id: schoolId, status: 'active' });
   const remaining = limits.maxStudents - currentCount;
   if (remaining <= 0) {
     return {

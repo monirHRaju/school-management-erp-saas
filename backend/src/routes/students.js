@@ -3,6 +3,10 @@ const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const User = require('../models/User');
 const Fee = require('../models/Fee');
+const FeePayment = require('../models/FeePayment');
+const Income = require('../models/Income');
+const Attendance = require('../models/Attendance');
+const ExamResult = require('../models/ExamResult');
 const AcademicClass = require('../models/AcademicClass');
 const authMiddleware = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
@@ -29,23 +33,39 @@ async function generateUniqueStudentId(schoolId) {
   throw new Error('Unable to allocate a unique 6-digit student ID. Please try again.');
 }
 
-// GET /api/students — list with optional filters; add page & limit for pagination
+// GET /api/students — list with optional filters; defaults to status='active' unless status='all'
 router.get('/', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
   try {
-    const { class: classFilter, section, status, shift, group, q, page, limit } = req.query;
+    const { class: classFilter, section, session, status, shift, group, gender, q, page, limit } = req.query;
     const filter = { school_id: new mongoose.Types.ObjectId(req.schoolId) };
     if (classFilter) filter.class = classFilter;
     if (section) filter.section = section;
-    if (status) filter.status = status;
+    if (session) filter.session = session;
     if (shift) filter.shift = shift;
     if (group) filter.group = group;
+    if (gender) filter.gender = gender;
+
+    // Default to 'active' unless caller explicitly requests 'all' or a specific status
+    if (!status || status === '') {
+      filter.status = 'active';
+    } else if (status !== 'all' && ['active', 'inactive', 'left'].includes(String(status))) {
+      filter.status = String(status);
+    }
 
     const conditions = [filter];
     if (q && typeof q === 'string' && q.trim()) {
       const term = q.trim();
       const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(safe, 'i');
-      conditions.push({ $or: [{ name: regex }, { rollNo: regex }, { studentId: regex }, { nameBn: regex }] });
+      conditions.push({
+        $or: [
+          { name: regex },
+          { rollNo: regex },
+          { studentId: regex },
+          { nameBn: regex },
+          { guardianPhone: regex },
+        ],
+      });
     }
 
     const finalFilter = conditions.length > 1 ? { $and: conditions } : filter;
@@ -174,6 +194,291 @@ router.post('/bulk', requireRole('admin', 'staff'), async (req, res) => {
       failed,
       total: rows.length,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/students/:id/profile — comprehensive 360° student profile aggregate
+router.get('/:id/profile', requireRole('admin', 'staff', 'accountant', 'teacher'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid student id' });
+    }
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const studentId = new mongoose.Types.ObjectId(req.params.id);
+
+    const student = await Student.findOne({ _id: studentId, school_id: schoolId }).lean();
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    const canSeeFinance = ['admin', 'staff', 'accountant'].includes(req.user.role);
+    const canSeeGuardian = ['admin', 'staff'].includes(req.user.role);
+
+    const now = new Date();
+    const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+    const yearEnd = new Date(Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59, 999));
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+    const siblingOr = [];
+    if (student.guardianPhone && student.guardianPhone.trim()) {
+      siblingOr.push({ guardianPhone: student.guardianPhone.trim() });
+    }
+    if (student.fatherMobile && student.fatherMobile.trim()) {
+      siblingOr.push({ fatherMobile: student.fatherMobile.trim() });
+    }
+
+    const [
+      allFees,
+      yearAttendance,
+      examResults,
+      guardianAccounts,
+      siblings,
+      totalAttendanceCount,
+      totalResultsCount,
+    ] = await Promise.all([
+      Fee.find({ school_id: schoolId, student_id: studentId })
+        .sort({ month: -1, createdAt: -1 })
+        .lean(),
+      Attendance.find({
+        school_id: schoolId,
+        student_id: studentId,
+        date: { $gte: yearStart, $lte: yearEnd },
+      })
+        .sort({ date: -1 })
+        .lean(),
+      ExamResult.find({ school_id: schoolId, student_id: studentId })
+        .populate('exam_id', 'name term examDate')
+        .sort({ createdAt: -1 })
+        .lean(),
+      canSeeGuardian
+        ? User.find({
+            school_id: schoolId,
+            role: 'guardian',
+            $or: [
+              { student_ids: studentId },
+              ...(student.guardianPhone ? [{ phone: student.guardianPhone }] : []),
+            ],
+          })
+            .select('name phone status student_ids createdAt')
+            .lean()
+        : Promise.resolve([]),
+      siblingOr.length > 0
+        ? Student.find({
+            school_id: schoolId,
+            _id: { $ne: studentId },
+            $or: siblingOr,
+          })
+            .select('_id studentId name class section rollNo photoUrl status')
+            .lean()
+        : Promise.resolve([]),
+      Attendance.countDocuments({ school_id: schoolId, student_id: studentId }),
+      ExamResult.countDocuments({ school_id: schoolId, student_id: studentId }),
+    ]);
+
+    const feeIds = allFees.map((f) => f._id);
+    const [payments, totalPaymentsCount] = await Promise.all([
+      canSeeFinance && feeIds.length > 0
+        ? FeePayment.find({ school_id: schoolId, fee_id: { $in: feeIds } })
+            .sort({ payment_date: -1, createdAt: -1 })
+            .limit(20)
+            .lean()
+        : Promise.resolve([]),
+      feeIds.length > 0
+        ? FeePayment.countDocuments({ school_id: schoolId, fee_id: { $in: feeIds } })
+        : Promise.resolve(0),
+    ]);
+
+    const feeMap = new Map(allFees.map((f) => [String(f._id), f]));
+    const enrichedPayments = payments.map((p) => {
+      const f = feeMap.get(String(p.fee_id));
+      return {
+        ...p,
+        feeCategory: f?.category || '',
+        feeMonth: f?.month || '',
+        feeDescription: f?.description || '',
+      };
+    });
+
+    const feeTotals = allFees.reduce(
+      (acc, f) => {
+        acc.total += Number(f.total_fee || 0);
+        acc.paid += Number(f.paid_amount || 0);
+        acc.discount += Number(f.discount_amount || 0);
+        if (f.status === 'unpaid' || f.status === 'partial') {
+          acc.due += Number(f.due_amount || 0);
+          acc.unpaidCount += 1;
+        }
+        return acc;
+      },
+      { total: 0, paid: 0, discount: 0, due: 0, unpaidCount: 0 }
+    );
+
+    const summarizeAttendance = (records) => {
+      const s = { present: 0, absent: 0, late: 0, leave: 0, total: records.length, pct: 0 };
+      for (const r of records) {
+        if (s[r.status] !== undefined) s[r.status] += 1;
+      }
+      s.pct = s.total > 0 ? Math.round(((s.present + s.late) / s.total) * 100) : 0;
+      return s;
+    };
+
+    const monthAttendance = yearAttendance.filter(
+      (r) => r.date >= monthStart && r.date <= monthEnd
+    );
+    const thisMonthStats = summarizeAttendance(monthAttendance);
+    const thisYearStats = summarizeAttendance(yearAttendance);
+
+    // Group exam results by exam
+    const examGroupsMap = new Map();
+    for (const r of examResults) {
+      const exId = r.exam_id?._id ? String(r.exam_id._id) : String(r.exam_id || 'unknown');
+      if (!examGroupsMap.has(exId)) {
+        examGroupsMap.set(exId, {
+          examId: exId,
+          examName: r.exam_id?.name || 'Exam',
+          term: r.exam_id?.term || '',
+          examDate: r.exam_id?.examDate || null,
+          session: r.session || '',
+          class: r.class || '',
+          subjects: [],
+          totalMark: 0,
+          totalGpa: 0,
+          isFail: false,
+        });
+      }
+      const g = examGroupsMap.get(exId);
+      g.subjects.push({
+        _id: r._id,
+        subject: r.subject,
+        writtenMark: r.writtenMark,
+        mcqMark: r.mcqMark,
+        practicalMark: r.practicalMark,
+        totalMark: r.totalMark,
+        grade: r.grade,
+        gradePoint: r.gradePoint,
+        isFail: r.isFail,
+      });
+      g.totalMark += Number(r.totalMark || 0);
+      g.totalGpa += Number(r.gradePoint || 0);
+      if (r.isFail) g.isFail = true;
+    }
+
+    const groupedResults = Array.from(examGroupsMap.values()).map((g) => {
+      const count = g.subjects.length;
+      const gpa = g.isFail ? 0 : count > 0 ? Number((g.totalGpa / count).toFixed(2)) : 0;
+      return {
+        examId: g.examId,
+        examName: g.examName,
+        term: g.term,
+        examDate: g.examDate,
+        session: g.session,
+        class: g.class,
+        subjectsCount: count,
+        totalMark: g.totalMark,
+        gpa,
+        isFail: g.isFail,
+        subjects: g.subjects,
+      };
+    });
+
+    const sanitizedStudent = { ...student };
+    if (req.user.role === 'teacher') {
+      delete sanitizedStudent.fatherMonthlyIncome;
+      delete sanitizedStudent.motherMonthlyIncome;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        student: sanitizedStudent,
+        fees: canSeeFinance
+          ? {
+              ...feeTotals,
+              records: allFees,
+              payments: enrichedPayments,
+            }
+          : null,
+        attendance: {
+          thisMonth: {
+            ...thisMonthStats,
+            records: monthAttendance.map((r) => ({
+              _id: r._id,
+              date: r.date,
+              status: r.status,
+            })),
+          },
+          thisYear: thisYearStats,
+        },
+        results: groupedResults,
+        guardian: {
+          accounts: guardianAccounts.map((g) => ({
+            _id: g._id,
+            name: g.name,
+            phone: g.phone,
+            status: g.status,
+            isLinked: Array.isArray(g.student_ids) && g.student_ids.some((id) => String(id) === String(studentId)),
+          })),
+        },
+        siblings,
+        counts: {
+          fees: allFees.length,
+          payments: totalPaymentsCount,
+          attendance: totalAttendanceCount,
+          results: totalResultsCount,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/students/:id/status — soft delete (deactivate) or reactivate student
+router.patch('/:id/status', requireRole('admin', 'staff'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, error: 'Invalid student id' });
+    }
+    const { status, reason } = req.body || {};
+    if (!status || !['active', 'inactive', 'left'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Status must be one of 'active', 'inactive', or 'left'",
+      });
+    }
+
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const existing = await Student.findOne({ _id: req.params.id, school_id: schoolId }).lean();
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    // Check student limit if reactivating an inactive/left student
+    if (status === 'active' && existing.status !== 'active') {
+      const limitCheck = await checkStudentLimit(req.schoolId, 1);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ success: false, error: limitCheck.error });
+      }
+    }
+
+    const update = {
+      status,
+      statusChangedAt: new Date(),
+    };
+    if (reason !== undefined) {
+      update.statusReason = reason ? String(reason).trim() : '';
+    }
+
+    const updated = await Student.findOneAndUpdate(
+      { _id: req.params.id, school_id: schoolId },
+      { $set: update },
+      { new: true, runValidators: true }
+    ).lean();
+
+    res.json({ success: true, data: updated });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -542,8 +847,6 @@ router.patch('/:id', requireRole('admin', 'staff'), async (req, res) => {
 });
 
 // POST /api/students/:id/guardian — create or link a guardian account for this student.
-// Uses the student's existing guardianPhone if no phone is provided. Idempotent: if a
-// guardian already exists for that phone in this school, it is just linked.
 router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -565,7 +868,6 @@ router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => 
       });
     }
 
-    // Check if a guardian already exists for this phone before counting against limit.
     const existing = await User.findOne({
       school_id: new mongoose.Types.ObjectId(req.schoolId),
       phone,
@@ -590,7 +892,6 @@ router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => 
 
     await linkStudent(result.user._id, student._id);
 
-    // If student.guardianPhone was empty, sync it for future use
     if (!student.guardianPhone && phone) {
       await Student.updateOne({ _id: student._id }, { $set: { guardianPhone: phone } });
     }
@@ -611,20 +912,68 @@ router.post('/:id/guardian', requireRole('admin', 'staff'), async (req, res) => 
   }
 });
 
-// DELETE /api/students/:id
-router.delete('/:id', requireRole('admin', 'staff'), async (req, res) => {
+// DELETE /api/students/:id — Permanent delete (admin-only, cascades related records)
+router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, error: 'Invalid student id' });
     }
-    const result = await Student.findOneAndDelete({
-      _id: req.params.id,
-      school_id: new mongoose.Types.ObjectId(req.schoolId),
-    });
-    if (!result) {
+    const schoolId = new mongoose.Types.ObjectId(req.schoolId);
+    const studentId = new mongoose.Types.ObjectId(req.params.id);
+
+    const student = await Student.findOne({ _id: studentId, school_id: schoolId }).lean();
+    if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    res.json({ success: true, data: { _id: req.params.id, deleted: true } });
+
+    const { confirmName } = req.body || {};
+    if (
+      confirmName !== undefined &&
+      String(confirmName).trim().toLowerCase() !== student.name.trim().toLowerCase()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Confirmation name does not match the student name.',
+      });
+    }
+
+    // 1. Find all fees belonging to this student
+    const studentFees = await Fee.find({ school_id: schoolId, student_id: studentId }, { _id: 1 }).lean();
+    const feeIds = studentFees.map((f) => f._id);
+
+    // 2. Cascade delete related records
+    const [paymentsDel, incomeDel, feesDel, attendanceDel, resultsDel] = await Promise.all([
+      feeIds.length > 0
+        ? FeePayment.deleteMany({ school_id: schoolId, fee_id: { $in: feeIds } })
+        : Promise.resolve({ deletedCount: 0 }),
+      feeIds.length > 0
+        ? Income.deleteMany({ school_id: schoolId, fee_id: { $in: feeIds } })
+        : Promise.resolve({ deletedCount: 0 }),
+      Fee.deleteMany({ school_id: schoolId, student_id: studentId }),
+      Attendance.deleteMany({ school_id: schoolId, student_id: studentId }),
+      ExamResult.deleteMany({ school_id: schoolId, student_id: studentId }),
+      User.updateMany(
+        { school_id: schoolId, student_ids: studentId },
+        { $pull: { student_ids: studentId } }
+      ),
+    ]);
+
+    await Student.deleteOne({ _id: studentId, school_id: schoolId });
+
+    res.json({
+      success: true,
+      data: {
+        _id: req.params.id,
+        deleted: true,
+        deletedCounts: {
+          fees: feesDel.deletedCount || 0,
+          payments: paymentsDel.deletedCount || 0,
+          income: incomeDel.deletedCount || 0,
+          attendance: attendanceDel.deletedCount || 0,
+          results: resultsDel.deletedCount || 0,
+        },
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

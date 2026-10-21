@@ -29,6 +29,7 @@ const examRoutes = require('./routes/exams');
 const gradingRoutes = require('./routes/grading');
 const resultsRoutes = require('./routes/results');
 const resultSettingsRoutes = require('./routes/resultSettings');
+const reportsRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -99,5 +100,6 @@ app.use('/api/exams', examRoutes);
 app.use('/api/grading', gradingRoutes);
 app.use('/api/results', resultsRoutes);
 app.use('/api/result-settings', resultSettingsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 module.exports = app;
