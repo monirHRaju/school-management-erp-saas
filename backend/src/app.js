@@ -33,11 +33,18 @@ const reportsRoutes = require('./routes/reports');
 
 const app = express();
 
+// Trust first proxy (e.g. Nginx reverse proxy on VPS) for accurate client IPs in express-rate-limit
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // In development, allow common dev origins so "Failed to fetch" from CORS is avoided
-const corsOrigin = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? false : true);
+const corsOrigin = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map((origin) => origin.trim())
+  : process.env.NODE_ENV === 'production'
+    ? false
+    : true;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 
